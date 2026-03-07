@@ -218,17 +218,17 @@ def delete_month_contributions(request):
 def contribution_summary(request):
     current_month = timezone.now().strftime('%Y-%m')
 
-    current_contribs = Contribution.objects.filter(month=current_month)
+    current_month_contributions = Contribution.objects.filter(month=current_month)
 
     total_members = Member.objects.filter(is_active=True).count()
-    paid_count = current_contribs.filter(status='paid').count()
-    unpaid_count = current_contribs.filter(status='unpaid').count()
+    paid_count = current_month_contributions.filter(status='paid').count()
+    unpaid_count = current_month_contributions.filter(status='unpaid').count()
 
     total_collected = Contribution.objects.filter(
         status='paid'
     ).aggregate(total=Sum('amount'))['total'] or 0
 
-    current_month_collected = current_contribs.filter(
+    current_month_collected = current_month_contributions.filter(
         status='paid'
     ).aggregate(total=Sum('amount'))['total'] or 0
 
@@ -241,7 +241,6 @@ def contribution_summary(request):
         'total_collected_all_time': float(total_collected),
         'current_month_collected': float(current_month_collected),
     })
-
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
