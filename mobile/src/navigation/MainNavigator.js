@@ -1,7 +1,3 @@
-/**
- * Main Tab Navigator
- * Bottom tab navigation with Groww-style modern styling
- */
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -9,20 +5,18 @@ import { View, Text, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONTS, RADIUS } from '../theme/colors';
 
-// Screens
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { InvestmentsScreen } from '../screens/InvestmentsScreen';
 import { AddStockScreen } from '../screens/AddStockScreen';
 import { MembersScreen } from '../screens/MembersScreen';
+import { ContributionsScreen } from '../screens/ContributionsScreen';
 import { DividendsScreen } from '../screens/DividendsScreen';
 import { AddDividendScreen } from '../screens/AddDividendScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
-import { ContributionsScreen } from '../screens/ContributionsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-// ── Tab Icon Component — clean SVG-style text icons ──
 const TabIcon = ({ name, label, focused }) => {
   const icons = {
     Dashboard: { active: '▣', inactive: '▢' },
@@ -31,31 +25,22 @@ const TabIcon = ({ name, label, focused }) => {
     Dividends: { active: '◆', inactive: '◇' },
     Profile: { active: '●', inactive: '◌' },
   };
-
   const icon = icons[name] || { active: '■', inactive: '□' };
-
   return (
     <View style={styles.tabIconContainer}>
       {focused && <View style={styles.activeGlow} />}
       <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
-        <Text style={[
-          styles.tabIcon,
-          focused ? styles.tabIconActive : styles.tabIconInactive,
-        ]}>
+        <Text style={[styles.tabIcon, focused ? styles.tabIconActive : styles.tabIconInactive]}>
           {focused ? icon.active : icon.inactive}
         </Text>
       </View>
-      <Text style={[
-        styles.tabLabel,
-        focused ? styles.tabLabelActive : styles.tabLabelInactive,
-      ]}>
+      <Text style={[styles.tabLabel, focused ? styles.tabLabelActive : styles.tabLabelInactive]}>
         {label}
       </Text>
     </View>
   );
 };
 
-// ── Stack Navigators for each tab ──
 const DashboardStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="DashboardHome" component={DashboardScreen} />
@@ -89,10 +74,8 @@ const ProfileStack = () => (
   </Stack.Navigator>
 );
 
-// ── Main Tab Navigator ──
 export const MainNavigator = () => {
   const insets = useSafeAreaInsets();
-
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -155,27 +138,10 @@ const styles = StyleSheet.create({
   iconWrapActive: {
     backgroundColor: 'rgba(0, 208, 156, 0.12)',
   },
-  tabIcon: {
-    fontSize: 18,
-    textAlign: 'center',
-  },
-  tabIconActive: {
-    color: COLORS.accent,
-  },
-  tabIconInactive: {
-    color: '#666666',
-  },
-  tabLabel: {
-    fontSize: 10,
-    marginTop: 2,
-    fontWeight: '500',
-    letterSpacing: 0.2,
-  },
-  tabLabelActive: {
-    color: COLORS.accent,
-    fontWeight: '700',
-  },
-  tabLabelInactive: {
-    color: '#666666',
-  },
+  tabIcon: { fontSize: 18, textAlign: 'center' },
+  tabIconActive: { color: COLORS.accent },
+  tabIconInactive: { color: '#666666' },
+  tabLabel: { fontSize: 10, marginTop: 2, fontWeight: '500', letterSpacing: 0.2 },
+  tabLabelActive: { color: COLORS.accent, fontWeight: '700' },
+  tabLabelInactive: { color: '#666666' },
 });

@@ -20,7 +20,7 @@ import { COLORS, SPACING, FONTS, RADIUS } from '../theme/colors';
 import { GlassCard } from '../components/GlassCard';
 import { ScreenHeader } from '../components/ScreenHeader';
 
-const MONTHS = [
+const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
@@ -62,7 +62,7 @@ export const ContributionsScreen = ({ route, navigation }) => {
       const data = Array.isArray(response.data) ? response.data : response.data.results || [];
       setContributions(data);
     } catch (error) {
-      console.error('Error fetching contributions:', error);
+      console.error('Error fetching contributions:', error?.response?.data || error.message);
     }
   }, [memberId, selectedMonth]);
 
@@ -71,7 +71,7 @@ export const ContributionsScreen = ({ route, navigation }) => {
       const response = await api.get('/contributions/summary/');
       setSummary(response.data);
     } catch (error) {
-      console.error('Error fetching summary:', error);
+      console.error('Error fetching summary:', error?.response?.data || error.message);
     }
   }, []);
 
@@ -80,7 +80,7 @@ export const ContributionsScreen = ({ route, navigation }) => {
       const response = await api.get('/contributions/months/');
       setAvailableMonthsList(response.data);
     } catch (error) {
-      console.error('Error fetching months:', error);
+      console.error('Error fetching months:', error?.response?.data || error.message);
     }
   }, []);
 
@@ -100,11 +100,11 @@ export const ContributionsScreen = ({ route, navigation }) => {
   }, [fetchContributions, fetchSummary, fetchAvailableMonths]);
 
   const handleGenerateContributions = async () => {
-    const monthDate = generateYear + '-' + String(generateMonthIndex + 1).padStart(2, '0') + '-01';
-    const monthName = MONTHS[generateMonthIndex] + ' ' + generateYear;
+    const monthDate = generateYear + '-' + String(generateMonthIndex + 1).padStart(2, '0');
+    const displayName = MONTH_NAMES[generateMonthIndex] + ' ' + generateYear;
     Alert.alert(
       'Generate Contributions',
-      'Create Rs.' + generateAmount + ' contribution for all active members for ' + monthName + '?',
+      'Create Rs.' + generateAmount + ' contribution for all active members for ' + displayName + '?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -120,7 +120,8 @@ export const ContributionsScreen = ({ route, navigation }) => {
               Toast.show({ type: 'success', text1: 'Generated', text2: response.data.message });
               await Promise.all([fetchContributions(), fetchSummary(), fetchAvailableMonths()]);
             } catch (error) {
-              Toast.show({ type: 'error', text1: 'Error', text2: error.response?.data?.error || 'Failed' });
+              const msg = error.response?.data?.error || error.response?.data?.detail || 'Failed to generate';
+              Toast.show({ type: 'error', text1: 'Error', text2: msg });
             } finally { setGenerating(false); }
           },
         },
@@ -163,7 +164,7 @@ export const ContributionsScreen = ({ route, navigation }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              const response = await api.post('/contributions/delete-month/', { month });
+              const response = await api.post('/contributions/delete-month/', { month: month });
               Toast.show({ type: 'success', text1: 'Deleted', text2: response.data.message });
               setSelectedMonth(null);
               await Promise.all([fetchContributions(), fetchSummary(), fetchAvailableMonths()]);
@@ -180,9 +181,10 @@ export const ContributionsScreen = ({ route, navigation }) => {
     try {
       await api.post('/contributions/' + id + '/mark_paid/');
       Toast.show({ type: 'success', text1: 'Marked as Paid' });
-      await Promise.all([fetchContributions(), fetchSummary()]);
+      await Promise.all([fetchContributions(), fetchSummary(), fetchAvailableMonths()]);
     } catch (error) {
-      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to update' });
+      const msg = error.response?.data?.error || error.response?.data?.detail || 'Failed to update';
+      Toast.show({ type: 'error', text1: 'Error', text2: msg });
     }
   };
 
@@ -190,9 +192,10 @@ export const ContributionsScreen = ({ route, navigation }) => {
     try {
       await api.post('/contributions/' + id + '/mark_unpaid/');
       Toast.show({ type: 'success', text1: 'Marked as Unpaid' });
-      await Promise.all([fetchContributions(), fetchSummary()]);
+      await Promise.all([fetchContributions(), fetchSummary(), fetchAvailableMonths()]);
     } catch (error) {
-      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to update' });
+      const msg = error.response?.data?.error || error.response?.data?.detail || 'Failed to update';
+      Toast.show({ type: 'error', text1: 'Error', text2: msg });
     }
   };
 
@@ -211,24 +214,33 @@ export const ContributionsScreen = ({ route, navigation }) => {
       Toast.show({ type: 'success', text1: 'Amount Updated' });
       setShowEditModal(false);
       setEditingContribution(null);
-      await Promise.all([fetchContributions(), fetchSummary()]);
+      await Promise.all([fetchContributions(), fetchSummary(), fetchAvailableMonths()]);
     } catch (error) {
-      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to update amount' });
+      const msg = error.response?.data?.error || error.response?.data?.detail || 'Failed to update amount';
+      Toast.show({ type: 'error', text1: 'Error', text2: msg });
     }
   };
 
-  const formatMonth = (dateStr) => {
+  const formatMonth = (monthStr) => {
+    if (!monthStr) return '';
     try {
-      const date = new Date(dateStr + 'T00:00:00');
-      return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-    } catch { return dateStr; }
+      const parts = String(monthStr).split('-');
+      const year = parts[0];
+      const monthIndex = parseInt(parts[1], 10) - 1;
+      if (monthIndex >= 0 && monthIndex < 12) {
+        return MONTH_NAMES[monthIndex] + ' ' + year;
+      }
+      return monthStr;
+    } catch (e) {
+      return monthStr;
+    }
   };
 
   const formatCurrency = (amount) => {
     const num = parseFloat(amount) || 0;
     if (num >= 100000) return 'Rs.' + (num / 100000).toFixed(1) + 'L';
     if (num >= 1000) return 'Rs.' + (num / 1000).toFixed(1) + 'K';
-    return 'Rs.' + num.toLocaleString('en-IN');
+    return 'Rs.' + num.toFixed(0);
   };
 
   const groupedContributions = contributions.reduce((groups, contrib) => {
@@ -238,7 +250,7 @@ export const ContributionsScreen = ({ route, navigation }) => {
     return groups;
   }, {});
 
-  const sortedMonths = Object.keys(groupedContributions).sort((a, b) => new Date(b) - new Date(a));
+  const sortedMonths = Object.keys(groupedContributions).sort((a, b) => b.localeCompare(a));
 
   if (loading) {
     return (
@@ -255,6 +267,7 @@ export const ContributionsScreen = ({ route, navigation }) => {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <ScreenHeader
         title={memberName ? memberName + "'s Contributions" : 'Contributions'}
+        showBack={!!memberName}
         onBack={memberName ? () => navigation.goBack() : undefined}
       />
       <ScrollView
@@ -278,7 +291,7 @@ export const ContributionsScreen = ({ route, navigation }) => {
               <View style={styles.summaryDivider} />
               <View style={styles.summaryItem}>
                 <Text style={styles.summaryLabel}>This Month</Text>
-                <Text style={styles.summaryValue}>{formatCurrency(summary.current_month_collected)}</Text>
+                <Text style={[styles.summaryValue, { color: COLORS.accent }]}>{formatCurrency(summary.current_month_collected)}</Text>
               </View>
             </View>
             <View style={styles.totalRow}>
@@ -360,7 +373,7 @@ export const ContributionsScreen = ({ route, navigation }) => {
                     <View style={styles.contributionRight}>
                       <Text style={[styles.statusBadge, {
                         color: contrib.status === 'paid' ? COLORS.profit : COLORS.loss,
-                        backgroundColor: contrib.status === 'paid' ? 'rgba(0,208,156,0.15)' : 'rgba(255,68,68,0.15)',
+                        backgroundColor: contrib.status === 'paid' ? COLORS.profitBg : COLORS.lossBg,
                       }]}>{contrib.status === 'paid' ? 'PAID' : 'UNPAID'}</Text>
                       {isAdmin && (
                         <View style={styles.actionButtons}>
@@ -390,16 +403,16 @@ export const ContributionsScreen = ({ route, navigation }) => {
             <Text style={styles.modalLabel}>Year</Text>
             <View style={styles.yearSelector}>
               <TouchableOpacity style={styles.yearButton} onPress={() => setGenerateYear(String(parseInt(generateYear) - 1))}>
-                <Ionicons name="chevron-back" size={20} color={COLORS.text} />
+                <Ionicons name="chevron-back" size={20} color={COLORS.textPrimary} />
               </TouchableOpacity>
               <Text style={styles.yearText}>{generateYear}</Text>
               <TouchableOpacity style={styles.yearButton} onPress={() => setGenerateYear(String(parseInt(generateYear) + 1))}>
-                <Ionicons name="chevron-forward" size={20} color={COLORS.text} />
+                <Ionicons name="chevron-forward" size={20} color={COLORS.textPrimary} />
               </TouchableOpacity>
             </View>
             <Text style={styles.modalLabel}>Month</Text>
             <View style={styles.monthGrid}>
-              {MONTHS.map((m, index) => (
+              {MONTH_NAMES.map((m, index) => (
                 <TouchableOpacity key={m} style={[styles.monthGridItem, generateMonthIndex === index && styles.monthGridItemActive]} onPress={() => setGenerateMonthIndex(index)}>
                   <Text style={[styles.monthGridText, generateMonthIndex === index && styles.monthGridTextActive]}>{m.substring(0, 3)}</Text>
                 </TouchableOpacity>
@@ -450,19 +463,19 @@ const styles = StyleSheet.create({
   scrollView: { flex: 1, paddingHorizontal: SPACING.md },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   summaryCard: { marginTop: SPACING.md, padding: SPACING.lg },
-  summaryTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: SPACING.md, textAlign: 'center' },
+  summaryTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary, marginBottom: SPACING.md, textAlign: 'center' },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
   summaryItem: { alignItems: 'center', flex: 1 },
   summaryLabel: { fontSize: 12, color: COLORS.textSecondary, marginBottom: 4 },
-  summaryValue: { fontSize: 20, fontWeight: '700', color: COLORS.text },
-  summaryDivider: { width: 1, height: 40, backgroundColor: '#333' },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: SPACING.md, paddingTop: SPACING.md, borderTopWidth: 1, borderTopColor: '#333' },
+  summaryValue: { fontSize: 20, fontWeight: '700', color: COLORS.textPrimary },
+  summaryDivider: { width: 1, height: 40, backgroundColor: COLORS.border },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: SPACING.md, paddingTop: SPACING.md, borderTopWidth: 1, borderTopColor: COLORS.border },
   totalLabel: { fontSize: 13, color: COLORS.textSecondary },
   totalValue: { fontSize: 18, fontWeight: '700', color: COLORS.accent },
   monthFilterContainer: { marginTop: SPACING.md },
   filterLabel: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary, marginBottom: SPACING.sm },
   monthScroll: { flexDirection: 'row' },
-  monthChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#1E1E1E', marginRight: 8, borderWidth: 1, borderColor: '#333', flexDirection: 'row', alignItems: 'center', gap: 6 },
+  monthChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: COLORS.cardBg, marginRight: 8, borderWidth: 1, borderColor: COLORS.border, flexDirection: 'row', alignItems: 'center', gap: 6 },
   monthChipActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
   monthChipText: { fontSize: 13, color: COLORS.textSecondary, fontWeight: '600' },
   monthChipTextActive: { color: '#FFF' },
@@ -470,8 +483,8 @@ const styles = StyleSheet.create({
   monthChipBadgeText: { fontSize: 10, color: '#FFF', fontWeight: '700' },
   adminActions: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.md },
   adminButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: RADIUS.md, gap: 6 },
-  generateButton: { backgroundColor: COLORS.accent || '#00D09C' },
-  cleanupButton: { backgroundColor: COLORS.loss || '#FF4444' },
+  generateButton: { backgroundColor: COLORS.accent },
+  cleanupButton: { backgroundColor: COLORS.loss },
   adminButtonText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
   deleteMonthButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: SPACING.sm, paddingVertical: 10, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.loss },
   deleteMonthText: { fontSize: 13, color: COLORS.loss, fontWeight: '600' },
@@ -483,7 +496,7 @@ const styles = StyleSheet.create({
   contributionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   contributionLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   statusDot: { width: 10, height: 10, borderRadius: 5 },
-  memberName: { fontSize: 15, fontWeight: '600', color: COLORS.text },
+  memberName: { fontSize: 15, fontWeight: '600', color: COLORS.textPrimary },
   contributionAmount: { fontSize: 13, color: COLORS.textSecondary, marginTop: 2 },
   contributionRight: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   statusBadge: { fontSize: 11, fontWeight: '800', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, overflow: 'hidden', letterSpacing: 0.5 },
@@ -492,23 +505,23 @@ const styles = StyleSheet.create({
   paidDate: { fontSize: 11, color: COLORS.textSecondary, marginTop: 6, marginLeft: 22 },
   emptyCard: { marginTop: SPACING.xl, padding: SPACING.xl, alignItems: 'center', gap: SPACING.sm },
   emptyText: { fontSize: 16, color: COLORS.textSecondary, fontWeight: '600' },
-  emptySubtext: { fontSize: 13, color: '#555', textAlign: 'center' },
+  emptySubtext: { fontSize: 13, color: COLORS.textMuted, textAlign: 'center' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: SPACING.lg },
-  modalContent: { backgroundColor: '#1E1E1E', borderRadius: RADIUS.lg, padding: SPACING.lg, width: '100%', maxWidth: 400, borderWidth: 1, borderColor: '#333' },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: COLORS.text, textAlign: 'center' },
+  modalContent: { backgroundColor: COLORS.cardBg, borderRadius: RADIUS.lg, padding: SPACING.lg, width: '100%', maxWidth: 400, borderWidth: 1, borderColor: COLORS.border },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary, textAlign: 'center' },
   modalSubtitle: { fontSize: 13, color: COLORS.textSecondary, textAlign: 'center', marginTop: 4, marginBottom: SPACING.md },
   modalLabel: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary, marginTop: SPACING.md, marginBottom: SPACING.sm },
-  modalInput: { backgroundColor: '#2A2A2A', borderRadius: RADIUS.md, padding: 12, color: COLORS.text, fontSize: 16, fontWeight: '700', borderWidth: 1, borderColor: '#444', textAlign: 'center' },
+  modalInput: { backgroundColor: COLORS.surface, borderRadius: RADIUS.md, padding: 12, color: COLORS.textPrimary, fontSize: 16, fontWeight: '700', borderWidth: 1, borderColor: COLORS.borderLight, textAlign: 'center' },
   yearSelector: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.lg },
-  yearButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#2A2A2A', justifyContent: 'center', alignItems: 'center' },
-  yearText: { fontSize: 20, fontWeight: '800', color: COLORS.text },
+  yearButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.surface, justifyContent: 'center', alignItems: 'center' },
+  yearText: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary },
   monthGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  monthGridItem: { width: '23%', paddingVertical: 10, borderRadius: RADIUS.md, backgroundColor: '#2A2A2A', alignItems: 'center', borderWidth: 1, borderColor: '#444' },
+  monthGridItem: { width: '23%', paddingVertical: 10, borderRadius: RADIUS.md, backgroundColor: COLORS.surface, alignItems: 'center', borderWidth: 1, borderColor: COLORS.borderLight },
   monthGridItemActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
   monthGridText: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
   monthGridTextActive: { color: '#FFF', fontWeight: '800' },
   modalActions: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.lg },
-  modalCancel: { flex: 1, paddingVertical: 14, borderRadius: RADIUS.md, backgroundColor: '#2A2A2A', alignItems: 'center' },
+  modalCancel: { flex: 1, paddingVertical: 14, borderRadius: RADIUS.md, backgroundColor: COLORS.surface, alignItems: 'center' },
   modalCancelText: { color: COLORS.textSecondary, fontSize: 15, fontWeight: '700' },
   modalConfirm: { flex: 1, paddingVertical: 14, borderRadius: RADIUS.md, backgroundColor: COLORS.accent, alignItems: 'center' },
   modalConfirmText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
