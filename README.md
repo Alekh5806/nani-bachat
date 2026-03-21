@@ -346,4 +346,4 @@ After running `python manage.py seed_data`:
 
 ---
 
-Built with ❤️ by PoolVest Team
+Built with ❤️ by Alekh
