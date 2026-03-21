@@ -52,18 +52,31 @@ export const useAuthStore = create((set, get) => {
     },
 
     // ── Login ──
-    login: async (phone, password,rememberMe = true) => {
+ // ── Login ──
+    login: async (phone, password, rememberMe = true) => {
       set({ isLoading: true, error: null });
       try {
         const response = await api.post('/auth/login/', { phone, password });
         const { access, refresh, member } = response.data;
 
        if (rememberMe) {
+        // Save session tokens
         await AsyncStorage.setItem('access_token', access);
         await AsyncStorage.setItem('refresh_token', refresh);
         await AsyncStorage.setItem('user', JSON.stringify(member));
+        
+        // NEW: Save the actual text for the UI to fill in later
+        await AsyncStorage.setItem('saved_phone', phone);
+        await AsyncStorage.setItem('saved_password', password); 
        } else {
-        await AsyncStorage.multiRemove(['access_token', 'refresh_token', 'user']);
+        // Clear everything if they don't want to be remembered
+        await AsyncStorage.multiRemove([
+            'access_token', 
+            'refresh_token', 
+            'user',
+            'saved_phone',    // NEW: Clear saved phone
+            'saved_password'  // NEW: Clear saved password
+        ]);
        }
         set({
           token: access,

@@ -1,8 +1,4 @@
-/**
- * Login Screen
- * Premium fintech login with gradient background
- */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, KeyboardAvoidingView,
   Platform, ScrollView
@@ -11,6 +7,7 @@ import Checkbox from 'expo-checkbox';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useAuthStore } from '../store/authStore';
 import { PremiumInput } from '../components/PremiumInput';
@@ -22,7 +19,29 @@ export const LoginScreen = () => {
   const { login, isLoading, error } = useAuthStore();
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(true); // default: checked
+  
+  // Default to false, let storage dictate if it should be checked
+  const [rememberMe, setRememberMe] = useState(false); 
+
+  // Fetch credentials when screen mounts
+  useEffect(() => {
+    const fetchSavedCredentials = async () => {
+      try {
+        const savedPhone = await AsyncStorage.getItem('saved_phone');
+        const savedPassword = await AsyncStorage.getItem('saved_password');
+        
+        if (savedPhone && savedPassword) {
+          setPhone(savedPhone);
+          setPassword(savedPassword);
+          setRememberMe(true); // Check the box automatically
+        }
+      } catch (e) {
+        console.log("Failed to load credentials", e);
+      }
+    };
+    
+    fetchSavedCredentials();
+  }, []);
 
   const handleLogin = async () => {
     if (!phone.trim() || !password.trim()) {
@@ -30,7 +49,9 @@ export const LoginScreen = () => {
       return;
     }
 
+    // Pass the rememberMe state to the store
     const result = await login(phone.trim(), password, rememberMe);
+    
     if (result.success) {
       Toast.show({ type: 'success', text1: 'Welcome!', text2: 'Logged in successfully' });
     } else {
@@ -96,17 +117,16 @@ export const LoginScreen = () => {
               />
 
               {/* Remember Me Checkbox */}
-              <View style={{ flexDirection: 'row',    alignItems: 'center', marginVertical: 10 }}>
-                <CheckBox
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 10 }}>
+                <Checkbox
                   value={rememberMe}
                   onValueChange={setRememberMe}
-                  tintColors={{ true: COLORS.accent, false: COLORS.textMuted }}
+                  color={rememberMe ? COLORS.accent : COLORS.textMuted}
                 />
                 <Text style={{ marginLeft: 8, color: COLORS.textSecondary, fontSize: FONTS.sm }}>
                   Remember Me
                 </Text>
               </View>
-
 
               {error && (
                 <View style={styles.errorContainer}>
