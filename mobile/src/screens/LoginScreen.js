@@ -7,6 +7,7 @@ import {
   View, Text, StyleSheet, KeyboardAvoidingView,
   Platform, ScrollView
 } from 'react-native';
+import CheckBox from '@react-native-community/checkbox'; // or any checkbox you use
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
@@ -21,6 +22,7 @@ export const LoginScreen = () => {
   const { login, isLoading, error } = useAuthStore();
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(true); // default: checked
 
   const handleLogin = async () => {
     if (!phone.trim() || !password.trim()) {
@@ -28,7 +30,7 @@ export const LoginScreen = () => {
       return;
     }
 
-    const result = await login(phone.trim(), password);
+    const result = await login(phone.trim(), password, rememberMe);
     if (result.success) {
       Toast.show({ type: 'success', text1: 'Welcome!', text2: 'Logged in successfully' });
     } else {
@@ -92,6 +94,19 @@ export const LoginScreen = () => {
                 secureTextEntry
                 icon="🔒"
               />
+
+              {/* Remember Me Checkbox */}
+              <View style={{ flexDirection: 'row',    alignItems: 'center', marginVertical: 10 }}>
+                <CheckBox
+                  value={rememberMe}
+                  onValueChange={setRememberMe}
+                  tintColors={{ true: COLORS.accent, false: COLORS.textMuted }}
+                />
+                <Text style={{ marginLeft: 8, color: COLORS.textSecondary, fontSize: FONTS.sm }}>
+                  Remember Me
+                </Text>
+              </View>
+
 
               {error && (
                 <View style={styles.errorContainer}>

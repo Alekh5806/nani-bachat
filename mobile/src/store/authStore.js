@@ -52,17 +52,19 @@ export const useAuthStore = create((set, get) => {
     },
 
     // ── Login ──
-    login: async (phone, password) => {
+    login: async (phone, password,rememberMe = true) => {
       set({ isLoading: true, error: null });
       try {
         const response = await api.post('/auth/login/', { phone, password });
         const { access, refresh, member } = response.data;
 
-        // Persist tokens
+       if (rememberMe) {
         await AsyncStorage.setItem('access_token', access);
         await AsyncStorage.setItem('refresh_token', refresh);
         await AsyncStorage.setItem('user', JSON.stringify(member));
-
+       } else {
+        await AsyncStorage.multiRemove(['access_token', 'refresh_token', 'user']);
+       }
         set({
           token: access,
           refreshToken: refresh,
@@ -118,3 +120,4 @@ export const useAuthStore = create((set, get) => {
     },
   };
 });
+
