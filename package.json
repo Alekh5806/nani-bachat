@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@react-native-community/checkbox": "^0.5.20",
+    "expo-checkbox": "^55.0.3"
+  }
+}

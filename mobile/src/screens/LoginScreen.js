@@ -7,7 +7,7 @@ import {
   View, Text, StyleSheet, KeyboardAvoidingView,
   Platform, ScrollView
 } from 'react-native';
-import CheckBox from '@react-native-community/checkbox'; // or any checkbox you use
+import Checkbox from 'expo-checkbox';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
