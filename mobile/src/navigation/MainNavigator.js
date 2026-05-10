@@ -2,8 +2,9 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, Text, StyleSheet, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, FONTS, RADIUS } from '../theme/colors';
+import { COLORS } from '../theme/colors';
 
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { InvestmentsScreen } from '../screens/InvestmentsScreen';
@@ -19,22 +20,31 @@ const Stack = createNativeStackNavigator();
 
 const TabIcon = ({ name, label, focused }) => {
   const icons = {
-    Dashboard: { active: '▣', inactive: '▢' },
-    Investments: { active: '◉', inactive: '○' },
-    Members: { active: '⬟', inactive: '⬡' },
-    Dividends: { active: '◆', inactive: '◇' },
-    Profile: { active: '●', inactive: '◌' },
+    Dashboard: { active: 'stats-chart', inactive: 'stats-chart-outline' },
+    Investments: { active: 'trending-up', inactive: 'trending-up-outline' },
+    Members: { active: 'people', inactive: 'people-outline' },
+    Dividends: { active: 'cash', inactive: 'cash-outline' },
+    Profile: { active: 'person-circle', inactive: 'person-circle-outline' },
   };
-  const icon = icons[name] || { active: '■', inactive: '□' };
+  const icon = icons[name] || { active: 'ellipse', inactive: 'ellipse-outline' };
+  const color = focused ? COLORS.tabBarActive : COLORS.tabBarInactive;
+
   return (
     <View style={styles.tabIconContainer}>
       {focused && <View style={styles.activeGlow} />}
       <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
-        <Text style={[styles.tabIcon, focused ? styles.tabIconActive : styles.tabIconInactive]}>
-          {focused ? icon.active : icon.inactive}
-        </Text>
+        <Ionicons
+          name={focused ? icon.active : icon.inactive}
+          size={22}
+          color={color}
+        />
       </View>
-      <Text style={[styles.tabLabel, focused ? styles.tabLabelActive : styles.tabLabelInactive]}>
+      <Text
+        style={[styles.tabLabel, focused ? styles.tabLabelActive : styles.tabLabelInactive]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.8}
+      >
         {label}
       </Text>
     </View>
@@ -84,10 +94,11 @@ export const MainNavigator = () => {
           <TabIcon name={route.name} label={route.name} focused={focused} />
         ),
         tabBarShowLabel: false,
+        tabBarItemStyle: styles.tabBarItem,
         tabBarStyle: [
           styles.tabBar,
           {
-            height: Platform.OS === 'android' ? 60 + Math.max(insets.bottom, 10) : 60 + insets.bottom,
+            height: Platform.OS === 'android' ? 64 + Math.max(insets.bottom, 10) : 64 + insets.bottom,
             paddingBottom: Platform.OS === 'android' ? Math.max(insets.bottom, 10) : insets.bottom,
           },
         ],
@@ -111,37 +122,46 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
-    paddingTop: 6,
+    paddingTop: 7,
+  },
+  tabBarItem: {
+    flex: 1,
+    minWidth: 0,
   },
   tabIconContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 60,
+    width: 58,
+    minHeight: 52,
     position: 'relative',
   },
   activeGlow: {
     position: 'absolute',
-    top: -6,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    top: -3,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: COLORS.accent,
-    opacity: 0.08,
+    opacity: 0.1,
   },
   iconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     justifyContent: 'center',
     alignItems: 'center',
   },
   iconWrapActive: {
     backgroundColor: 'rgba(0, 208, 156, 0.12)',
   },
-  tabIcon: { fontSize: 18, textAlign: 'center' },
-  tabIconActive: { color: COLORS.accent },
-  tabIconInactive: { color: '#666666' },
-  tabLabel: { fontSize: 10, marginTop: 2, fontWeight: '500', letterSpacing: 0.2 },
+  tabLabel: {
+    width: 58,
+    fontSize: 10,
+    lineHeight: 12,
+    marginTop: 1,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   tabLabelActive: { color: COLORS.accent, fontWeight: '700' },
-  tabLabelInactive: { color: '#666666' },
+  tabLabelInactive: { color: COLORS.tabBarInactive },
 });
