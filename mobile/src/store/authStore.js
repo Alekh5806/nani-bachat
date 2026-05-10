@@ -34,15 +34,8 @@ export const useAuthStore = create((set, get) => {
           const user = JSON.parse(userStr);
           set({ token, refreshToken: refresh, user, isLoading: false });
 
-          // Silently validate the token in the background
-          // If it's expired, the interceptor will auto-refresh it
-          try {
-            const res = await api.get('/portfolio/dashboard/');
-            // Token is valid, user stays logged in
-          } catch (e) {
-            // If both access+refresh are expired, interceptor clears tokens
-            // and calls logoutCallback — user will see login screen
-          }
+          // Validate in the background so cold starts never block the UI.
+          api.get('/portfolio/dashboard/').catch(() => {});
         } else {
           set({ isLoading: false });
         }
@@ -133,4 +126,3 @@ export const useAuthStore = create((set, get) => {
     },
   };
 });
-
