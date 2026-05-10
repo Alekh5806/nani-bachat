@@ -10,18 +10,14 @@ import { Platform } from 'react-native';
 const DEV_MACHINE_IP = '192.168.0.27'; // Your Mac's LAN IP (for local dev)
 
 // Production backend URL (Render)
-const PRODUCTION_URL = 'https://nanibachat-api.onrender.com/api';
+const PRODUCTION_URL = 'https://poolvest-api-singapore.onrender.com/api';
 
 const getBaseURL = () => {
   if (__DEV__) {
-    // 1. If you are coding and testing in Expo Go, it uses your Mac's local server.
-    // (Note: If you want Expo Go to look at Render instead, you can temporarily change this to return PRODUCTION_URL)
-    return `http://${DEV_MACHINE_IP}:8000/api`; 
+    return PRODUCTION_URL;
   }
-  
-  // 2. When you run the EAS Build command to create your final APK, 
-  // it automatically ignores the local IP and locks into your live Render server!
-  return PRODUCTION_URL; 
+
+  return PRODUCTION_URL;
 };
 
 const api = axios.create({
