@@ -11,8 +11,7 @@ import dj_database_url
 # ──────────────────────────────────────────────
 # BASE DIRECTORY
 # ──────────────────────────────────────────────
-BASE_DIR = Path(__file__).resolve().parent.parentgit 
-
+BASE_DIR = Path(__file__).resolve().parent.parent
 # ──────────────────────────────────────────────
 # SECURITY
 # ──────────────────────────────────────────────
