@@ -10,7 +10,7 @@ import { Platform } from 'react-native';
 const DEV_MACHINE_IP = '192.168.0.27'; // Your Mac's LAN IP (for local dev)
 
 // Production backend URL (Render)
-const PRODUCTION_URL = 'https://poolvest-api-singapore.onrender.com/api';
+const PRODUCTION_URL = 'https://nani-bachat.onrender.com/api';
 
 const getBaseURL = () => {
   if (__DEV__) {
