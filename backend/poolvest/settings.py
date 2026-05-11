@@ -84,6 +84,7 @@ DATABASE_URL = config('DATABASE_URL', default=f'sqlite:///{BASE_DIR / "db.sqlite
 DATABASES = {
     'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
 }
+DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = True
 
 # ──────────────────────────────────────────────
 # AUTH
