@@ -19,10 +19,30 @@ class StockPriceService:
     """Service to fetch and cache stock prices from Yahoo Finance."""
 
     @staticmethod
+    def _fast_info_value(fast_info, key: str, default=0):
+        """Read yfinance fast_info values across object/dict implementations."""
+        try:
+            value = getattr(fast_info, key)
+        except Exception:
+            try:
+                value = fast_info.get(key, default)
+            except Exception:
+                value = default
+
+        return value if value is not None else default
+
+    @staticmethod
+    def _to_float(value, default=0) -> float:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+
+    @staticmethod
     def get_stock_price(symbol: str) -> dict:
         """
         Fetch current stock price for a given symbol.
-        Results are cached for 5 minutes.
+        Results are cached briefly.
         """
         cache_key = f'stock_price_{symbol}'
         cached = cache.get(cache_key)
@@ -32,16 +52,43 @@ class StockPriceService:
         try:
             import yfinance as yf
             ticker = yf.Ticker(symbol)
-            info = ticker.info
-            day_change_pct = info.get('regularMarketChangePercent', 0)
+
+            fast_info = ticker.fast_info
+            current_price = StockPriceService._to_float(
+                StockPriceService._fast_info_value(fast_info, 'last_price')
+            )
+            previous_close = StockPriceService._to_float(
+                StockPriceService._fast_info_value(fast_info, 'previous_close')
+            )
+
+            if current_price <= 0:
+                hist = ticker.history(period='5d')
+                if not hist.empty:
+                    current_price = StockPriceService._to_float(hist['Close'].iloc[-1])
+                    if len(hist) > 1:
+                        previous_close = StockPriceService._to_float(hist['Close'].iloc[-2])
+
+            if current_price <= 0:
+                info = ticker.info
+                current_price = StockPriceService._to_float(
+                    info.get('currentPrice') or info.get('regularMarketPrice')
+                )
+                previous_close = StockPriceService._to_float(info.get('previousClose'))
+
+            if current_price <= 0:
+                logger.warning(f'No usable price returned for {symbol}')
+                return None
+
+            day_change = current_price - previous_close if previous_close > 0 else 0
+            day_change_pct = (day_change / previous_close * 100) if previous_close > 0 else 0
             price_data = {
                 'symbol': symbol,
-                'current_price': info.get('currentPrice') or info.get('regularMarketPrice', 0),
-                'previous_close': info.get('previousClose', 0),
-                'day_change': info.get('regularMarketChange', 0),
-                'day_change_pct': day_change_pct,
-                'day_change_percentage': day_change_pct,
-                'name': info.get('shortName', symbol),
+                'current_price': round(current_price, 2),
+                'previous_close': round(previous_close, 2),
+                'day_change': round(day_change, 2),
+                'day_change_pct': round(day_change_pct, 2),
+                'day_change_percentage': round(day_change_pct, 2),
+                'name': symbol,
             }
             cache.set(cache_key, price_data, PRICE_CACHE_TIMEOUT)
             return price_data
