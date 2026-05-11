@@ -4,13 +4,15 @@ Fetches real-time stock prices from Yahoo Finance.
 Supports NSE stocks with .NS suffix.
 """
 import logging
+from decimal import Decimal
 from django.core.cache import cache
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
-# Cache timeout: 5 minutes (300 seconds)
-PRICE_CACHE_TIMEOUT = 300
+# Cache live quotes briefly so the app can feel current without hammering Yahoo.
+PRICE_CACHE_TIMEOUT = 60
+HISTORY_CACHE_TIMEOUT = 1800
 
 
 class StockPriceService:
@@ -31,12 +33,14 @@ class StockPriceService:
             import yfinance as yf
             ticker = yf.Ticker(symbol)
             info = ticker.info
+            day_change_pct = info.get('regularMarketChangePercent', 0)
             price_data = {
                 'symbol': symbol,
                 'current_price': info.get('currentPrice') or info.get('regularMarketPrice', 0),
                 'previous_close': info.get('previousClose', 0),
                 'day_change': info.get('regularMarketChange', 0),
-                'day_change_pct': info.get('regularMarketChangePercent', 0),
+                'day_change_pct': day_change_pct,
+                'day_change_percentage': day_change_pct,
                 'name': info.get('shortName', symbol),
             }
             cache.set(cache_key, price_data, PRICE_CACHE_TIMEOUT)
@@ -44,6 +48,32 @@ class StockPriceService:
         except Exception as e:
             logger.error(f'Failed to fetch price for {symbol}: {e}')
             return None
+
+    @staticmethod
+    def refresh_active_stock_prices(symbols: list = None) -> int:
+        """
+        Refresh and persist latest prices for active holdings.
+        This is safe to call from API requests, so production does not depend
+        on a separate Celery Beat process for price updates.
+        """
+        from investments.models import Stock
+
+        active_stocks = Stock.objects.filter(is_sold=False)
+        if symbols is None:
+            symbols = list(active_stocks.values_list('symbol', flat=True).distinct())
+
+        updated = 0
+        for symbol in symbols:
+            price_data = StockPriceService.get_stock_price(symbol)
+            current_price = price_data.get('current_price') if price_data else None
+            if current_price and current_price > 0:
+                count = active_stocks.filter(symbol=symbol).update(
+                    current_price=Decimal(str(round(float(current_price), 2))),
+                    last_price_update=timezone.now()
+                )
+                updated += count
+
+        return updated
 
     @staticmethod
     def get_multiple_prices(symbols: list) -> dict:
@@ -69,7 +99,7 @@ class StockPriceService:
                 {'date': str(date.date()), 'close': round(row['Close'], 2)}
                 for date, row in hist.iterrows()
             ]
-            cache.set(cache_key, data, PRICE_CACHE_TIMEOUT * 6)  # Cache for 30 min
+            cache.set(cache_key, data, HISTORY_CACHE_TIMEOUT)
             return data
         except Exception as e:
             logger.error(f'Failed to fetch history for {symbol}: {e}')

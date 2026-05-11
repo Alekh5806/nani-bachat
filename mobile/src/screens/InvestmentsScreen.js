@@ -2,10 +2,11 @@
  * Investments Screen
  * Shows all stock holdings with summary and admin add functionality
  */
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl, Alert
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { usePortfolioStore } from '../store/portfolioStore';
 import { useAuthStore } from '../store/authStore';
@@ -16,21 +17,32 @@ import { SectionHeader } from '../components/SectionHeader';
 import { GlassCard } from '../components/GlassCard';
 import { COLORS, SPACING, FONTS } from '../theme/colors';
 
+const PRICE_REFRESH_INTERVAL_MS = 60000;
+
 export const InvestmentsScreen = ({ navigation }) => {
   const { user } = useAuthStore();
   const { stockSummary, fetchStockSummary, stocks, fetchStocks, deleteStock, refreshPrices } = usePortfolioStore();
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    fetchStockSummary();
-    fetchStocks();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      const loadPrices = () => {
+        fetchStockSummary();
+        fetchStocks();
+      };
+
+      loadPrices();
+      const intervalId = setInterval(loadPrices, PRICE_REFRESH_INTERVAL_MS);
+
+      return () => clearInterval(intervalId);
+    }, [fetchStockSummary, fetchStocks])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await Promise.all([fetchStockSummary(), fetchStocks()]);
     setRefreshing(false);
-  }, []);
+  }, [fetchStockSummary, fetchStocks]);
 
   const isAdmin = user?.role === 'admin';
 

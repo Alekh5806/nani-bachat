@@ -67,6 +67,7 @@ class StockSummaryView(generics.GenericAPIView):
         """Return consolidated view of all stocks grouped by symbol."""
         active_stocks = Stock.objects.filter(is_sold=False)
         symbols = active_stocks.values_list('symbol', flat=True).distinct()
+        StockPriceService.refresh_active_stock_prices(list(symbols))
 
         summary = []
         for symbol in symbols:
@@ -88,7 +89,11 @@ class StockSummaryView(generics.GenericAPIView):
                 price_data = StockPriceService.get_stock_price(symbol)
                 if price_data:
                     day_change = price_data.get('day_change', 0)
-                    day_change_pct = price_data.get('day_change_percentage', 0)
+                    day_change_pct = (
+                        price_data.get('day_change_percentage')
+                        or price_data.get('day_change_pct')
+                        or 0
+                    )
                     # Use live price if available
                     if price_data.get('current_price', 0) > 0:
                         current_price = price_data['current_price']

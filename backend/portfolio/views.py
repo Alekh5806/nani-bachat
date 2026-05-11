@@ -25,6 +25,8 @@ class DashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        StockPriceService.refresh_active_stock_prices()
+
         # Portfolio summary
         portfolio = PortfolioService.get_portfolio_summary()
 

@@ -7,14 +7,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 // ── Base URL Configuration ──
-const DEV_MACHINE_IP = '192.168.0.27'; // Your Mac's LAN IP (for local dev)
+const DEV_MACHINE_IP = '192.168.0.28'; // Your Mac's LAN IP (for local dev)
 
 // Production backend URL (Render)
 const PRODUCTION_URL = 'https://nani-bachat.onrender.com/api';
+const DEV_URL = process.env.EXPO_PUBLIC_API_URL || `http://${DEV_MACHINE_IP}:8000/api`;
 
 const getBaseURL = () => {
   if (__DEV__) {
-    return PRODUCTION_URL;
+    return DEV_URL;
   }
 
   return PRODUCTION_URL;

@@ -3,11 +3,12 @@
  * Clean, minimal, portfolio-first. No emojis in section titles.
  * Dark flat cards, bright green/red for P&L, simple list holdings.
  */
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl,
   Dimensions, Pressable, Platform
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { usePortfolioStore } from '../store/portfolioStore';
@@ -16,6 +17,7 @@ import { DashboardSkeleton } from '../components/LoadingSkeleton';
 import { COLORS, SPACING, FONTS, RADIUS, SHADOWS } from '../theme/colors';
 
 const { width: SCREEN_W } = Dimensions.get('window');
+const PRICE_REFRESH_INTERVAL_MS = 60000;
 
 // Currency helpers
 const fmtFull = (v) => {
@@ -41,16 +43,25 @@ export const DashboardScreen = () => {
   } = usePortfolioStore();
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    fetchDashboard();
-    fetchStockSummary();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      const loadPrices = () => {
+        fetchDashboard();
+        fetchStockSummary();
+      };
+
+      loadPrices();
+      const intervalId = setInterval(loadPrices, PRICE_REFRESH_INTERVAL_MS);
+
+      return () => clearInterval(intervalId);
+    }, [fetchDashboard, fetchStockSummary])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await Promise.all([fetchDashboard(), fetchStockSummary()]);
     setRefreshing(false);
-  }, []);
+  }, [fetchDashboard, fetchStockSummary]);
 
   const p = dashboard?.portfolio || {};
   const my = dashboard?.my_portfolio || {};

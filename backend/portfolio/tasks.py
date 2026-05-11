@@ -16,26 +16,11 @@ def update_all_stock_prices():
     Update current prices for all active stock holdings.
     Runs every 5 minutes via Celery Beat.
     """
-    from investments.models import Stock
     from portfolio.services import StockPriceService
 
-    active_stocks = Stock.objects.filter(is_sold=False)
-    symbols = list(active_stocks.values_list('symbol', flat=True).distinct())
-
-    if not symbols:
+    updated = StockPriceService.refresh_active_stock_prices()
+    if updated == 0:
         logger.info('No active stocks to update')
-        return 'No stocks to update'
-
-    prices = StockPriceService.get_multiple_prices(symbols)
-    updated = 0
-
-    for symbol, price_data in prices.items():
-        if price_data and price_data.get('current_price', 0) > 0:
-            count = active_stocks.filter(symbol=symbol).update(
-                current_price=price_data['current_price'],
-                last_price_update=timezone.now()
-            )
-            updated += count
 
     logger.info(f'Updated prices for {updated} stock entries')
     return f'Updated {updated} stock prices'
