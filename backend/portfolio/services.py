@@ -19,6 +19,27 @@ class StockPriceService:
     """Service to fetch and cache stock prices from Yahoo Finance."""
 
     @staticmethod
+    def _build_price_data(symbol: str, current_price, previous_close, name: str = None) -> dict:
+        current_price = StockPriceService._to_float(current_price)
+        previous_close = StockPriceService._to_float(previous_close)
+
+        if current_price <= 0:
+            return None
+
+        day_change = current_price - previous_close if previous_close > 0 else 0
+        day_change_pct = (day_change / previous_close * 100) if previous_close > 0 else 0
+
+        return {
+            'symbol': symbol,
+            'current_price': round(current_price, 2),
+            'previous_close': round(previous_close, 2),
+            'day_change': round(day_change, 2),
+            'day_change_pct': round(day_change_pct, 2),
+            'day_change_percentage': round(day_change_pct, 2),
+            'name': name or symbol,
+        }
+
+    @staticmethod
     def _fast_info_value(fast_info, key: str, default=0):
         """Read yfinance fast_info values across object/dict implementations."""
         try:
@@ -39,6 +60,43 @@ class StockPriceService:
             return default
 
     @staticmethod
+    def _get_yahoo_chart_price(symbol: str) -> dict:
+        """Fetch quote data from Yahoo's chart endpoint without yfinance wrappers."""
+        try:
+            import requests
+
+            response = requests.get(
+                f'https://query1.finance.yahoo.com/v8/finance/chart/{symbol}',
+                params={'range': '1d', 'interval': '1m'},
+                headers={'User-Agent': 'Mozilla/5.0'},
+                timeout=15,
+            )
+            response.raise_for_status()
+
+            payload = response.json()
+            result = (payload.get('chart', {}).get('result') or [None])[0]
+            if not result:
+                return None
+
+            meta = result.get('meta', {})
+            current_price = (
+                meta.get('regularMarketPrice')
+                or meta.get('postMarketPrice')
+                or meta.get('preMarketPrice')
+            )
+            previous_close = meta.get('previousClose') or meta.get('chartPreviousClose')
+
+            return StockPriceService._build_price_data(
+                symbol,
+                current_price,
+                previous_close,
+                meta.get('shortName') or meta.get('longName'),
+            )
+        except Exception as e:
+            logger.warning(f'Yahoo chart price fetch failed for {symbol}: {e}')
+            return None
+
+    @staticmethod
     def get_stock_price(symbol: str) -> dict:
         """
         Fetch current stock price for a given symbol.
@@ -48,6 +106,11 @@ class StockPriceService:
         cached = cache.get(cache_key)
         if cached:
             return cached
+
+        price_data = StockPriceService._get_yahoo_chart_price(symbol)
+        if price_data:
+            cache.set(cache_key, price_data, PRICE_CACHE_TIMEOUT)
+            return price_data
 
         try:
             import yfinance as yf
@@ -79,17 +142,11 @@ class StockPriceService:
                 logger.warning(f'No usable price returned for {symbol}')
                 return None
 
-            day_change = current_price - previous_close if previous_close > 0 else 0
-            day_change_pct = (day_change / previous_close * 100) if previous_close > 0 else 0
-            price_data = {
-                'symbol': symbol,
-                'current_price': round(current_price, 2),
-                'previous_close': round(previous_close, 2),
-                'day_change': round(day_change, 2),
-                'day_change_pct': round(day_change_pct, 2),
-                'day_change_percentage': round(day_change_pct, 2),
-                'name': symbol,
-            }
+            price_data = StockPriceService._build_price_data(
+                symbol,
+                current_price,
+                previous_close,
+            )
             cache.set(cache_key, price_data, PRICE_CACHE_TIMEOUT)
             return price_data
         except Exception as e:
