@@ -41,6 +41,8 @@ def admin_diagnostics(request):
             count = queryset.count()
             list_display = list(model_admin.get_list_display(admin_request))
             changelist_response = model_admin.changelist_view(admin_request)
+            if hasattr(changelist_response, 'render'):
+                changelist_response.render()
             checks[label] = {
                 'ok': True,
                 'count': count,
