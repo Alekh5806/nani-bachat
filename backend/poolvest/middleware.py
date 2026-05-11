@@ -14,9 +14,18 @@ class StaffAdminTracebackMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        return self.get_response(request)
+        try:
+            return self.get_response(request)
+        except Exception as exception:
+            response = self._trace_response(request, exception)
+            if response is not None:
+                return response
+            raise
 
     def process_exception(self, request, exception):
+        return self._trace_response(request, exception)
+
+    def _trace_response(self, request, exception):
         user = getattr(request, 'user', None)
         trace_requested = (
             request.GET.get('__trace') == '1'
