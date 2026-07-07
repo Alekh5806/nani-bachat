@@ -150,7 +150,7 @@ export const InvestmentsScreen = ({ navigation }) => {
         <SectionHeader title="All Holdings" icon="📊" />
         {(stockSummary?.stocks || []).map((stock, index) => (
           <StockRow
-            key={stock.symbol || index}
+            key={`${stock.symbol || 'stock'}-${index}`}
             stock={stock}
             onPress={isAdmin ? () => handleDeleteStock(stock) : undefined}
           />
@@ -163,7 +163,14 @@ export const InvestmentsScreen = ({ navigation }) => {
             {stocks.map((stock, index) => (
               <GlassCard key={stock.id || index} style={styles.txCard}>
                 <View style={styles.txHeader}>
-                  <Text style={styles.txName}>{stock.name}</Text>
+                  <View style={styles.txTitleBlock}>
+                    <Text style={styles.txName} numberOfLines={1} adjustsFontSizeToFit>
+                      {stock.name}
+                    </Text>
+                    <Text style={styles.txBuyer} numberOfLines={1}>
+                      Buyer: {stock.buyer_name || 'Not recorded'}
+                    </Text>
+                  </View>
                   <Text style={styles.txDate}>{stock.buy_date}</Text>
                 </View>
                 <View style={styles.txDetails}>
@@ -195,7 +202,7 @@ const styles = StyleSheet.create({
   },
   scrollView: { flex: 1 },
   scrollContent: {
-    paddingHorizontal: SPACING.xl,
+    paddingHorizontal: SPACING.lg,
     paddingBottom: SPACING.huge,
   },
   statsRow: {
@@ -205,7 +212,8 @@ const styles = StyleSheet.create({
   },
   halfCard: {
     flex: 1,
-    marginHorizontal: SPACING.xs,
+    minWidth: 0,
+    marginHorizontal: 4,
   },
   adminActions: {
     flexDirection: 'row',
@@ -224,16 +232,28 @@ const styles = StyleSheet.create({
   txHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: SPACING.sm,
+  },
+  txTitleBlock: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: SPACING.md,
   },
   txName: {
     fontSize: FONTS.md,
     fontWeight: '700',
     color: COLORS.textPrimary,
   },
+  txBuyer: {
+    fontSize: FONTS.xs,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
   txDate: {
     fontSize: FONTS.xs,
     color: COLORS.textMuted,
+    flexShrink: 0,
   },
   txDetails: {
     gap: 4,

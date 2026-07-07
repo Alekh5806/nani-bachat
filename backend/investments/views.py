@@ -38,6 +38,11 @@ class StockCreateView(generics.CreateAPIView):
     serializer_class = StockCreateSerializer
     permission_classes = [IsAdmin]
 
+    def perform_create(self, serializer):
+        stock = serializer.save()
+        from accounts.notifications import notify_stock_bought
+        notify_stock_bought(stock)
+
 
 class StockDetailView(generics.RetrieveAPIView):
     """Get details of a specific stock."""

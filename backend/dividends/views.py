@@ -25,6 +25,11 @@ class DividendCreateView(generics.CreateAPIView):
     serializer_class = DividendCreateSerializer
     permission_classes = [IsAdmin]
 
+    def perform_create(self, serializer):
+        dividend = serializer.save()
+        from accounts.notifications import notify_dividend_recorded
+        notify_dividend_recorded(dividend)
+
 
 class DividendDetailView(generics.RetrieveAPIView):
     """Get dividend details."""

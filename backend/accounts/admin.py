@@ -1,7 +1,7 @@
 """Admin configuration for accounts app."""
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import Member
+from .models import Member, PushToken
 
 
 @admin.register(Member)
@@ -23,3 +23,11 @@ class MemberAdmin(UserAdmin):
             'fields': ('phone', 'name', 'password1', 'password2', 'role'),
         }),
     )
+
+
+@admin.register(PushToken)
+class PushTokenAdmin(admin.ModelAdmin):
+    list_display = ['member', 'platform', 'is_active', 'updated_at']
+    list_filter = ['platform', 'is_active']
+    search_fields = ['member__name', 'member__phone', 'token']
+    readonly_fields = ['created_at', 'updated_at']

@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
+from django.db.models import Sum
 
 from .serializers import (
     MemberSerializer,
@@ -16,6 +17,7 @@ from .serializers import (
     MemberUpdateSerializer,
     CustomTokenObtainPairSerializer,
     ChangePasswordSerializer,
+    PushTokenSerializer,
 )
 from .permissions import IsAdmin
 
@@ -68,6 +70,51 @@ class MemberListView(generics.ListAPIView):
     queryset = Member.objects.filter(is_active=True)
     serializer_class = MemberSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        members = list(self.get_queryset())
+
+        from contributions.models import Contribution
+        from portfolio.services import PortfolioService
+
+        portfolio = PortfolioService.get_portfolio_summary()
+        active_count = len(members)
+        contribution_rows = (
+            Contribution.objects
+            .filter(status='paid', member__in=members)
+            .values('member_id')
+            .annotate(total=Sum('amount'))
+        )
+        contributions = {
+            row['member_id']: float(row['total'] or 0)
+            for row in contribution_rows
+        }
+        total_pool = sum(contributions.values())
+
+        member_portfolios = {}
+        for member in members:
+            contributed = contributions.get(member.id, 0)
+            ownership = (contributed / total_pool) if total_pool > 0 else 0
+
+            if ownership == 0 and active_count > 0:
+                ownership = 1.0 / active_count
+
+            current_value = round(portfolio['current_value'] * ownership, 2)
+            invested = contributed
+            if invested == 0 and ownership > 0:
+                invested = round(portfolio['total_invested'] * ownership, 2)
+
+            member_portfolios[member.id] = {
+                'total_contribution': round(invested, 2),
+                'ownership_percentage': round(ownership * 100, 2),
+                'current_value': current_value,
+                'profit_loss': round(current_value - invested, 2),
+                'dividend_earned': round(portfolio['total_dividends'] * ownership, 2),
+            }
+
+        context['member_portfolios'] = member_portfolios
+        return context
 
 
 class MemberDetailView(generics.RetrieveAPIView):
@@ -124,4 +171,19 @@ class ChangePasswordView(APIView):
             user.set_password(serializer.validated_data['new_password'])
             user.save()
             return Response({'message': 'Password changed successfully'})
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PushTokenRegisterView(APIView):
+    """Register the current device for Expo push notifications."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = PushTokenSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            push_token = serializer.save()
+            return Response({
+                'message': 'Push token registered',
+                'id': push_token.id,
+            }, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

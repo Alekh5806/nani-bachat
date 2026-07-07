@@ -38,16 +38,33 @@ class ContributionViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save()
+        contribution = serializer.save()
+        if contribution.status == 'paid':
+            from accounts.notifications import notify_payment_paid
+            notify_payment_paid(contribution)
+
+    def perform_update(self, serializer):
+        old_status = None
+        if serializer.instance:
+            old_status = serializer.instance.status
+
+        contribution = serializer.save()
+        if old_status != 'paid' and contribution.status == 'paid':
+            from accounts.notifications import notify_payment_paid
+            notify_payment_paid(contribution)
 
     @action(detail=True, methods=['post'])
     def mark_paid(self, request, pk=None):
         if not (request.user.is_staff or request.user.role == 'admin'):
             return Response({'error': 'Admin only'}, status=status.HTTP_403_FORBIDDEN)
         contribution = self.get_object()
+        was_paid = contribution.status == 'paid'
         contribution.status = 'paid'
         contribution.paid_date = timezone.now().date()
         contribution.save()
+        if not was_paid:
+            from accounts.notifications import notify_payment_paid
+            notify_payment_paid(contribution)
         serializer = self.get_serializer(contribution)
         return Response(serializer.data)
 

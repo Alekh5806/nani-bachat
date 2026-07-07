@@ -25,7 +25,7 @@ export const StatCard = ({
     <>
       <View style={styles.header}>
         {icon && <Text style={styles.icon}>{icon}</Text>}
-        <Text style={[styles.label, gradient && styles.labelLight]}>
+        <Text style={[styles.label, gradient && styles.labelLight]} numberOfLines={2}>
           {label}
         </Text>
       </View>
@@ -37,6 +37,7 @@ export const StatCard = ({
         ]}
         numberOfLines={1}
         adjustsFontSizeToFit
+        minimumFontScale={0.72}
       >
         {value}
       </Text>
@@ -111,12 +112,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: SPACING.sm,
+    minHeight: 38,
   },
   icon: {
     fontSize: 16,
     marginRight: SPACING.xs,
   },
   label: {
+    flex: 1,
+    minWidth: 0,
     fontSize: FONTS.sm,
     color: COLORS.textSecondary,
     fontWeight: '500',
@@ -133,7 +137,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs,
   },
   valueCompact: {
-    fontSize: FONTS.xl,
+    fontSize: FONTS.lg,
   },
   valueLight: {
     color: '#FFFFFF',

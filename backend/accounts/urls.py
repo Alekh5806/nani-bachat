@@ -18,6 +18,7 @@ urlpatterns = [
     # Profile
     path('profile/', views.ProfileView.as_view(), name='profile'),
     path('change-password/', views.ChangePasswordView.as_view(), name='change-password'),
+    path('push-token/', views.PushTokenRegisterView.as_view(), name='push-token-register'),
 
     # Member Management
     path('members/', views.MemberListView.as_view(), name='member-list'),

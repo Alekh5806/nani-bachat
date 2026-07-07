@@ -27,7 +27,7 @@ export const StockRow = ({ stock, onPress, showDetails = true }) => {
           </Text>
         </View>
         <View style={styles.nameContainer}>
-          <Text style={styles.name} numberOfLines={1}>
+          <Text style={styles.name} numberOfLines={1} adjustsFontSizeToFit>
             {stock.name}
           </Text>
           <Text style={styles.symbol}>{stock.symbol}</Text>
@@ -41,7 +41,7 @@ export const StockRow = ({ stock, onPress, showDetails = true }) => {
 
       {/* Price Info */}
       <View style={styles.rightSection}>
-        <Text style={styles.price}>
+        <Text style={styles.price} numberOfLines={1} adjustsFontSizeToFit>
           ₹{(stock.current_price || 0).toLocaleString('en-IN', {
             minimumFractionDigits: 2,
           })}
@@ -101,6 +101,7 @@ const styles = StyleSheet.create({
   },
   nameContainer: {
     flex: 1,
+    minWidth: 0,
   },
   name: {
     fontSize: FONTS.md,
@@ -119,6 +120,8 @@ const styles = StyleSheet.create({
   },
   rightSection: {
     alignItems: 'flex-end',
+    flexShrink: 0,
+    maxWidth: 132,
   },
   price: {
     fontSize: FONTS.md,

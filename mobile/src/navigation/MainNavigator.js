@@ -10,6 +10,7 @@ import { DashboardScreen } from '../screens/DashboardScreen';
 import { InvestmentsScreen } from '../screens/InvestmentsScreen';
 import { AddStockScreen } from '../screens/AddStockScreen';
 import { MembersScreen } from '../screens/MembersScreen';
+import { AddMemberScreen } from '../screens/AddMemberScreen';
 import { ContributionsScreen } from '../screens/ContributionsScreen';
 import { DividendsScreen } from '../screens/DividendsScreen';
 import { AddDividendScreen } from '../screens/AddDividendScreen';
@@ -67,6 +68,7 @@ const InvestmentsStack = () => (
 const MembersStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="MembersHome" component={MembersScreen} />
+    <Stack.Screen name="AddMember" component={AddMemberScreen} />
     <Stack.Screen name="Contributions" component={ContributionsScreen} />
   </Stack.Navigator>
 );

@@ -3,7 +3,7 @@
  * Search stocks like MoneyControl Pro — type to search,
  * see live prices, select, then fill purchase details.
  */
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, KeyboardAvoidingView,
   Platform, Pressable, ActivityIndicator, TextInput
@@ -19,7 +19,15 @@ import { GlassCard } from '../components/GlassCard';
 import { COLORS, SPACING, FONTS, RADIUS, SHADOWS } from '../theme/colors';
 
 export const AddStockScreen = ({ navigation }) => {
-  const { createStock, searchStocks, searchResults, isSearching, clearSearch } = usePortfolioStore();
+  const {
+    createStock,
+    searchStocks,
+    searchResults,
+    isSearching,
+    clearSearch,
+    members,
+    fetchMembers,
+  } = usePortfolioStore();
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStock, setSelectedStock] = useState(null);
@@ -30,10 +38,15 @@ export const AddStockScreen = ({ navigation }) => {
     buy_price: '',
     brokerage: '0',
     buy_date: new Date().toISOString().split('T')[0],
+    buyer: '',
     notes: '',
   });
 
   const updateForm = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
+
+  useEffect(() => {
+    fetchMembers();
+  }, [fetchMembers]);
 
   // ── Debounced search ──
   const handleSearch = useCallback((text) => {
@@ -66,7 +79,7 @@ export const AddStockScreen = ({ navigation }) => {
       Toast.show({ type: 'error', text1: 'No Stock Selected', text2: 'Search and select a stock first' });
       return;
     }
-    if (!form.quantity || !form.buy_price || !form.buy_date) {
+    if (!form.quantity || !form.buy_price || !form.buy_date || !form.buyer) {
       Toast.show({ type: 'error', text1: 'Missing Fields', text2: 'Fill all required fields' });
       return;
     }
@@ -79,6 +92,7 @@ export const AddStockScreen = ({ navigation }) => {
       buy_price: parseFloat(form.buy_price),
       brokerage: parseFloat(form.brokerage || '0'),
       buy_date: form.buy_date,
+      buyer: Number(form.buyer),
       notes: form.notes,
     });
     setLoading(false);
@@ -295,6 +309,36 @@ export const AddStockScreen = ({ navigation }) => {
                 />
               </View>
 
+              <View style={styles.buyerSection}>
+                <Text style={styles.inputLabel}>Buyer</Text>
+                <View style={styles.buyerList}>
+                  {members.map((member) => {
+                    const selected = String(member.id) === String(form.buyer);
+                    return (
+                      <Pressable
+                        key={member.id}
+                        onPress={() => updateForm('buyer', String(member.id))}
+                        style={({ pressed }) => [
+                          styles.buyerChip,
+                          selected && styles.buyerChipSelected,
+                          pressed && styles.buyerChipPressed,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.buyerChipText,
+                            selected && styles.buyerChipTextSelected,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {member.name}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+
               <PremiumInput
                 label="Notes (Optional)"
                 value={form.notes}
@@ -318,6 +362,12 @@ export const AddStockScreen = ({ navigation }) => {
                     <Text style={styles.previewLabel}>Brokerage</Text>
                     <Text style={styles.previewValue}>
                       {formatCurrency(form.brokerage || 0)}
+                    </Text>
+                  </View>
+                  <View style={styles.previewRow}>
+                    <Text style={styles.previewLabel}>Buyer</Text>
+                    <Text style={styles.previewValue} numberOfLines={1}>
+                      {members.find((m) => String(m.id) === String(form.buyer))?.name || 'Select buyer'}
                     </Text>
                   </View>
                   <View style={[styles.previewRow, styles.previewTotal]}>
@@ -544,6 +594,45 @@ const styles = StyleSheet.create({
   },
   halfInput: {
     flex: 1,
+  },
+  inputLabel: {
+    fontSize: FONTS.sm,
+    color: COLORS.textSecondary,
+    fontWeight: '600',
+    marginBottom: SPACING.sm,
+  },
+  buyerSection: {
+    marginBottom: SPACING.md,
+  },
+  buyerList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  buyerChip: {
+    maxWidth: '48%',
+    minHeight: 38,
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.inputBorder,
+    backgroundColor: COLORS.inputBg,
+  },
+  buyerChipSelected: {
+    borderColor: COLORS.accent,
+    backgroundColor: COLORS.accent + '22',
+  },
+  buyerChipPressed: {
+    opacity: 0.75,
+  },
+  buyerChipText: {
+    color: COLORS.textSecondary,
+    fontSize: FONTS.sm,
+    fontWeight: '700',
+  },
+  buyerChipTextSelected: {
+    color: COLORS.accent,
   },
 
   // Preview

@@ -32,7 +32,9 @@ export const MemberRow = ({ member, onPress }) => {
 
       {/* Member Info */}
       <View style={styles.infoContainer}>
-        <Text style={styles.name}>{member.name}</Text>
+        <Text style={styles.name} numberOfLines={1} adjustsFontSizeToFit>
+          {member.name}
+        </Text>
         <Text style={styles.phone}>{member.phone}</Text>
         {member.role === 'admin' && (
           <View style={styles.adminBadge}>
@@ -43,10 +45,10 @@ export const MemberRow = ({ member, onPress }) => {
 
       {/* Values */}
       <View style={styles.valuesContainer}>
-        <Text style={styles.contribution}>
+        <Text style={styles.contribution} numberOfLines={1} adjustsFontSizeToFit>
           ₹{(member.total_contribution || 0).toLocaleString('en-IN')}
         </Text>
-        <Text style={[styles.value, { color: pnlColor }]}>
+        <Text style={[styles.value, { color: pnlColor }]} numberOfLines={1} adjustsFontSizeToFit>
           {isProfit ? '+' : ''}₹{(member.profit_loss || 0).toLocaleString('en-IN', {
             minimumFractionDigits: 0,
           })}
@@ -76,9 +78,9 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.98 }],
   },
   avatar: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: SPACING.md,
@@ -90,6 +92,8 @@ const styles = StyleSheet.create({
   },
   infoContainer: {
     flex: 1,
+    minWidth: 0,
+    marginRight: SPACING.sm,
   },
   name: {
     fontSize: FONTS.md,
@@ -117,6 +121,8 @@ const styles = StyleSheet.create({
   },
   valuesContainer: {
     alignItems: 'flex-end',
+    flexShrink: 0,
+    maxWidth: 116,
   },
   contribution: {
     fontSize: FONTS.sm,

@@ -209,7 +209,7 @@ export const DashboardScreen = () => {
             const allocPct = ((Number(stock.current_value) || 0) / totalVal * 100);
 
             return (
-              <View key={stock.symbol || idx}>
+              <View key={`${stock.symbol || 'stock'}-${idx}`}>
                 {idx > 0 && <View style={styles.holdingDivider} />}
                 <View style={styles.holdingRow}>
                   <View style={styles.holdingLeft}>
@@ -229,7 +229,9 @@ export const DashboardScreen = () => {
                   </View>
 
                   <View style={styles.holdingRight}>
-                    <Text style={styles.holdingValue}>{fmtFull(stock.current_value)}</Text>
+                    <Text style={styles.holdingValue} numberOfLines={1} adjustsFontSizeToFit>
+                      {fmtFull(stock.current_value)}
+                    </Text>
                     <Text style={[styles.holdingPnl, { color: sColor }]}>
                       {sUp ? '+' : ''}{fmtFull(sPnl)} ({sUp ? '+' : ''}{sPct.toFixed(2)}%)
                     </Text>
@@ -237,15 +239,15 @@ export const DashboardScreen = () => {
                 </View>
 
                 <View style={styles.holdingDetails}>
-                  <Text style={styles.detailItem}>
+                  <Text style={styles.detailItem} numberOfLines={1} adjustsFontSizeToFit>
                     Avg. {'\u20B9'}{Number(stock.average_buy_price || 0).toFixed(2)}
                   </Text>
                   <Text style={styles.detailDot}>{'\u00B7'}</Text>
-                  <Text style={styles.detailItem}>
+                  <Text style={styles.detailItem} numberOfLines={1} adjustsFontSizeToFit>
                     LTP {'\u20B9'}{Number(stock.current_price || 0).toFixed(2)}
                   </Text>
                   <Text style={styles.detailDot}>{'\u00B7'}</Text>
-                  <Text style={styles.detailItem}>
+                  <Text style={styles.detailItem} numberOfLines={1} adjustsFontSizeToFit>
                     {allocPct.toFixed(1)}% of portfolio
                   </Text>
                 </View>
@@ -300,7 +302,7 @@ export const DashboardScreen = () => {
                 const barColor = barColors[i % barColors.length];
 
                 return (
-                  <View key={item.symbol || i}>
+                  <View key={`${item.symbol || 'allocation'}-${i}`}>
                     {i > 0 && <View style={styles.overviewDivider} />}
                     <View style={styles.allocRow}>
                       <View style={[styles.allocDot, { backgroundColor: barColor }]} />
@@ -603,6 +605,7 @@ const styles = StyleSheet.create({
   },
   holdingInfo: {
     flex: 1,
+    minWidth: 0,
   },
   holdingName: {
     fontSize: FONTS.md,
@@ -617,6 +620,8 @@ const styles = StyleSheet.create({
   holdingRight: {
     alignItems: 'flex-end',
     marginLeft: SPACING.sm,
+    flexShrink: 0,
+    maxWidth: 158,
   },
   holdingValue: {
     fontSize: FONTS.md,
@@ -627,11 +632,13 @@ const styles = StyleSheet.create({
     fontSize: FONTS.xs,
     fontWeight: '600',
     marginTop: 2,
+    textAlign: 'right',
   },
 
   // Holding details row
   holdingDetails: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     marginTop: SPACING.sm,
     paddingLeft: 38 + SPACING.md,
@@ -639,6 +646,7 @@ const styles = StyleSheet.create({
   detailItem: {
     fontSize: FONTS.xs,
     color: COLORS.textMuted,
+    maxWidth: '100%',
   },
   detailDot: {
     fontSize: FONTS.xs,

@@ -4,8 +4,10 @@
  */
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, RefreshControl
+  View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { usePortfolioStore } from '../store/portfolioStore';
 import { useAuthStore } from '../store/authStore';
@@ -23,6 +25,12 @@ export const MembersScreen = ({ navigation }) => {
   useEffect(() => {
     fetchMembers();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchMembers();
+    }, [fetchMembers])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -71,6 +79,25 @@ export const MembersScreen = ({ navigation }) => {
           />
         </View>
 
+        {isAdmin && (
+          <View style={styles.adminActions}>
+            <TouchableOpacity
+              style={[styles.adminButton, styles.addButton]}
+              onPress={() => navigation.navigate('AddMember')}
+            >
+              <Ionicons name="person-add-outline" size={18} color="#FFF" />
+              <Text style={styles.adminButtonText}>Add Member</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.adminButton, styles.paymentsButton]}
+              onPress={() => navigation.navigate('Contributions')}
+            >
+              <Ionicons name="cash-outline" size={18} color={COLORS.accent} />
+              <Text style={[styles.adminButtonText, styles.paymentsButtonText]}>Payments</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* ── Member List ── */}
         <SectionHeader title="All Members" icon="👥" />
         {members.map((member, index) => (
@@ -90,7 +117,7 @@ const styles = StyleSheet.create({
   },
   scrollView: { flex: 1 },
   scrollContent: {
-    paddingHorizontal: SPACING.xl,
+    paddingHorizontal: SPACING.lg,
     paddingBottom: SPACING.huge,
   },
   statsRow: {
@@ -100,6 +127,37 @@ const styles = StyleSheet.create({
   },
   halfCard: {
     flex: 1,
-    marginHorizontal: SPACING.xs,
+    minWidth: 0,
+    marginHorizontal: 4,
+  },
+  adminActions: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginBottom: SPACING.lg,
+  },
+  adminButton: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+  },
+  addButton: {
+    backgroundColor: COLORS.accent,
+  },
+  paymentsButton: {
+    backgroundColor: COLORS.accent + '18',
+    borderWidth: 1,
+    borderColor: COLORS.accent + '50',
+  },
+  adminButtonText: {
+    color: '#FFF',
+    fontSize: FONTS.sm,
+    fontWeight: '800',
+  },
+  paymentsButtonText: {
+    color: COLORS.accent,
   },
 });

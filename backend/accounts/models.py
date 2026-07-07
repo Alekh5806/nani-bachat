@@ -92,3 +92,26 @@ class Member(AbstractBaseUser, PermissionsMixin):
         if total_pool == 0:
             return 0
         return round((self.total_contribution / total_pool) * 100, 2)
+
+
+class PushToken(models.Model):
+    """Expo push token registered by a member device."""
+    member = models.ForeignKey(
+        Member,
+        on_delete=models.CASCADE,
+        related_name='push_tokens'
+    )
+    token = models.CharField(max_length=255, unique=True)
+    device_id = models.CharField(max_length=255, blank=True, default='')
+    platform = models.CharField(max_length=20, blank=True, default='')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+        verbose_name = 'Push Token'
+        verbose_name_plural = 'Push Tokens'
+
+    def __str__(self):
+        return f'{self.member.name} - {self.platform or "device"}'

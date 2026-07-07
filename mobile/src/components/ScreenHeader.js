@@ -26,8 +26,10 @@ export const ScreenHeader = ({
             <Text style={styles.backIcon}>←</Text>
           </Pressable>
         )}
-        <View>
-          <Text style={styles.title}>{title}</Text>
+        <View style={styles.titleBlock}>
+          <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit>
+            {title}
+          </Text>
           {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
         </View>
       </View>
@@ -60,6 +62,13 @@ const styles = StyleSheet.create({
   leftSection: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    minWidth: 0,
+    marginRight: SPACING.md,
+  },
+  titleBlock: {
+    flex: 1,
+    minWidth: 0,
   },
   backButton: {
     marginRight: SPACING.md,
@@ -90,6 +99,7 @@ const styles = StyleSheet.create({
     borderRadius: SPACING.xl,
     borderWidth: 1,
     borderColor: COLORS.accent + '40',
+    flexShrink: 0,
   },
   actionPressed: {
     opacity: 0.7,
