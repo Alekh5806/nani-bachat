@@ -44,6 +44,13 @@ export const AddStockScreen = ({ navigation }) => {
 
   const updateForm = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
+  const normalizeManualSymbol = (value) => {
+    const cleaned = value.trim().toUpperCase().replace(/\s+/g, '');
+    if (!cleaned) return '';
+    if (cleaned.endsWith('.NS') || cleaned.endsWith('.BO')) return cleaned;
+    return `${cleaned}.NS`;
+  };
+
   useEffect(() => {
     fetchMembers();
   }, [fetchMembers]);
@@ -70,6 +77,28 @@ export const AddStockScreen = ({ navigation }) => {
     setSelectedStock(stock);
     setSearchQuery(stock.name);
     updateForm('buy_price', String(stock.current_price));
+    clearSearch();
+  };
+
+  const handleManualSelect = () => {
+    const symbol = normalizeManualSymbol(searchQuery);
+    if (!symbol) {
+      Toast.show({ type: 'error', text1: 'Enter Symbol', text2: 'Type the trading symbol first' });
+      return;
+    }
+
+    const displayName = searchQuery.trim().toUpperCase().replace(/\.(NS|BO)$/i, '');
+    setSelectedStock({
+      symbol,
+      name: displayName,
+      current_price: Number(form.buy_price) || 0,
+      change: 0,
+      change_percentage: 0,
+      day_high: Number(form.buy_price) || 0,
+      day_low: Number(form.buy_price) || 0,
+      manual: true,
+    });
+    setSearchQuery(displayName);
     clearSearch();
   };
 
@@ -200,6 +229,20 @@ export const AddStockScreen = ({ navigation }) => {
             </View>
           )}
 
+          {searchQuery.trim().length >= 2 && !selectedStock && !isSearching && (
+            <Pressable
+              onPress={handleManualSelect}
+              style={({ pressed }) => [
+                styles.manualButton,
+                pressed && styles.resultRowPressed,
+              ]}
+            >
+              <Text style={styles.manualButtonText}>
+                Use {normalizeManualSymbol(searchQuery)} manually
+              </Text>
+            </Pressable>
+          )}
+
           {/* ── Selected Stock Card ── */}
           {selectedStock && (
             <GlassCard borderGlow style={styles.selectedCard}>
@@ -230,6 +273,28 @@ export const AddStockScreen = ({ navigation }) => {
               </View>
 
               <View style={styles.priceGrid}>
+                {selectedStock.manual && (
+                  <View style={styles.manualEditBlock}>
+                    <PremiumInput
+                      label="Symbol"
+                      value={selectedStock.symbol}
+                      onChangeText={(value) => setSelectedStock(prev => ({
+                        ...prev,
+                        symbol: normalizeManualSymbol(value),
+                      }))}
+                      placeholder="Example: NSDL.BO"
+                    />
+                    <PremiumInput
+                      label="Company Name"
+                      value={selectedStock.name}
+                      onChangeText={(value) => setSelectedStock(prev => ({
+                        ...prev,
+                        name: value,
+                      }))}
+                      placeholder="Company name"
+                    />
+                  </View>
+                )}
                 <View style={styles.priceItem}>
                   <Text style={styles.priceLabel}>Live Price</Text>
                   <Text style={styles.priceValue}>
@@ -382,7 +447,7 @@ export const AddStockScreen = ({ navigation }) => {
                   <View style={styles.previewRow}>
                     <Text style={styles.previewLabel}>Current Value</Text>
                     <Text style={[styles.previewValue, { color: COLORS.accent }]}>
-                      {formatCurrency(parseInt(form.quantity || 0) * selectedStock.current_price)}
+                      {formatCurrency(parseInt(form.quantity || 0) * (selectedStock.current_price || form.buy_price || 0))}
                     </Text>
                   </View>
                 </GlassCard>
@@ -519,6 +584,23 @@ const styles = StyleSheet.create({
     fontSize: FONTS.xs,
     fontWeight: '700',
   },
+  manualButton: {
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.accent,
+    backgroundColor: COLORS.inputBg,
+    marginBottom: SPACING.md,
+    paddingHorizontal: SPACING.md,
+  },
+  manualButtonText: {
+    color: COLORS.accent,
+    fontSize: FONTS.sm,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
 
   // Selected stock card
   selectedCard: {
@@ -571,6 +653,9 @@ const styles = StyleSheet.create({
   priceGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+  },
+  manualEditBlock: {
+    width: '100%',
   },
   priceItem: {
     width: '50%',

@@ -151,8 +151,6 @@ class StockSearchView(APIView):
         if not query or len(query) < 2:
             return Response({'results': [], 'message': 'Enter at least 2 characters'})
 
-        import yfinance as yf
-
         # Popular NSE stocks database for quick matching
         NSE_STOCKS = {
             'TCS': ('Tata Consultancy Services', 'TCS.NS'),
@@ -214,60 +212,107 @@ class StockSearchView(APIView):
             'TRENT': ('Trent (Westside)', 'TRENT.NS'),
             'JIOFIN': ('Jio Financial Services', 'JIOFIN.NS'),
             'ETERNAL': ('Zomato (Eternal)', 'ETERNAL.NS'),
+            'NSDL': ('National Securities Depository', 'NSDL.BO'),
         }
 
         query_upper = query.upper()
         query_lower = query.lower()
 
-        # Match against symbol and company name
         matches = []
-        for sym_key, (name, full_symbol) in NSE_STOCKS.items():
-            if query_upper in sym_key or query_lower in name.lower():
-                matches.append({
-                    'symbol': full_symbol,
-                    'name': name,
-                    'key': sym_key,
-                })
 
-        # If no matches in our list, try direct Yahoo Finance lookup
-        if not matches:
-            test_symbol = f"{query_upper}.NS"
+        def add_match(symbol, name, key=None):
+            if not symbol:
+                return
+            symbol = symbol.upper().strip()
+            if not symbol.endswith(('.NS', '.BO')):
+                return
+            if any(item['symbol'] == symbol for item in matches):
+                return
+
             matches.append({
-                'symbol': test_symbol,
-                'name': query.title(),
-                'key': query_upper,
+                'symbol': symbol,
+                'name': name or symbol.replace('.NS', '').replace('.BO', ''),
+                'key': key or symbol,
             })
 
-        # Limit to top 8 matches
-        matches = matches[:8]
+        # Match against common local symbols first for fast, predictable results.
+        for sym_key, (name, full_symbol) in NSE_STOCKS.items():
+            if query_upper in sym_key or query_lower in name.lower():
+                add_match(full_symbol, name, sym_key)
+
+        # Ask Yahoo's search index so recent/listed stocks are not limited to our local list.
+        try:
+            import requests
+
+            response = requests.get(
+                'https://query2.finance.yahoo.com/v1/finance/search',
+                params={
+                    'q': query,
+                    'quotesCount': 12,
+                    'newsCount': 0,
+                    'enableFuzzyQuery': 'true',
+                },
+                headers={'User-Agent': 'Mozilla/5.0'},
+                timeout=10,
+            )
+            response.raise_for_status()
+
+            for quote in response.json().get('quotes', []):
+                symbol = quote.get('symbol', '')
+                exchange = (quote.get('exchange') or quote.get('exchDisp') or '').upper()
+                is_indian_stock = (
+                    symbol.upper().endswith(('.NS', '.BO'))
+                    or exchange in {'NSI', 'NSE', 'BSE', 'BOM'}
+                )
+                if is_indian_stock:
+                    add_match(
+                        symbol,
+                        quote.get('shortname') or quote.get('longname') or quote.get('name'),
+                    )
+        except Exception:
+            pass
+
+        # Direct lookup catches exact symbols even when the search index is slow to update.
+        if query_upper.endswith(('.NS', '.BO')):
+            symbols_to_try = [query_upper]
+        else:
+            symbols_to_try = [f"{query_upper}.NS", f"{query_upper}.BO"]
+
+        for test_symbol in symbols_to_try:
+            add_match(test_symbol, query.title(), query_upper)
+
+        # Limit quote lookups so Add Stock stays responsive.
+        matches = matches[:12]
 
         # Fetch live prices for all matches
         results = []
         for match in matches:
             try:
-                ticker = yf.Ticker(match['symbol'])
-                info = ticker.fast_info
-                price = float(getattr(info, 'last_price', 0) or 0)
-                prev_close = float(getattr(info, 'previous_close', 0) or 0)
-                day_high = float(getattr(info, 'day_high', 0) or 0)
-                day_low = float(getattr(info, 'day_low', 0) or 0)
-                market_cap = float(getattr(info, 'market_cap', 0) or 0)
+                price_data = StockPriceService.get_stock_price(match['symbol'])
+                if not price_data:
+                    continue
+
+                price = float(price_data.get('current_price', 0) or 0)
+                prev_close = float(price_data.get('previous_close', 0) or 0)
+                change = float(price_data.get('day_change', 0) or 0)
+                change_pct = float(
+                    price_data.get('day_change_percentage')
+                    or price_data.get('day_change_pct')
+                    or 0
+                )
 
                 if price > 0:
-                    change = price - prev_close if prev_close > 0 else 0
-                    change_pct = (change / prev_close * 100) if prev_close > 0 else 0
-
                     results.append({
                         'symbol': match['symbol'],
-                        'name': match['name'],
+                        'name': price_data.get('name') or match['name'],
                         'current_price': round(price, 2),
                         'previous_close': round(prev_close, 2),
-                        'day_high': round(day_high, 2),
-                        'day_low': round(day_low, 2),
+                        'day_high': round(price, 2),
+                        'day_low': round(price, 2),
                         'change': round(change, 2),
                         'change_percentage': round(change_pct, 2),
-                        'market_cap': round(market_cap / 10000000, 2),  # In Crores
-                        'market_cap_label': f"₹{round(market_cap / 10000000, 0):,.0f} Cr",
+                        'market_cap': 0,
+                        'market_cap_label': 'N/A',
                     })
             except Exception:
                 # Skip stocks that fail to fetch

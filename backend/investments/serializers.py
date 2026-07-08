@@ -57,11 +57,16 @@ class StockCreateSerializer(serializers.ModelSerializer):
         ]
 
     def validate_symbol(self, value):
-        """Ensure symbol has .NS suffix for NSE stocks."""
+        """Normalize Indian stock symbols for Yahoo Finance."""
         value = value.upper().strip()
         if not value.endswith('.NS') and not value.endswith('.BO'):
             value = f'{value}.NS'
         return value
+
+    def create(self, validated_data):
+        """Use buy price as the initial current price until live data is available."""
+        validated_data.setdefault('current_price', validated_data.get('buy_price'))
+        return super().create(validated_data)
 
 
 class StockPriceHistorySerializer(serializers.ModelSerializer):
