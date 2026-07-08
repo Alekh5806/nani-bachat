@@ -15,7 +15,10 @@ import { AuthNavigator } from './src/navigation/AuthNavigator';
 import { MainNavigator } from './src/navigation/MainNavigator';
 import { toastConfig } from './src/config/toastConfig';
 import { COLORS } from './src/theme/colors';
-import { registerForPushNotificationsAsync } from './src/services/notifications';
+import {
+  addNotificationListeners,
+  registerForPushNotificationsAsync,
+} from './src/services/notifications';
 
 export default function App() {
   const { token, isLoading, loadToken } = useAuthStore();
@@ -31,10 +34,25 @@ export default function App() {
 
   useEffect(() => {
     if (!token) return;
-    registerForPushNotificationsAsync(token).catch((error) => {
-      console.log('Push notification registration failed:', error?.message || error);
-    });
+    registerForPushNotificationsAsync(token)
+      .then((result) => {
+        if (!result?.success) {
+          console.log('Push notification registration failed:', result);
+        }
+      })
+      .catch((error) => {
+        console.log('Push notification registration failed:', error?.message || error);
+      });
   }, [token]);
+
+  useEffect(() => addNotificationListeners({
+    onReceived: (notification) => {
+      console.log('Push notification received:', notification.request?.content);
+    },
+    onResponse: (response) => {
+      console.log('Push notification response:', response.notification.request?.content?.data);
+    },
+  }), []);
 
   if (!appReady || isLoading) {
     return (

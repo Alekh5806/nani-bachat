@@ -19,10 +19,6 @@ const getProjectId = () =>
   Constants.easConfig?.projectId;
 
 export const registerForPushNotificationsAsync = async (accessToken) => {
-  if (!Device.isDevice) {
-    return { success: false, reason: 'physical_device_required' };
-  }
-
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
       name: 'Nani Bachat',
@@ -30,6 +26,10 @@ export const registerForPushNotificationsAsync = async (accessToken) => {
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#00D09C',
     });
+  }
+
+  if (Constants.appOwnership === 'expo' && Platform.OS === 'android') {
+    return { success: false, reason: 'development_build_required' };
   }
 
   const existing = await Notifications.getPermissionsAsync();
@@ -49,20 +49,54 @@ export const registerForPushNotificationsAsync = async (accessToken) => {
     return { success: false, reason: 'missing_project_id' };
   }
 
-  const tokenResponse = await Notifications.getExpoPushTokenAsync({ projectId });
+  let tokenResponse;
+  try {
+    tokenResponse = await Notifications.getExpoPushTokenAsync({ projectId });
+  } catch (error) {
+    return {
+      success: false,
+      reason: 'token_generation_failed',
+      error: error?.message || String(error),
+    };
+  }
+
   const token = tokenResponse.data;
 
-  await api.post(
-    '/auth/push-token/',
-    {
+  try {
+    await api.post(
+      '/auth/push-token/',
+      {
+        token,
+        platform: Platform.OS,
+        device_id: Device.osInternalBuildId || Device.deviceName || '',
+      },
+      accessToken
+        ? { headers: { Authorization: `Bearer ${accessToken}` } }
+        : undefined
+    );
+  } catch (error) {
+    return {
+      success: false,
+      reason: 'token_registration_failed',
       token,
-      platform: Platform.OS,
-      device_id: Device.osInternalBuildId || Device.deviceName || '',
-    },
-    accessToken
-      ? { headers: { Authorization: `Bearer ${accessToken}` } }
-      : undefined
-  );
+      error: error.response?.data || error?.message || String(error),
+    };
+  }
 
   return { success: true, token };
+};
+
+export const addNotificationListeners = ({ onReceived, onResponse } = {}) => {
+  const receivedSubscription = Notifications.addNotificationReceivedListener((notification) => {
+    onReceived?.(notification);
+  });
+
+  const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
+    onResponse?.(response);
+  });
+
+  return () => {
+    receivedSubscription.remove();
+    responseSubscription.remove();
+  };
 };

@@ -115,6 +115,7 @@ def _send_push(body, data=None):
             'title': NOTIFICATION_TITLE,
             'body': body,
             'sound': 'default',
+            'channelId': 'default',
             'data': data or {},
         }
         for token in tokens
@@ -123,7 +124,30 @@ def _send_push(body, data=None):
     try:
         response = requests.post(EXPO_PUSH_URL, json=messages, timeout=10)
         response.raise_for_status()
-        return {'sent': len(messages), 'response': response.json()}
+        payload = response.json()
+        tickets = payload if isinstance(payload, list) else payload.get('data', [])
+        errors = []
+
+        for token, ticket in zip(tokens, tickets):
+            if ticket.get('status') != 'error':
+                continue
+
+            details = ticket.get('details') or {}
+            error = details.get('error') or ticket.get('message') or 'unknown'
+            errors.append({'token': token, 'error': error})
+
+            if error == 'DeviceNotRegistered':
+                PushToken.objects.filter(token=token).update(is_active=False)
+
+        if errors:
+            logger.warning('Expo push ticket errors: %s', errors)
+
+        return {
+            'sent': len(messages) - len(errors),
+            'failed': len(errors),
+            'errors': errors,
+            'response': payload,
+        }
     except requests.RequestException as exc:
         logger.warning('Expo push send failed: %s', exc)
         return {'sent': 0, 'error': str(exc)}
