@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -12,6 +11,7 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 
+import { Alert } from '../utils/alert';
 import api from '../config/api';
 import { GlassCard } from '../components/GlassCard';
 import { PremiumButton } from '../components/PremiumButton';

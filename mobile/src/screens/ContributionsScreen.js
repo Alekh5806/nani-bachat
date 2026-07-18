@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Alert,
   ActivityIndicator,
   Modal,
   TextInput,
@@ -14,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
+import { Alert } from '../utils/alert';
 import api from '../config/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS, SPACING, FONTS, RADIUS } from '../theme/colors';

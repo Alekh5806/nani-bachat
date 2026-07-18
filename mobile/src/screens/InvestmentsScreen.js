@@ -4,10 +4,11 @@
  */
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, RefreshControl, Alert
+  View, Text, StyleSheet, ScrollView, RefreshControl
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
+import { Alert } from '../utils/alert';
 import { usePortfolioStore } from '../store/portfolioStore';
 import { useAuthStore } from '../store/authStore';
 import { ScreenHeader } from '../components/ScreenHeader';
