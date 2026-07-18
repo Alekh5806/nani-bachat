@@ -7,3 +7,4 @@ node_modules/
 *.mobileprovision
 *.orig.*
 web-build/
+dist/
