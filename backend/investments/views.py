@@ -39,9 +39,14 @@ class StockCreateView(generics.CreateAPIView):
     permission_classes = [IsAdmin]
 
     def perform_create(self, serializer):
+        import logging
+        logger = logging.getLogger(__name__)
         stock = serializer.save()
-        from accounts.notifications import notify_stock_bought
-        notify_stock_bought(stock)
+        try:
+            from accounts.notifications import notify_stock_bought
+            notify_stock_bought(stock)
+        except Exception as exc:
+            logger.warning('Push notification failed (stock create): %s', exc)
 
 
 class StockDetailView(generics.RetrieveAPIView):

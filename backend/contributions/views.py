@@ -38,20 +38,30 @@ class ContributionViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
+        import logging
+        logger = logging.getLogger(__name__)
         contribution = serializer.save()
         if contribution.status == 'paid':
-            from accounts.notifications import notify_payment_paid
-            notify_payment_paid(contribution)
+            try:
+                from accounts.notifications import notify_payment_paid
+                notify_payment_paid(contribution)
+            except Exception as exc:
+                logger.warning('Push notification failed (create): %s', exc)
 
     def perform_update(self, serializer):
+        import logging
+        logger = logging.getLogger(__name__)
         old_status = None
         if serializer.instance:
             old_status = serializer.instance.status
 
         contribution = serializer.save()
         if old_status != 'paid' and contribution.status == 'paid':
-            from accounts.notifications import notify_payment_paid
-            notify_payment_paid(contribution)
+            try:
+                from accounts.notifications import notify_payment_paid
+                notify_payment_paid(contribution)
+            except Exception as exc:
+                logger.warning('Push notification failed (update): %s', exc)
 
     @action(detail=True, methods=['post'])
     def mark_paid(self, request, pk=None):
@@ -63,8 +73,12 @@ class ContributionViewSet(viewsets.ModelViewSet):
         contribution.paid_date = timezone.now().date()
         contribution.save()
         if not was_paid:
-            from accounts.notifications import notify_payment_paid
-            notify_payment_paid(contribution)
+            try:
+                from accounts.notifications import notify_payment_paid
+                notify_payment_paid(contribution)
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).warning('Push notification failed (mark_paid): %s', exc)
         serializer = self.get_serializer(contribution)
         return Response(serializer.data)
 

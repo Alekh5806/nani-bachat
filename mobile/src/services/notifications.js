@@ -26,9 +26,32 @@ export const registerForPushNotificationsAsync = async (accessToken) => {
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#00D09C',
     });
+    await Notifications.setNotificationChannelAsync('payment', {
+      name: 'Payments',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 150, 250],
+      lightColor: '#00D09C',
+      sound: 'default',
+    });
+    await Notifications.setNotificationChannelAsync('stock', {
+      name: 'Stock Purchases',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 150, 250],
+      lightColor: '#3B82F6',
+      sound: 'default',
+    });
+    await Notifications.setNotificationChannelAsync('dividend', {
+      name: 'Dividends',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 150, 250, 150, 250],
+      lightColor: '#F5B300',
+      sound: 'default',
+    });
   }
 
-  if (Constants.appOwnership === 'expo' && Platform.OS === 'android') {
+  // Constants.appOwnership is deprecated since SDK 53 — use executionEnvironment instead.
+  // 'storeClient' means running inside Expo Go where FCM is not available on Android.
+  if (Constants.executionEnvironment === 'storeClient' && Platform.OS === 'android') {
     return { success: false, reason: 'development_build_required' };
   }
 

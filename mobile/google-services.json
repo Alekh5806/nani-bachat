@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "165089950203",
+    "project_id": "nani-bachat",
+    "storage_bucket": "nani-bachat.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:165089950203:android:0bf28fd03a62ba019db35e",
+        "android_client_info": {
+          "package_name": "com.nanibachat.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBJmV2awowH_Bk3xqyA0ar0faGxNPddcwA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

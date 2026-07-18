@@ -10,6 +10,24 @@ logger = logging.getLogger(__name__)
 EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send'
 NOTIFICATION_TITLE = 'Nani Bachat'
 
+PAYMENT_TITLES = [
+    '💰 Payment Received!',
+    '✅ Contribution Cleared!',
+    '💸 Paisa Aa Gaya!',
+]
+
+STOCK_TITLES = [
+    '📈 Stock Purchased!',
+    '🟢 New Investment!',
+    '🚀 Portfolio Updated!',
+]
+
+DIVIDEND_TITLES = [
+    '🎉 Dividend Credited!',
+    '💵 Passive Income Alert!',
+    '✨ Dividend Bonus!',
+]
+
 PAYMENT_TEMPLATES = [
    
     '{member} નું payment આવી ગયું. Group ખુશ, admin relaxed.',
@@ -104,7 +122,7 @@ def _active_tokens():
     )
 
 
-def _send_push(body, data=None):
+def _send_push(body, data=None, title=None, channel_id='default'):
     tokens = _active_tokens()
     if not tokens:
         return {'sent': 0, 'reason': 'no_tokens'}
@@ -112,10 +130,11 @@ def _send_push(body, data=None):
     messages = [
         {
             'to': token,
-            'title': NOTIFICATION_TITLE,
+            'title': title or NOTIFICATION_TITLE,
             'body': body,
             'sound': 'default',
-            'channelId': 'default',
+            'channelId': channel_id,
+            'priority': 'high',
             'data': data or {},
         }
         for token in tokens
@@ -159,12 +178,17 @@ def notify_payment_paid(contribution):
         amount=contribution.amount,
         month=contribution.month,
     )
-    return _send_push(body, {
-        'type': 'payment',
-        'contribution_id': contribution.id,
-        'member_id': contribution.member_id,
-        'month': contribution.month,
-    })
+    return _send_push(
+        body,
+        {
+            'type': 'payment',
+            'contribution_id': contribution.id,
+            'member_id': contribution.member_id,
+            'month': contribution.month,
+        },
+        title=random.choice(PAYMENT_TITLES),
+        channel_id='payment',
+    )
 
 
 def notify_stock_bought(stock):
@@ -174,11 +198,16 @@ def notify_stock_bought(stock):
         quantity=stock.quantity,
         buyer=stock.buyer.name if stock.buyer else '',
     )
-    return _send_push(body, {
-        'type': 'stock_bought',
-        'stock_id': stock.id,
-        'symbol': stock.symbol,
-    })
+    return _send_push(
+        body,
+        {
+            'type': 'stock_bought',
+            'stock_id': stock.id,
+            'symbol': stock.symbol,
+        },
+        title=random.choice(STOCK_TITLES),
+        channel_id='stock',
+    )
 
 
 def notify_dividend_recorded(dividend):
@@ -187,9 +216,14 @@ def notify_dividend_recorded(dividend):
         symbol=symbol,
         amount=dividend.total_dividend,
     )
-    return _send_push(body, {
-        'type': 'dividend',
-        'dividend_id': dividend.id,
-        'stock_id': dividend.stock_id,
-        'symbol': dividend.stock.symbol,
-    })
+    return _send_push(
+        body,
+        {
+            'type': 'dividend',
+            'dividend_id': dividend.id,
+            'stock_id': dividend.stock_id,
+            'symbol': dividend.stock.symbol,
+        },
+        title=random.choice(DIVIDEND_TITLES),
+        channel_id='dividend',
+    )

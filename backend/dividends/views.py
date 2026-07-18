@@ -26,9 +26,14 @@ class DividendCreateView(generics.CreateAPIView):
     permission_classes = [IsAdmin]
 
     def perform_create(self, serializer):
+        import logging
+        logger = logging.getLogger(__name__)
         dividend = serializer.save()
-        from accounts.notifications import notify_dividend_recorded
-        notify_dividend_recorded(dividend)
+        try:
+            from accounts.notifications import notify_dividend_recorded
+            notify_dividend_recorded(dividend)
+        except Exception as exc:
+            logger.warning('Push notification failed (dividend create): %s', exc)
 
 
 class DividendDetailView(generics.RetrieveAPIView):

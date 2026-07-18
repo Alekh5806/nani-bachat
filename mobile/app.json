@@ -25,7 +25,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0D0D0D"
       },
-      "package": "com.nanibachat.app"
+      "package": "com.nanibachat.app",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -33,7 +34,15 @@
     "plugins": [
       "expo-font",
       "expo-asset",
-      "expo-notifications"
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#00D09C",
+          "androidMode": "default",
+          "androidCollapsedTitle": "Nani Bachat"
+        }
+      ]
     ],
     "extra": {
       "eas": {
