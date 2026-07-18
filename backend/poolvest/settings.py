@@ -137,9 +137,12 @@ SIMPLE_JWT = {
 # ──────────────────────────────────────────────
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:8081,http://localhost:19006',
+    default='http://localhost:8081,http://localhost:19006,https://nani-bachat.pages.dev',
     cast=Csv()
 )
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r'^https://.*\.nani-bachat\.pages\.dev$',
+]
 CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=DEBUG, cast=bool)
 
 # ──────────────────────────────────────────────
