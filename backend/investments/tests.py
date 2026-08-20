@@ -1,8 +1,12 @@
 from datetime import date
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APIClient
 
 from contributions.models import Contribution
 from dividends.models import Dividend
@@ -123,6 +127,29 @@ class StockSellSerializerTests(TestCase):
 
         self.assertFalse(serializer.is_valid())
         self.assertIn('sell_price', serializer.errors)
+
+    @patch('accounts.notifications.notify_stock_sold')
+    def test_sell_endpoint_sends_notification(self, notify_stock_sold):
+        client = APIClient()
+        client.force_authenticate(user=self.admin)
+        url = reverse('investments:stock-sell', args=[self.stock.id])
+
+        response = client.patch(
+            url,
+            {
+                'quantity': 2,
+                'sell_price': '130.00',
+                'sell_date': '2026-02-01',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        notify_stock_sold.assert_called_once()
+        notified_stock = notify_stock_sold.call_args.args[0]
+        self.assertTrue(notified_stock.is_sold)
+        self.assertEqual(notified_stock.quantity, 2)
+        self.assertEqual(notified_stock.sell_price, Decimal('130.00'))
 
 
 class StockCreateSerializerCashValidationTests(TestCase):

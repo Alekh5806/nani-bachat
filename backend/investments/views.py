@@ -70,6 +70,16 @@ class StockSellView(generics.UpdateAPIView):
     permission_classes = [IsAdmin]
     http_method_names = ['patch', 'put', 'options']
 
+    def perform_update(self, serializer):
+        import logging
+        logger = logging.getLogger(__name__)
+        sold_stock = serializer.save()
+        try:
+            from accounts.notifications import notify_stock_sold
+            notify_stock_sold(sold_stock)
+        except Exception as exc:
+            logger.warning('Push notification failed (stock sell): %s', exc)
+
 
 class StockDeleteView(generics.DestroyAPIView):
     """Delete a stock entry (admin only)."""

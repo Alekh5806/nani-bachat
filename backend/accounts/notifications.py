@@ -22,6 +22,12 @@ STOCK_TITLES = [
     '🚀 Portfolio Updated!',
 ]
 
+STOCK_SOLD_TITLES = [
+    '📤 Stock Sold!',
+    '💵 Sale Completed!',
+    '📉 Position Closed!',
+]
+
 DIVIDEND_TITLES = [
     '🎉 Dividend Credited!',
     '💵 Passive Income Alert!',
@@ -78,6 +84,14 @@ STOCK_TEMPLATES = [
     'Stock buy alert: {symbol}. હવે બધા silently NSE app ખોલશે.',
 
     '{quantity} {symbol} shares buy થયા. હવે portfolio માં thodu masala આવી ગયું.',
+]
+
+STOCK_SOLD_TEMPLATES = [
+    '{quantity} {symbol} shares sell થઈ ગયા. Cash pool માં paisa પાછા આવી ગયા.',
+    '{symbol} exit done. Profit હોય તો party, loss હોય તો learning officially booked.',
+    '{quantity} {symbol} shares sold. Portfolio એ થોડું breathing room લીધું.',
+    '{symbol} sell થઈ ગયું. હવે cash ready છે next opportunity માટે.',
+    'Stock sale alert: {symbol}. Market માંથી paisa પાછા base camp પર.',
 ]
 
 DIVIDEND_TEMPLATES = [
@@ -206,6 +220,27 @@ def notify_stock_bought(stock):
             'symbol': stock.symbol,
         },
         title=random.choice(STOCK_TITLES),
+        channel_id='stock',
+    )
+
+
+def notify_stock_sold(stock):
+    symbol = stock.symbol.replace('.NS', '').replace('.BO', '')
+    body = random.choice(STOCK_SOLD_TEMPLATES).format(
+        symbol=symbol,
+        quantity=stock.quantity,
+        sell_price=stock.sell_price,
+    )
+    return _send_push(
+        body,
+        {
+            'type': 'stock_sold',
+            'stock_id': stock.id,
+            'symbol': stock.symbol,
+            'quantity': stock.quantity,
+            'sell_price': str(stock.sell_price or ''),
+        },
+        title=random.choice(STOCK_SOLD_TITLES),
         channel_id='stock',
     )
 
