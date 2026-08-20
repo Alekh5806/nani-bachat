@@ -4,7 +4,7 @@
  */
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, RefreshControl
+  View, Text, StyleSheet, ScrollView, RefreshControl, Pressable
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -71,6 +71,10 @@ export const InvestmentsScreen = ({ navigation }) => {
     } else {
       Alert.alert('Update Failed', result.error || 'Could not refresh prices. Please try again.');
     }
+  };
+
+  const handleSellStock = (stock) => {
+    navigation.navigate('SellStock', { stock });
   };
 
   const formatCurrency = (val) => {
@@ -185,6 +189,22 @@ export const InvestmentsScreen = ({ navigation }) => {
                     Total: ₹{(stock.quantity * stock.buy_price + Number(stock.brokerage)).toFixed(2)}
                   </Text>
                 </View>
+                {isAdmin && (
+                  <View style={styles.txActions}>
+                    <Pressable
+                      onPress={() => handleSellStock(stock)}
+                      style={({ pressed }) => [styles.txActionButton, pressed && styles.txActionPressed]}
+                    >
+                      <Text style={styles.txActionText}>Sell</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => handleDeleteStock(stock)}
+                      style={({ pressed }) => [styles.txActionButton, styles.txDeleteButton, pressed && styles.txActionPressed]}
+                    >
+                      <Text style={[styles.txActionText, styles.txDeleteText]}>Delete</Text>
+                    </Pressable>
+                  </View>
+                )}
               </GlassCard>
             ))}
           </>
@@ -267,5 +287,32 @@ const styles = StyleSheet.create({
     fontSize: FONTS.sm,
     fontWeight: '700',
     marginTop: SPACING.xs,
+  },
+  txActions: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginTop: SPACING.md,
+  },
+  txActionButton: {
+    flex: 1,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.accent,
+    borderRadius: 8,
+    paddingVertical: SPACING.sm,
+  },
+  txDeleteButton: {
+    borderColor: COLORS.loss,
+  },
+  txActionPressed: {
+    opacity: 0.75,
+  },
+  txActionText: {
+    color: COLORS.accent,
+    fontSize: FONTS.sm,
+    fontWeight: '700',
+  },
+  txDeleteText: {
+    color: COLORS.loss,
   },
 });

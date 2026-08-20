@@ -27,6 +27,8 @@ export const AddStockScreen = ({ navigation }) => {
     clearSearch,
     members,
     fetchMembers,
+    dashboard,
+    fetchDashboard,
   } = usePortfolioStore();
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -53,7 +55,8 @@ export const AddStockScreen = ({ navigation }) => {
 
   useEffect(() => {
     fetchMembers();
-  }, [fetchMembers]);
+    fetchDashboard();
+  }, [fetchMembers, fetchDashboard]);
 
   // ── Debounced search ──
   const handleSearch = useCallback((text) => {
@@ -113,6 +116,16 @@ export const AddStockScreen = ({ navigation }) => {
       return;
     }
 
+    const totalInvestment = getTotalInvestment();
+    if (totalInvestment > availableCash) {
+      Toast.show({
+        type: 'error',
+        text1: 'Insufficient Pool Cash',
+        text2: `Available ${formatCurrency(availableCash)}, needed ${formatCurrency(totalInvestment)}`,
+      });
+      return;
+    }
+
     setLoading(true);
     const result = await createStock({
       symbol: selectedStock.symbol,
@@ -138,6 +151,16 @@ export const AddStockScreen = ({ navigation }) => {
     if (!val) return '₹0';
     return `₹${Number(val).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
   };
+
+  const getTotalInvestment = () => (
+    (parseInt(form.quantity || 0, 10) * parseFloat(form.buy_price || 0))
+    + parseFloat(form.brokerage || 0)
+  );
+
+  const availableCash = Number(dashboard?.portfolio?.cash_balance) || 0;
+  const totalInvestment = getTotalInvestment();
+  const remainingCash = availableCash - totalInvestment;
+  const hasEnoughCash = totalInvestment <= availableCash;
 
   return (
     <View style={styles.container}>
@@ -417,10 +440,17 @@ export const AddStockScreen = ({ navigation }) => {
               {form.quantity && form.buy_price && (
                 <GlassCard style={styles.previewCard}>
                   <Text style={styles.previewTitle}>💰 Investment Preview</Text>
+                  <View style={styles.cashBox}>
+                    <View>
+                      <Text style={styles.cashLabel}>Available Pool Cash</Text>
+                      <Text style={styles.cashSub}>Contributions + sale cash </Text>
+                    </View>
+                    <Text style={styles.cashValue}>{formatCurrency(availableCash)}</Text>
+                  </View>
                   <View style={styles.previewRow}>
                     <Text style={styles.previewLabel}>Cost ({form.quantity} × ₹{form.buy_price})</Text>
                     <Text style={styles.previewValue}>
-                      {formatCurrency(parseInt(form.quantity || 0) * parseFloat(form.buy_price || 0))}
+                      {formatCurrency(parseInt(form.quantity || 0, 10) * parseFloat(form.buy_price || 0))}
                     </Text>
                   </View>
                   <View style={styles.previewRow}>
@@ -438,16 +468,24 @@ export const AddStockScreen = ({ navigation }) => {
                   <View style={[styles.previewRow, styles.previewTotal]}>
                     <Text style={styles.previewTotalLabel}>Total Investment</Text>
                     <Text style={styles.previewTotalValue}>
-                      {formatCurrency(
-                        (parseInt(form.quantity || 0) * parseFloat(form.buy_price || 0))
-                        + parseFloat(form.brokerage || 0)
-                      )}
+                      {formatCurrency(totalInvestment)}
                     </Text>
                   </View>
+                  <View style={[styles.previewRow, styles.cashAfterRow]}>
+                    <Text style={styles.previewLabel}>Cash After Purchase</Text>
+                    <Text style={[styles.previewValue, { color: hasEnoughCash ? COLORS.accent : COLORS.loss }]}> 
+                      {formatCurrency(remainingCash)}
+                    </Text>
+                  </View>
+                  {!hasEnoughCash && (
+                    <Text style={styles.cashError}>
+                      This purchase is higher than available pool cash. Add/mark monthly contributions as paid or reduce the quantity.
+                    </Text>
+                  )}
                   <View style={styles.previewRow}>
                     <Text style={styles.previewLabel}>Current Value</Text>
                     <Text style={[styles.previewValue, { color: COLORS.accent }]}>
-                      {formatCurrency(parseInt(form.quantity || 0) * (selectedStock.current_price || form.buy_price || 0))}
+                      {formatCurrency(parseInt(form.quantity || 0, 10) * (selectedStock.current_price || form.buy_price || 0))}
                     </Text>
                   </View>
                 </GlassCard>
@@ -458,6 +496,7 @@ export const AddStockScreen = ({ navigation }) => {
                 onPress={handleSubmit}
                 loading={loading}
                 icon="✅"
+                disabled={!!(form.quantity && form.buy_price && !hasEnoughCash)}
                 style={{ marginTop: SPACING.lg }}
               />
             </>
@@ -730,6 +769,33 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     marginBottom: SPACING.md,
   },
+  cashBox: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: COLORS.cardBgAlt,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.accent + '30',
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  cashLabel: {
+    fontSize: FONTS.sm,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+  },
+  cashSub: {
+    fontSize: FONTS.xs,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  cashValue: {
+    fontSize: FONTS.md,
+    fontWeight: '900',
+    color: COLORS.accent,
+    marginLeft: SPACING.md,
+  },
   previewRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -760,5 +826,15 @@ const styles = StyleSheet.create({
     fontSize: FONTS.lg,
     fontWeight: '800',
     color: COLORS.accent,
+  },
+  cashAfterRow: {
+    paddingTop: SPACING.md,
+  },
+  cashError: {
+    fontSize: FONTS.xs,
+    color: COLORS.loss,
+    lineHeight: 17,
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.sm,
   },
 });

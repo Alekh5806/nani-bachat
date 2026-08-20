@@ -10,7 +10,7 @@ from django.db.models import Sum, F, DecimalField
 from django.db.models.functions import Coalesce
 
 from .models import Stock, StockPriceHistory
-from .serializers import StockSerializer, StockCreateSerializer, StockPriceHistorySerializer
+from .serializers import StockSerializer, StockCreateSerializer, StockSellSerializer, StockPriceHistorySerializer
 from accounts.permissions import IsAdmin, IsAdminOrReadOnly
 from portfolio.services import StockPriceService
 
@@ -61,6 +61,14 @@ class StockUpdateView(generics.UpdateAPIView):
     queryset = Stock.objects.all()
     serializer_class = StockCreateSerializer
     permission_classes = [IsAdmin]
+
+
+class StockSellView(generics.UpdateAPIView):
+    """Mark a stock purchase as sold (admin only)."""
+    queryset = Stock.objects.filter(is_sold=False)
+    serializer_class = StockSellSerializer
+    permission_classes = [IsAdmin]
+    http_method_names = ['patch', 'put', 'options']
 
 
 class StockDeleteView(generics.DestroyAPIView):

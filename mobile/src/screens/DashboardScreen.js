@@ -146,11 +146,11 @@ export const DashboardScreen = () => {
           </View>
 
           <View style={styles.stripRow}>
-            <StripItem label="Invested" value={fmtShort(p.total_invested)} />
+            <StripItem label="Capital" value={fmtShort(p.total_invested)} />
             <View style={styles.stripDivider} />
             <StripItem label="Returns" value={fmtShort(p.total_returns)} color={isUp ? COLORS.profit : COLORS.loss} />
             <View style={styles.stripDivider} />
-            <StripItem label="Dividends" value={fmtShort(p.total_dividends)} />
+            <StripItem label="Cash" value={fmtShort(p.cash_balance)} />
           </View>
         </View>
 
@@ -276,10 +276,22 @@ export const DashboardScreen = () => {
             <View style={styles.overviewCard}>
               <OverviewRow label="Total Invested" value={fmtFull(p.total_invested)} />
               <OverviewRow label="Current Value" value={fmtFull(p.current_value)} />
+              <OverviewRow label="Pool Cash" value={fmtFull(p.cash_balance)} />
+              <OverviewRow label="Active Stock Value" value={fmtFull(p.active_stock_value)} />
               <OverviewRow
                 label="P&L"
                 value={(isUp ? '+' : '') + fmtFull(pnl)}
                 valueColor={isUp ? COLORS.profit : COLORS.loss}
+              />
+              <OverviewRow
+                label="Realized P&L"
+                value={(Number(p.realized_profit_loss) >= 0 ? '+' : '') + fmtFull(p.realized_profit_loss)}
+                valueColor={Number(p.realized_profit_loss) >= 0 ? COLORS.profit : COLORS.loss}
+              />
+              <OverviewRow
+                label="Unrealized P&L"
+                value={(Number(p.unrealized_profit_loss) >= 0 ? '+' : '') + fmtFull(p.unrealized_profit_loss)}
+                valueColor={Number(p.unrealized_profit_loss) >= 0 ? COLORS.profit : COLORS.loss}
               />
               <OverviewRow label="Total Dividends" value={fmtFull(p.total_dividends)} />
               <OverviewRow

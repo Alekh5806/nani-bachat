@@ -81,8 +81,11 @@ export const usePortfolioStore = create((set, get) => ({
   createStock: async (stockData) => {
     try {
       const response = await api.post('/investments/stocks/create/', stockData);
-      get().fetchStocks();
-      get().fetchStockSummary();
+      await Promise.all([
+        get().fetchStocks(),
+        get().fetchStockSummary(),
+        get().fetchDashboard(),
+      ]);
       return { success: true, data: response.data };
     } catch (error) {
       return {
@@ -101,6 +104,24 @@ export const usePortfolioStore = create((set, get) => ({
       return { success: true };
     } catch (error) {
       return { success: false, error: 'Failed to delete stock' };
+    }
+  },
+
+  // ── Sell Stock (Admin) ──
+  sellStock: async (id, saleData) => {
+    try {
+      const response = await api.patch(`/investments/stocks/${id}/sell/`, saleData);
+      await Promise.all([
+        get().fetchStocks(),
+        get().fetchStockSummary(),
+        get().fetchDashboard(),
+      ]);
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data || 'Failed to sell stock',
+      };
     }
   },
 

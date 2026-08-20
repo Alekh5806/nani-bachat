@@ -9,6 +9,7 @@ import { COLORS } from '../theme/colors';
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { InvestmentsScreen } from '../screens/InvestmentsScreen';
 import { AddStockScreen } from '../screens/AddStockScreen';
+import { SellStockScreen } from '../screens/SellStockScreen';
 import { MembersScreen } from '../screens/MembersScreen';
 import { AddMemberScreen } from '../screens/AddMemberScreen';
 import { ContributionsScreen } from '../screens/ContributionsScreen';
@@ -62,6 +63,7 @@ const InvestmentsStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="InvestmentsHome" component={InvestmentsScreen} />
     <Stack.Screen name="AddStock" component={AddStockScreen} />
+    <Stack.Screen name="SellStock" component={SellStockScreen} />
   </Stack.Navigator>
 );
 

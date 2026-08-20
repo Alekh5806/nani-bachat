@@ -83,7 +83,11 @@ def generate_monthly_report(month: str) -> io.BytesIO:
         ['Metric', 'Value'],
         ['Total Invested', f'₹{portfolio["total_invested"]:,.2f}'],
         ['Current Value', f'₹{portfolio["current_value"]:,.2f}'],
+        ['Pool Cash', f'₹{portfolio.get("cash_balance", 0):,.2f}'],
+        ['Active Stock Value', f'₹{portfolio.get("active_stock_value", 0):,.2f}'],
         ['Profit/Loss', f'₹{portfolio["profit_loss"]:,.2f}'],
+        ['Realized P/L', f'₹{portfolio.get("realized_profit_loss", 0):,.2f}'],
+        ['Unrealized P/L', f'₹{portfolio.get("unrealized_profit_loss", 0):,.2f}'],
         ['Growth %', f'{portfolio["growth_percentage"]}%'],
         ['Total Dividends', f'₹{portfolio["total_dividends"]:,.2f}'],
     ]

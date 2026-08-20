@@ -214,16 +214,25 @@ class PortfolioService:
     """Service for portfolio-level calculations."""
 
     @staticmethod
+    def _money(value) -> Decimal:
+        """Convert database/numeric values to Decimal without float drift."""
+        return Decimal(str(value or 0))
+
+    @staticmethod
     def get_portfolio_summary() -> dict:
-        """Calculate complete portfolio summary with live prices."""
+        """Calculate complete portfolio summary, including cash from realized sales."""
         from investments.models import Stock
         from dividends.models import Dividend
+        from contributions.models import Contribution
         from django.db.models import Sum
 
         active_stocks = Stock.objects.filter(is_sold=False)
+        sold_stocks = Stock.objects.filter(is_sold=True)
 
-        total_invested = 0
-        total_current_value = 0
+        active_stock_invested = Decimal('0.00')
+        active_stock_value = Decimal('0.00')
+        sold_stock_invested = Decimal('0.00')
+        realized_sale_value = Decimal('0.00')
 
         # Get unique symbols and fetch live prices
         symbols = active_stocks.values_list('symbol', flat=True).distinct()
@@ -231,33 +240,57 @@ class PortfolioService:
         for symbol in symbols:
             price_data = StockPriceService.get_stock_price(symbol)
             if price_data and price_data.get('current_price', 0) > 0:
-                live_prices[symbol] = price_data['current_price']
+                live_prices[symbol] = PortfolioService._money(price_data['current_price'])
 
         for s in active_stocks:
-            invested = float(s.buy_price * s.quantity) + float(s.brokerage)
-            total_invested += invested
+            invested = (s.buy_price * s.quantity) + s.brokerage
+            active_stock_invested += invested
 
             # Use live price if available, otherwise use stored current_price
-            price = live_prices.get(s.symbol, float(s.current_price))
-            total_current_value += price * s.quantity
+            price = live_prices.get(s.symbol, s.current_price)
+            active_stock_value += price * s.quantity
 
-        total_profit_loss = total_current_value - total_invested
-        growth_percentage = (
-            (total_profit_loss / total_invested * 100)
-            if total_invested > 0 else 0
-        )
+        for s in sold_stocks:
+            sold_stock_invested += (s.buy_price * s.quantity) + s.brokerage
+            realized_sale_value += (s.sell_price or Decimal('0.00')) * s.quantity
 
         total_dividends = Dividend.objects.aggregate(
             total=Sum('total_dividend')
-        )['total'] or 0
+        )['total'] or Decimal('0.00')
+
+        total_contributions = Contribution.objects.filter(
+            status='paid'
+        ).aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0.00')
+
+        stock_purchase_cost = active_stock_invested + sold_stock_invested
+        capital_basis = total_contributions if total_contributions > 0 else stock_purchase_cost
+        cash_balance = capital_basis + realized_sale_value - stock_purchase_cost
+        total_current_value = active_stock_value + cash_balance + total_dividends
+        realized_profit_loss = realized_sale_value - sold_stock_invested
+        unrealized_profit_loss = active_stock_value - active_stock_invested
+        total_profit_loss = total_current_value - capital_basis
+
+        growth_percentage = (
+            (total_profit_loss / capital_basis * 100)
+            if capital_basis > 0 else 0
+        )
 
         return {
-            'total_invested': round(total_invested, 2),
-            'current_value': round(total_current_value, 2),
-            'profit_loss': round(total_profit_loss, 2),
-            'growth_percentage': round(growth_percentage, 2),
+            'total_invested': round(float(capital_basis), 2),
+            'current_value': round(float(total_current_value), 2),
+            'profit_loss': round(float(total_profit_loss), 2),
+            'growth_percentage': round(float(growth_percentage), 2),
             'total_dividends': float(total_dividends),
-            'total_returns': round(total_profit_loss + float(total_dividends), 2),
+            'total_returns': round(float(total_profit_loss), 2),
+            'cash_balance': round(float(cash_balance), 2),
+            'active_stock_value': round(float(active_stock_value), 2),
+            'active_stock_invested': round(float(active_stock_invested), 2),
+            'stock_purchase_cost': round(float(stock_purchase_cost), 2),
+            'realized_sale_value': round(float(realized_sale_value), 2),
+            'realized_profit_loss': round(float(realized_profit_loss), 2),
+            'unrealized_profit_loss': round(float(unrealized_profit_loss), 2),
         }
 
     @staticmethod
@@ -320,6 +353,16 @@ class PortfolioService:
                 'name': first.name,
                 'value': round(value, 2),
                 'quantity': qty,
+            })
+
+        cash_balance = PortfolioService.get_portfolio_summary().get('cash_balance', 0)
+        if cash_balance > 0:
+            total_value += cash_balance
+            allocation.append({
+                'symbol': 'CASH',
+                'name': 'Pool Cash',
+                'value': round(cash_balance, 2),
+                'quantity': None,
             })
 
         # Calculate percentages

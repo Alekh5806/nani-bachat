@@ -5,6 +5,7 @@ Tracks all stock purchases made by the pool.
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from decimal import Decimal
 
 
@@ -64,6 +65,23 @@ class Stock(models.Model):
 
     def __str__(self):
         return f'{self.name} ({self.symbol}) - {self.quantity} shares'
+
+    def clean(self):
+        super().clean()
+        if self.is_sold:
+            errors = {}
+            if self.sell_price is None:
+                errors['sell_price'] = 'Sell price is required when stock is sold.'
+            elif self.sell_price <= 0:
+                errors['sell_price'] = 'Sell price must be greater than zero.'
+
+            if self.sell_date is None:
+                errors['sell_date'] = 'Sell date is required when stock is sold.'
+            elif self.buy_date and self.sell_date < self.buy_date:
+                errors['sell_date'] = 'Sell date cannot be before buy date.'
+
+            if errors:
+                raise ValidationError(errors)
 
     @property
     def total_invested(self):
