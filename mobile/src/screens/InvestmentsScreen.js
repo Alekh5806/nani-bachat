@@ -77,6 +77,10 @@ export const InvestmentsScreen = ({ navigation }) => {
     navigation.navigate('SellStock', { stock });
   };
 
+  const handleEditStock = (stock) => {
+    navigation.navigate('EditStock', { stock });
+  };
+
   const formatCurrency = (val) => {
     const num = Number(val) || 0;
     if (num >= 100000) return `₹${(num / 100000).toFixed(2)}L`;
@@ -191,6 +195,12 @@ export const InvestmentsScreen = ({ navigation }) => {
                 </View>
                 {isAdmin && (
                   <View style={styles.txActions}>
+                    <Pressable
+                      onPress={() => handleEditStock(stock)}
+                      style={({ pressed }) => [styles.txActionButton, pressed && styles.txActionPressed]}
+                    >
+                      <Text style={styles.txActionText}>Edit</Text>
+                    </Pressable>
                     <Pressable
                       onPress={() => handleSellStock(stock)}
                       style={({ pressed }) => [styles.txActionButton, pressed && styles.txActionPressed]}

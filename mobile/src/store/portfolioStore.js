@@ -4,6 +4,7 @@
  */
 import { create } from 'zustand';
 import api from '../config/api';
+import { getErrorMessage } from '../utils/errors';
 
 export const usePortfolioStore = create((set, get) => ({
   // ── State ──
@@ -90,7 +91,27 @@ export const usePortfolioStore = create((set, get) => ({
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data || 'Failed to add stock',
+        error: getErrorMessage(error, 'Failed to add stock'),
+      };
+    }
+  },
+
+  // ── Update Stock (Admin) ──
+  // Price/quantity/brokerage edits change what a month actually spent, so the
+  // caller is expected to re-settle that month and the ones after it.
+  updateStock: async (id, stockData) => {
+    try {
+      const response = await api.patch(`/investments/stocks/${id}/update/`, stockData);
+      await Promise.all([
+        get().fetchStocks(),
+        get().fetchStockSummary(),
+        get().fetchDashboard(),
+      ]);
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        error: getErrorMessage(error, 'Failed to update stock'),
       };
     }
   },
@@ -120,7 +141,7 @@ export const usePortfolioStore = create((set, get) => ({
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data || 'Failed to sell stock',
+        error: getErrorMessage(error, 'Failed to sell stock'),
       };
     }
   },
@@ -193,7 +214,7 @@ export const usePortfolioStore = create((set, get) => ({
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data || 'Failed to add dividend',
+        error: getErrorMessage(error, 'Failed to add dividend'),
       };
     }
   },
@@ -207,6 +228,54 @@ export const usePortfolioStore = create((set, get) => ({
     } catch (error) {
       console.error('Failed to fetch growth data:', error);
       return null;
+    }
+  },
+
+  // ── Pool Settlement ──
+  fetchPoolStatus: async (month) => {
+    try {
+      const params = month ? `?month=${month}` : '';
+      const response = await api.get(`/contributions/pool-status/${params}`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { success: false, error: getErrorMessage(error, 'Failed to load pool status') };
+    }
+  },
+
+  settleMonth: async (month, options = {}) => {
+    try {
+      const body = { month };
+      if (options.buyingMember) body.buying_member = options.buyingMember;
+      if (options.force) body.force = true;
+      const response = await api.post('/contributions/settle/', body);
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        error: getErrorMessage(error, 'Failed to settle month'),
+        status: error?.response?.status,
+      };
+    }
+  },
+
+  setBuyingMember: async (month, buyingMember) => {
+    try {
+      const response = await api.post('/contributions/set-buyer/', {
+        month,
+        buying_member: buyingMember,
+      });
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { success: false, error: getErrorMessage(error, 'Failed to set buying member') };
+    }
+  },
+
+  syncPools: async () => {
+    try {
+      const response = await api.post('/contributions/sync-pools/');
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { success: false, error: getErrorMessage(error, 'Failed to sync pools') };
     }
   },
 

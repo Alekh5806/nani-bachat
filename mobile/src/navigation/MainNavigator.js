@@ -10,6 +10,7 @@ import { DashboardScreen } from '../screens/DashboardScreen';
 import { InvestmentsScreen } from '../screens/InvestmentsScreen';
 import { AddStockScreen } from '../screens/AddStockScreen';
 import { SellStockScreen } from '../screens/SellStockScreen';
+import { EditStockScreen } from '../screens/EditStockScreen';
 import { MembersScreen } from '../screens/MembersScreen';
 import { AddMemberScreen } from '../screens/AddMemberScreen';
 import { ContributionsScreen } from '../screens/ContributionsScreen';
@@ -64,6 +65,7 @@ const InvestmentsStack = () => (
     <Stack.Screen name="InvestmentsHome" component={InvestmentsScreen} />
     <Stack.Screen name="AddStock" component={AddStockScreen} />
     <Stack.Screen name="SellStock" component={SellStockScreen} />
+    <Stack.Screen name="EditStock" component={EditStockScreen} />
   </Stack.Navigator>
 );
 

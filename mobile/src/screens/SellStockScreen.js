@@ -13,6 +13,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { PremiumInput } from '../components/PremiumInput';
 import { PremiumButton } from '../components/PremiumButton';
 import { GlassCard } from '../components/GlassCard';
+import { DatePickerField, todayString, parseDateString } from '../components/DatePickerField';
 import { COLORS, SPACING, FONTS } from '../theme/colors';
 
 export const SellStockScreen = ({ navigation, route }) => {
@@ -23,7 +24,7 @@ export const SellStockScreen = ({ navigation, route }) => {
   const [form, setForm] = useState({
     quantity: stock?.quantity ? String(stock.quantity) : '',
     sell_price: stock?.current_price ? String(stock.current_price) : '',
-    sell_date: new Date().toISOString().split('T')[0],
+    sell_date: todayString(),
     notes: stock?.notes || '',
   });
 
@@ -41,16 +42,7 @@ export const SellStockScreen = ({ navigation, route }) => {
 
   const roundMoney = (value) => Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
 
-  const isValidDate = (value) => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-    const [year, month, day] = value.split('-').map(Number);
-    const parsed = new Date(year, month - 1, day);
-    return (
-      parsed.getFullYear() === year
-      && parsed.getMonth() === month - 1
-      && parsed.getDate() === day
-    );
-  };
+  const isValidDate = (value) => parseDateString(value) !== null;
 
   const handleSubmit = async () => {
     if (!stock?.id) {
@@ -110,7 +102,7 @@ export const SellStockScreen = ({ navigation, route }) => {
       Toast.show({ type: 'success', text1: 'Stock Sold', text2: `${sellQuantity} ${stock.name} share${sellQuantity > 1 ? 's' : ''} sold` });
       navigation.goBack();
     } else {
-      Toast.show({ type: 'error', text1: 'Error', text2: JSON.stringify(result.error) });
+      Toast.show({ type: 'error', text1: 'Could Not Sell', text2: result.error });
     }
   };
 
@@ -238,12 +230,12 @@ export const SellStockScreen = ({ navigation, route }) => {
               icon="₹"
               error={errors.sell_price}
             />
-            <PremiumInput
+            <DatePickerField
               label="Sell Date"
               value={form.sell_date}
-              onChangeText={(value) => updateForm('sell_date', value)}
-              placeholder="YYYY-MM-DD"
-              icon="📅"
+              onChange={(value) => updateForm('sell_date', value)}
+              minDate={stock?.buy_date}
+              maxDate={todayString()}
               error={errors.sell_date}
             />
             <PremiumInput

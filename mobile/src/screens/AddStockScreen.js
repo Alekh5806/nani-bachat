@@ -16,6 +16,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { PremiumInput } from '../components/PremiumInput';
 import { PremiumButton } from '../components/PremiumButton';
 import { GlassCard } from '../components/GlassCard';
+import { DatePickerField, todayString } from '../components/DatePickerField';
 import { COLORS, SPACING, FONTS, RADIUS, SHADOWS } from '../theme/colors';
 
 export const AddStockScreen = ({ navigation }) => {
@@ -39,7 +40,7 @@ export const AddStockScreen = ({ navigation }) => {
     quantity: '',
     buy_price: '',
     brokerage: '0',
-    buy_date: new Date().toISOString().split('T')[0],
+    buy_date: todayString(),
     buyer: '',
     notes: '',
   });
@@ -116,12 +117,14 @@ export const AddStockScreen = ({ navigation }) => {
       return;
     }
 
+    // A shortfall is allowed: the named buyer fronts it and settling the month
+    // credits it back to them. Only block when there is nobody to charge.
     const totalInvestment = getTotalInvestment();
-    if (totalInvestment > availableCash) {
+    if (totalInvestment > availableCash && !form.buyer) {
       Toast.show({
         type: 'error',
         text1: 'Insufficient Pool Cash',
-        text2: `Available ${formatCurrency(availableCash)}, needed ${formatCurrency(totalInvestment)}`,
+        text2: `Available ${formatCurrency(availableCash)}, needed ${formatCurrency(totalInvestment)}. Select the buying member.`,
       });
       return;
     }
@@ -143,7 +146,7 @@ export const AddStockScreen = ({ navigation }) => {
       Toast.show({ type: 'success', text1: 'Stock Added! ✅', text2: `${selectedStock.name} added to portfolio` });
       navigation.goBack();
     } else {
-      Toast.show({ type: 'error', text1: 'Error', text2: JSON.stringify(result.error) });
+      Toast.show({ type: 'error', text1: 'Could Not Add Stock', text2: result.error });
     }
   };
 
@@ -161,6 +164,8 @@ export const AddStockScreen = ({ navigation }) => {
   const totalInvestment = getTotalInvestment();
   const remainingCash = availableCash - totalInvestment;
   const hasEnoughCash = totalInvestment <= availableCash;
+  const shortfall = Math.max(totalInvestment - availableCash, 0);
+  const selectedBuyerName = members.find((m) => String(m.id) === String(form.buyer))?.name || 'The buyer';
 
   return (
     <View style={styles.container}>
@@ -387,12 +392,11 @@ export const AddStockScreen = ({ navigation }) => {
                   icon="🏦"
                   style={styles.halfInput}
                 />
-                <PremiumInput
+                <DatePickerField
                   label="Buy Date"
                   value={form.buy_date}
-                  onChangeText={(v) => updateForm('buy_date', v)}
-                  placeholder="YYYY-MM-DD"
-                  icon="📅"
+                  onChange={(v) => updateForm('buy_date', v)}
+                  maxDate={todayString()}
                   style={styles.halfInput}
                 />
               </View>
@@ -478,9 +482,24 @@ export const AddStockScreen = ({ navigation }) => {
                     </Text>
                   </View>
                   {!hasEnoughCash && (
-                    <Text style={styles.cashError}>
-                      This purchase is higher than available pool cash. Add/mark monthly contributions as paid or reduce the quantity.
-                    </Text>
+                    form.buyer ? (
+                      <View style={styles.shortfallBox}>
+                        <Text style={styles.shortfallTitle}>
+                          Shortfall {formatCurrency(shortfall)} advanced by the buyer
+                        </Text>
+                        <Text style={styles.shortfallText}>
+                          {selectedBuyerName} pays this from their own pocket. Settle{' '}
+                          {form.buy_date?.slice(0, 7) || 'this month'} afterwards and it is
+                          deducted from their next installment, so ownership stays level.
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.cashError}>
+                        This purchase is {formatCurrency(shortfall)} over the available pool
+                        cash. Pick the buying member who is covering the shortfall, or reduce
+                        the quantity.
+                      </Text>
+                    )
                   )}
                   <View style={styles.previewRow}>
                     <Text style={styles.previewLabel}>Current Value</Text>
@@ -496,7 +515,7 @@ export const AddStockScreen = ({ navigation }) => {
                 onPress={handleSubmit}
                 loading={loading}
                 icon="✅"
-                disabled={!!(form.quantity && form.buy_price && !hasEnoughCash)}
+                disabled={!!(form.quantity && form.buy_price && !hasEnoughCash && !form.buyer)}
                 style={{ marginTop: SPACING.lg }}
               />
             </>
@@ -829,6 +848,26 @@ const styles = StyleSheet.create({
   },
   cashAfterRow: {
     paddingTop: SPACING.md,
+  },
+  shortfallBox: {
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.warning + '55',
+    backgroundColor: COLORS.warningBg,
+    padding: SPACING.md,
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  shortfallTitle: {
+    fontSize: FONTS.sm,
+    fontWeight: '800',
+    color: COLORS.warning,
+  },
+  shortfallText: {
+    fontSize: FONTS.xs,
+    color: COLORS.textSecondary,
+    lineHeight: 17,
+    marginTop: 4,
   },
   cashError: {
     fontSize: FONTS.xs,

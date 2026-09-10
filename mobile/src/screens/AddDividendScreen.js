@@ -13,21 +13,23 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { PremiumInput } from '../components/PremiumInput';
 import { PremiumButton } from '../components/PremiumButton';
 import { GlassCard } from '../components/GlassCard';
+import { DatePickerField, todayString, formatDateDisplay } from '../components/DatePickerField';
 import { COLORS, SPACING, FONTS, RADIUS } from '../theme/colors';
 
 export const AddDividendScreen = ({ navigation }) => {
-  const { createDividend, stocks, fetchStocks } = usePortfolioStore();
+  const { createDividend, stocks, fetchStocks, members, fetchMembers } = usePortfolioStore();
   const [loading, setLoading] = useState(false);
   const [selectedStock, setSelectedStock] = useState(null);
   const [form, setForm] = useState({
     dividend_per_share: '',
-    ex_date: new Date().toISOString().split('T')[0],
+    ex_date: todayString(),
     payment_date: '',
     notes: '',
   });
 
   useEffect(() => {
     fetchStocks();
+    fetchMembers();
   }, []);
 
   const updateForm = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
@@ -52,17 +54,20 @@ export const AddDividendScreen = ({ navigation }) => {
       Toast.show({ type: 'success', text1: 'Dividend Added', text2: 'Recorded successfully' });
       navigation.goBack();
     } else {
-      Toast.show({ type: 'error', text1: 'Error', text2: JSON.stringify(result.error) });
+      Toast.show({ type: 'error', text1: 'Could Not Record Dividend', text2: result.error });
     }
   };
 
-  // Get unique stocks
-  const uniqueStocks = stocks.reduce((acc, stock) => {
-    if (!acc.find(s => s.symbol === stock.symbol)) {
-      acc.push(stock);
-    }
-    return acc;
-  }, []);
+  // Split is equal across active members, matching the backend's
+  // per_member_share; falls back to 1 so the preview never divides by zero.
+  const memberCount = members.filter((m) => m.is_active !== false).length;
+
+  // A dividend is recorded against one purchase lot, and each lot has its own
+  // buyer and quantity — so list the lots rather than collapsing by symbol.
+  const holdings = [...stocks].sort((a, b) => (
+    String(a.symbol || '').localeCompare(String(b.symbol || ''))
+    || String(b.buy_date || '').localeCompare(String(a.buy_date || ''))
+  ));
 
   return (
     <View style={styles.container}>
@@ -82,36 +87,71 @@ export const AddDividendScreen = ({ navigation }) => {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          {/* ── Stock Selector ── */}
-          <Text style={styles.sectionLabel}>SELECT STOCK</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.stockScroll}>
-            {uniqueStocks.map((stock) => (
+          {/* ── Holding Selector ── */}
+          <Text style={styles.sectionLabel}>SELECT HOLDING</Text>
+          {holdings.length === 0 && (
+            <GlassCard style={styles.selectedCard}>
+              <Text style={styles.selectedQty}>No active holdings to record a dividend against.</Text>
+            </GlassCard>
+          )}
+          {holdings.map((stock) => {
+            const active = selectedStock?.id === stock.id;
+            return (
               <Pressable
                 key={stock.id}
                 onPress={() => setSelectedStock(stock)}
-                style={[
-                  styles.stockPill,
-                  selectedStock?.id === stock.id && styles.stockPillActive,
+                style={({ pressed }) => [
+                  styles.holdingRow,
+                  active && styles.holdingRowActive,
+                  pressed && styles.holdingRowPressed,
                 ]}
               >
-                <Text
-                  style={[
-                    styles.stockPillText,
-                    selectedStock?.id === stock.id && styles.stockPillTextActive,
-                  ]}
-                >
-                  {stock.symbol?.replace('.NS', '')}
-                </Text>
+                <View style={styles.holdingLeft}>
+                  <Text style={[styles.holdingSymbol, active && styles.holdingSymbolActive]}>
+                    {stock.symbol?.replace('.NS', '')}
+                  </Text>
+                  <Text style={styles.holdingName} numberOfLines={1}>{stock.name}</Text>
+                  {/* Whose demat holds these shares — the dividend lands there. */}
+                  <Text style={styles.holdingBuyer}>
+                    👤 Buyer: {stock.buyer_name || 'Not recorded'}
+                  </Text>
+                  <Text style={styles.holdingMeta}>
+                    {stock.quantity} shares · bought at ₹{stock.buy_price} on{' '}
+                    {formatDateDisplay(stock.buy_date)}
+                  </Text>
+                </View>
+                <View style={styles.holdingRight}>
+                  {active
+                    ? <Text style={styles.holdingCheck}>✓</Text>
+                    : <Text style={styles.holdingSelect}>Select</Text>}
+                </View>
               </Pressable>
-            ))}
-          </ScrollView>
+            );
+          })}
 
           {selectedStock && (
-            <GlassCard style={styles.selectedCard}>
+            <GlassCard style={styles.selectedCard} borderGlow>
               <Text style={styles.selectedName}>{selectedStock.name}</Text>
-              <Text style={styles.selectedQty}>
-                Quantity: {selectedStock.quantity} shares
-              </Text>
+              <View style={styles.selectedGrid}>
+                <View style={styles.selectedItem}>
+                  <Text style={styles.selectedLabel}>Quantity</Text>
+                  <Text style={styles.selectedValue}>{selectedStock.quantity} shares</Text>
+                </View>
+                <View style={styles.selectedItem}>
+                  <Text style={styles.selectedLabel}>Buyer</Text>
+                  <Text style={styles.selectedValue} numberOfLines={1}>
+                    {selectedStock.buyer_name || 'Not recorded'}
+                  </Text>
+                </View>
+                <View style={styles.selectedItem}>
+                  <Text style={styles.selectedLabel}>Buy Price</Text>
+                  <Text style={styles.selectedValue}>₹{selectedStock.buy_price}</Text>
+                </View>
+                <View style={styles.selectedItem}>
+                  <Text style={styles.selectedLabel}>Buy Date</Text>
+                  <Text style={styles.selectedValue}>{formatDateDisplay(selectedStock.buy_date)}</Text>
+                </View>
+              </View>
             </GlassCard>
           )}
 
@@ -124,20 +164,20 @@ export const AddDividendScreen = ({ navigation }) => {
             icon="💵"
           />
 
-          <PremiumInput
+          <DatePickerField
             label="Ex-Dividend Date"
             value={form.ex_date}
-            onChangeText={(v) => updateForm('ex_date', v)}
-            placeholder="YYYY-MM-DD"
-            icon="📅"
+            onChange={(v) => updateForm('ex_date', v)}
+            minDate={selectedStock?.buy_date}
           />
 
-          <PremiumInput
+          <DatePickerField
             label="Payment Date (Optional)"
             value={form.payment_date}
-            onChangeText={(v) => updateForm('payment_date', v)}
-            placeholder="YYYY-MM-DD"
-            icon="📅"
+            onChange={(v) => updateForm('payment_date', v)}
+            placeholder="Not paid yet"
+            minDate={form.ex_date}
+            clearable
           />
 
           <PremiumInput
@@ -156,7 +196,10 @@ export const AddDividendScreen = ({ navigation }) => {
                 Total Dividend: ₹{(parseFloat(form.dividend_per_share || 0) * selectedStock.quantity).toFixed(2)}
               </Text>
               <Text style={styles.previewText}>
-                Per Member: ~₹{((parseFloat(form.dividend_per_share || 0) * selectedStock.quantity) / 10).toFixed(2)}
+                Per Member: ~₹{(
+                  (parseFloat(form.dividend_per_share || 0) * selectedStock.quantity)
+                  / Math.max(memberCount, 1)
+                ).toFixed(2)} ({memberCount} members)
               </Text>
             </GlassCard>
           )}
@@ -193,32 +236,90 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginBottom: SPACING.sm,
   },
-  stockScroll: {
-    marginBottom: SPACING.lg,
-  },
-  stockPill: {
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
-    borderRadius: RADIUS.full,
-    backgroundColor: COLORS.glass,
+  holdingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.cardBg,
+    borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.glassBorder,
-    marginRight: SPACING.sm,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
   },
-  stockPillActive: {
-    backgroundColor: COLORS.accent,
+  holdingRowActive: {
     borderColor: COLORS.accent,
+    backgroundColor: COLORS.accent + '14',
   },
-  stockPillText: {
-    color: COLORS.textSecondary,
+  holdingRowPressed: {
+    opacity: 0.8,
+  },
+  holdingLeft: {
+    flex: 1,
+    minWidth: 0,
+  },
+  holdingRight: {
+    marginLeft: SPACING.md,
+  },
+  holdingSymbol: {
     fontSize: FONTS.sm,
-    fontWeight: '600',
+    fontWeight: '800',
+    color: COLORS.textSecondary,
+    letterSpacing: 0.5,
   },
-  stockPillTextActive: {
-    color: '#FFFFFF',
+  holdingSymbolActive: {
+    color: COLORS.accent,
+  },
+  holdingName: {
+    fontSize: FONTS.md,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    marginTop: 2,
+  },
+  holdingBuyer: {
+    fontSize: FONTS.xs,
+    fontWeight: '600',
+    color: COLORS.accent,
+    marginTop: 4,
+  },
+  holdingMeta: {
+    fontSize: FONTS.xs,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  holdingCheck: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: COLORS.accent,
+  },
+  holdingSelect: {
+    fontSize: FONTS.xs,
+    fontWeight: '700',
+    color: COLORS.textMuted,
   },
   selectedCard: {
+    marginTop: SPACING.sm,
     marginBottom: SPACING.lg,
+  },
+  selectedGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: SPACING.sm,
+  },
+  selectedItem: {
+    width: '50%',
+    paddingVertical: SPACING.xs,
+    paddingRight: SPACING.sm,
+  },
+  selectedLabel: {
+    fontSize: FONTS.xs,
+    color: COLORS.textMuted,
+  },
+  selectedValue: {
+    fontSize: FONTS.sm,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    marginTop: 2,
   },
   selectedName: {
     color: COLORS.textPrimary,

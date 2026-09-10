@@ -16,6 +16,8 @@ import Toast from 'react-native-toast-message';
 import { Alert } from '../utils/alert';
 import api from '../config/api';
 import { useAuthStore } from '../store/authStore';
+import { usePortfolioStore } from '../store/portfolioStore';
+import { getErrorMessage } from '../utils/errors';
 import { COLORS, SPACING, FONTS, RADIUS } from '../theme/colors';
 import { GlassCard } from '../components/GlassCard';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -27,6 +29,14 @@ const MONTH_NAMES = [
 
 export const ContributionsScreen = ({ route, navigation }) => {
   const { user } = useAuthStore();
+  const {
+    members,
+    fetchMembers,
+    fetchPoolStatus,
+    settleMonth,
+    setBuyingMember,
+    syncPools,
+  } = usePortfolioStore();
   const insets = useSafeAreaInsets();
   const isAdmin = user?.is_staff || user?.is_admin || user?.role === 'admin';
 
@@ -47,6 +57,18 @@ export const ContributionsScreen = ({ route, navigation }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingContribution, setEditingContribution] = useState(null);
   const [editAmount, setEditAmount] = useState('');
+
+  // ── Pool settlement ──
+  const [poolStatus, setPoolStatus] = useState(null);
+  const [poolLoading, setPoolLoading] = useState(false);
+  const [settling, setSettling] = useState(false);
+  const [showBuyerModal, setShowBuyerModal] = useState(false);
+  const [savingBuyer, setSavingBuyer] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  // The settlement card always describes one specific month: whichever is
+  // filtered, or the current one when viewing everything.
+  const poolMonth = selectedMonth || new Date().toISOString().slice(0, 7);
 
   const memberId = route?.params?.memberId;
   const memberName = route?.params?.memberName;
@@ -84,6 +106,25 @@ export const ContributionsScreen = ({ route, navigation }) => {
     }
   }, []);
 
+  const loadPoolStatus = useCallback(async () => {
+    if (!isAdmin) return;
+    setPoolLoading(true);
+    const result = await fetchPoolStatus(poolMonth);
+    setPoolStatus(result.success ? result.data : null);
+    setPoolLoading(false);
+  }, [isAdmin, poolMonth, fetchPoolStatus]);
+
+  // Every mutation on this screen can move the pool position, so all of them
+  // refresh through here rather than each picking their own subset.
+  const refreshAll = useCallback(async () => {
+    await Promise.all([
+      fetchContributions(),
+      fetchSummary(),
+      fetchAvailableMonths(),
+      loadPoolStatus(),
+    ]);
+  }, [fetchContributions, fetchSummary, fetchAvailableMonths, loadPoolStatus]);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     await Promise.all([fetchContributions(), fetchSummary(), fetchAvailableMonths()]);
@@ -92,12 +133,14 @@ export const ContributionsScreen = ({ route, navigation }) => {
 
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { fetchContributions(); }, [selectedMonth]);
+  useEffect(() => { loadPoolStatus(); }, [loadPoolStatus]);
+  useEffect(() => { if (isAdmin) fetchMembers(); }, [isAdmin, fetchMembers]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([fetchContributions(), fetchSummary(), fetchAvailableMonths()]);
+    await refreshAll();
     setRefreshing(false);
-  }, [fetchContributions, fetchSummary, fetchAvailableMonths]);
+  }, [refreshAll]);
 
   const handleGenerateContributions = async () => {
     const monthDate = generateYear + '-' + String(generateMonthIndex + 1).padStart(2, '0');
@@ -118,10 +161,27 @@ export const ContributionsScreen = ({ route, navigation }) => {
                 amount: parseFloat(generateAmount),
               });
               Toast.show({ type: 'success', text1: 'Generated', text2: response.data.message });
-              await Promise.all([fetchContributions(), fetchSummary(), fetchAvailableMonths()]);
+              await refreshAll();
+
+              // Generation can pre-bill unspent pool cash to last month's
+              // buyer. Say so, otherwise that member's row looks wrong.
+              const carried = response.data.carried_forward || {};
+              const carriedLines = Object.keys(carried)
+                .filter((id) => Number(carried[id]) > 0)
+                .map((id) => {
+                  const name = members.find((m) => String(m.id) === String(id))?.name || 'A member';
+                  return name + ' owes Rs.' + Number(carried[id]).toFixed(2)
+                    + ' of unspent pool cash this month';
+                });
+              if (carriedLines.length > 0) {
+                Alert.alert('Adjustments Applied', carriedLines.join('\n'));
+              }
             } catch (error) {
-              const msg = error.response?.data?.error || error.response?.data?.detail || 'Failed to generate';
-              Toast.show({ type: 'error', text1: 'Error', text2: msg });
+              Toast.show({
+                type: 'error',
+                text1: 'Error',
+                text2: getErrorMessage(error, 'Failed to generate'),
+              });
             } finally { setGenerating(false); }
           },
         },
@@ -144,9 +204,9 @@ export const ContributionsScreen = ({ route, navigation }) => {
             const body = selectedMonth ? { month: selectedMonth } : {};
             const response = await api.post('/contributions/cleanup/', body);
             Toast.show({ type: 'success', text1: 'Done', text2: response.data.message });
-            await Promise.all([fetchContributions(), fetchSummary(), fetchAvailableMonths()]);
+            await refreshAll();
           } catch (error) {
-            Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to cleanup' });
+            Toast.show({ type: 'error', text1: 'Error', text2: getErrorMessage(error, 'Failed to cleanup') });
           } finally { setCleaning(false); }
         },
       },
@@ -167,9 +227,9 @@ export const ContributionsScreen = ({ route, navigation }) => {
               const response = await api.post('/contributions/delete-month/', { month: month });
               Toast.show({ type: 'success', text1: 'Deleted', text2: response.data.message });
               setSelectedMonth(null);
-              await Promise.all([fetchContributions(), fetchSummary(), fetchAvailableMonths()]);
+              await refreshAll();
             } catch (error) {
-              Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to delete' });
+              Toast.show({ type: 'error', text1: 'Error', text2: getErrorMessage(error, 'Failed to delete') });
             }
           },
         },
@@ -181,10 +241,9 @@ export const ContributionsScreen = ({ route, navigation }) => {
     try {
       await api.post('/contributions/' + id + '/mark_paid/');
       Toast.show({ type: 'success', text1: 'Marked as Paid' });
-      await Promise.all([fetchContributions(), fetchSummary(), fetchAvailableMonths()]);
+      await refreshAll();
     } catch (error) {
-      const msg = error.response?.data?.error || error.response?.data?.detail || 'Failed to update';
-      Toast.show({ type: 'error', text1: 'Error', text2: msg });
+      Toast.show({ type: 'error', text1: 'Error', text2: getErrorMessage(error, 'Failed to update') });
     }
   };
 
@@ -192,10 +251,9 @@ export const ContributionsScreen = ({ route, navigation }) => {
     try {
       await api.post('/contributions/' + id + '/mark_unpaid/');
       Toast.show({ type: 'success', text1: 'Marked as Unpaid' });
-      await Promise.all([fetchContributions(), fetchSummary(), fetchAvailableMonths()]);
+      await refreshAll();
     } catch (error) {
-      const msg = error.response?.data?.error || error.response?.data?.detail || 'Failed to update';
-      Toast.show({ type: 'error', text1: 'Error', text2: msg });
+      Toast.show({ type: 'error', text1: 'Error', text2: getErrorMessage(error, 'Failed to update') });
     }
   };
 
@@ -214,10 +272,86 @@ export const ContributionsScreen = ({ route, navigation }) => {
       Toast.show({ type: 'success', text1: 'Amount Updated' });
       setShowEditModal(false);
       setEditingContribution(null);
-      await Promise.all([fetchContributions(), fetchSummary(), fetchAvailableMonths()]);
+      await refreshAll();
     } catch (error) {
-      const msg = error.response?.data?.error || error.response?.data?.detail || 'Failed to update amount';
-      Toast.show({ type: 'error', text1: 'Error', text2: msg });
+      Toast.show({ type: 'error', text1: 'Error', text2: getErrorMessage(error, 'Failed to update amount') });
+    }
+  };
+
+  const runSettle = async (force) => {
+    setSettling(true);
+    const result = await settleMonth(poolMonth, { force });
+    setSettling(false);
+
+    if (result.success) {
+      Toast.show({
+        type: 'success',
+        text1: 'Month Settled',
+        text2: result.data.message,
+      });
+      await refreshAll();
+      return;
+    }
+
+    // The backend blocks a settle while contributions are outstanding, because
+    // the shortfall would otherwise be blamed on the buyer. Offer the override.
+    if (!force && /unpaid/i.test(result.error)) {
+      Alert.alert(
+        'Unpaid Contributions',
+        result.error + '\n\nSettle anyway?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Settle Anyway', style: 'destructive', onPress: () => runSettle(true) },
+        ]
+      );
+      return;
+    }
+
+    Toast.show({ type: 'error', text1: 'Cannot Settle', text2: result.error });
+  };
+
+  const handleSettle = () => {
+    const collected = Number(poolStatus?.total_collected || 0);
+    const spent = Number(poolStatus?.total_invested || 0);
+    Alert.alert(
+      'Settle ' + formatMonth(poolMonth),
+      'Collected Rs.' + collected.toFixed(2) + ', spent Rs.' + spent.toFixed(2) + '.\n\n'
+        + 'The difference will be applied to ' + (poolStatus?.buying_member_name || 'the buyer')
+        + "'s upcoming installments.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Settle', onPress: () => runSettle(false) },
+      ]
+    );
+  };
+
+  const handleSelectBuyer = async (memberIdToSet) => {
+    setSavingBuyer(true);
+    const result = await setBuyingMember(poolMonth, memberIdToSet);
+    setSavingBuyer(false);
+    setShowBuyerModal(false);
+
+    if (result.success) {
+      Toast.show({
+        type: 'success',
+        text1: 'Buyer Set',
+        text2: result.data.buying_member_name + ' bought for ' + result.data.month_name,
+      });
+      await refreshAll();
+    } else {
+      Toast.show({ type: 'error', text1: 'Error', text2: result.error });
+    }
+  };
+
+  const handleSyncPools = async () => {
+    setSyncing(true);
+    const result = await syncPools();
+    setSyncing(false);
+    if (result.success) {
+      Toast.show({ type: 'success', text1: 'Pools Synced', text2: result.data.message });
+      await refreshAll();
+    } else {
+      Toast.show({ type: 'error', text1: 'Error', text2: result.error });
     }
   };
 
@@ -242,6 +376,42 @@ export const ContributionsScreen = ({ route, navigation }) => {
     if (num >= 1000) return 'Rs.' + (num / 1000).toFixed(1) + 'K';
     return 'Rs.' + num.toFixed(0);
   };
+
+  // The abbreviated formatter above is for headline totals; settlement figures
+  // are small and must be exact, or "Rs.0.8K" hides an Rs.810 obligation.
+  const formatExact = (amount) =>
+    'Rs.' + (parseFloat(amount) || 0).toLocaleString('en-IN', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+  /**
+   * Why a row's amount is not the plain monthly share. Without these lines a
+   * member just sees an unexplained number and assumes the app is wrong.
+   */
+  const adjustmentNotes = (contrib) => {
+    const notes = [];
+    const advance = parseFloat(contrib.advance_credit) || 0;
+    const carry = parseFloat(contrib.carry_forward) || 0;
+    const topup = parseFloat(contrib.buyer_topup) || 0;
+    const base = parseFloat(contrib.base_amount) || 0;
+
+    if (advance > 0) {
+      notes.push(formatExact(base) + ' - ' + formatExact(advance) + ' advance repaid');
+    }
+    if (carry > 0) {
+      notes.push('+ ' + formatExact(carry) + ' pool cash being returned');
+    }
+    if (topup > 0) {
+      notes.push('Bought this month, paid ' + formatExact(topup) + ' extra');
+    }
+    return notes;
+  };
+
+  const isAdjusted = (contrib) => (
+    (parseFloat(contrib.advance_credit) || 0) > 0
+    || (parseFloat(contrib.buyer_topup) || 0) > 0
+  );
 
   const groupedContributions = contributions.reduce((groups, contrib) => {
     const month = contrib.month || 'Unknown';
@@ -325,6 +495,140 @@ export const ContributionsScreen = ({ route, navigation }) => {
           </ScrollView>
         </View>
 
+        {isAdmin && (poolStatus?.unsettled_months?.length > 0) && (
+          <View style={styles.unsettledBanner}>
+            <View style={styles.unsettledHeader}>
+              <Ionicons name="alert-circle" size={18} color={COLORS.loss} />
+              <Text style={styles.unsettledTitle}>
+                {poolStatus.unsettled_months.length} month
+                {poolStatus.unsettled_months.length > 1 ? 's need' : ' needs'} settling
+              </Text>
+            </View>
+            <View style={styles.unsettledChips}>
+              {poolStatus.unsettled_months.map((m) => (
+                <TouchableOpacity
+                  key={m}
+                  style={styles.unsettledChip}
+                  onPress={() => setSelectedMonth(m)}
+                >
+                  <Text style={styles.unsettledChipText}>{formatMonth(m)}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={styles.unsettledHint}>
+              Tap a month to open its pool status and settle it.
+            </Text>
+          </View>
+        )}
+
+        {isAdmin && (
+          <GlassCard style={styles.poolCard}>
+            <View style={styles.poolHeader}>
+              <View style={styles.poolTitleBlock}>
+                <Text style={styles.poolTitle}>Pool Status</Text>
+                <Text style={styles.poolMonthText}>{formatMonth(poolMonth)}</Text>
+              </View>
+              {poolLoading ? (
+                <ActivityIndicator size="small" color={COLORS.accent} />
+              ) : (
+                <Text
+                  style={[
+                    styles.settledBadge,
+                    poolStatus?.is_settled ? styles.settledBadgePaid : styles.settledBadgeOpen,
+                  ]}
+                >
+                  {poolStatus?.is_settled ? 'SETTLED' : 'OPEN'}
+                </Text>
+              )}
+            </View>
+
+            <View style={styles.poolRow}>
+              <View style={styles.poolItem}>
+                <Text style={styles.poolLabel}>Collected</Text>
+                <Text style={styles.poolValue}>{formatExact(poolStatus?.total_collected)}</Text>
+              </View>
+              <View style={styles.summaryDivider} />
+              <View style={styles.poolItem}>
+                <Text style={styles.poolLabel}>Spent on Shares</Text>
+                <Text style={styles.poolValue}>{formatExact(poolStatus?.total_invested)}</Text>
+              </View>
+            </View>
+
+            {/* The gap, said in plain words rather than as a signed number. */}
+            {Number(poolStatus?.overspend) > 0 && (
+              <View style={[styles.poolNote, styles.poolNoteWarn]}>
+                <Text style={styles.poolNoteText}>
+                  {poolStatus.buying_member_name || 'Buyer'} paid{' '}
+                  {formatExact(poolStatus.overspend)} extra from their own pocket.
+                </Text>
+                {poolStatus.next_installment != null && (
+                  <Text style={styles.poolNoteSub}>
+                    Next installment {formatExact(poolStatus.next_installment)} after reimbursement.
+                  </Text>
+                )}
+              </View>
+            )}
+            {Number(poolStatus?.underspend) > 0 && (
+              <View style={[styles.poolNote, styles.poolNoteInfo]}>
+                <Text style={styles.poolNoteText}>
+                  {poolStatus.buying_member_name || 'Buyer'} holds{' '}
+                  {formatExact(poolStatus.underspend)} of unspent pool cash.
+                </Text>
+                <Text style={styles.poolNoteSub}>
+                  It gets billed on their next monthly payment.
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.buyerRow}>
+              <View style={styles.buyerTextBlock}>
+                <Text style={styles.poolLabel}>Buying Member</Text>
+                <Text style={styles.buyerName}>
+                  {poolStatus?.buying_member_name || 'Not set'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.buyerChangeButton}
+                onPress={() => setShowBuyerModal(true)}
+              >
+                <Ionicons name="swap-horizontal" size={16} color={COLORS.accent} />
+                <Text style={styles.buyerChangeText}>
+                  {poolStatus?.buying_member ? 'Change' : 'Select'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {!poolStatus?.buying_member && (
+              <Text style={styles.poolWarning}>
+                No buyer recorded for this month. Set one before settling.
+              </Text>
+            )}
+            {Number(poolStatus?.unpaid_count) > 0 && (
+              <Text style={styles.poolWarning}>
+                {poolStatus.unpaid_count} unpaid — collect first
+              </Text>
+            )}
+
+            <TouchableOpacity
+              style={[
+                styles.settleButton,
+                (!poolStatus?.buying_member || settling) && styles.settleButtonDisabled,
+              ]}
+              onPress={handleSettle}
+              disabled={!poolStatus?.buying_member || settling}
+            >
+              {settling
+                ? <ActivityIndicator size="small" color="#FFF" />
+                : <Ionicons name="checkmark-done" size={18} color="#FFF" />}
+              <Text style={styles.settleButtonText}>
+                {settling
+                  ? 'Settling...'
+                  : poolStatus?.is_settled ? 'Re-settle Month' : 'Settle Month'}
+              </Text>
+            </TouchableOpacity>
+          </GlassCard>
+        )}
+
         {isAdmin && (
           <View style={styles.adminActions}>
             <TouchableOpacity style={[styles.adminButton, styles.generateButton]} onPress={() => setShowGenerateModal(true)} disabled={generating}>
@@ -342,6 +646,21 @@ export const ContributionsScreen = ({ route, navigation }) => {
           <TouchableOpacity style={styles.deleteMonthButton} onPress={() => handleDeleteMonth(selectedMonth)}>
             <Ionicons name="close-circle-outline" size={18} color={COLORS.loss} />
             <Text style={styles.deleteMonthText}>Delete all entries for {formatMonth(selectedMonth)}</Text>
+          </TouchableOpacity>
+        )}
+
+        {isAdmin && (
+          <TouchableOpacity
+            style={styles.syncButton}
+            onPress={handleSyncPools}
+            disabled={syncing}
+          >
+            {syncing
+              ? <ActivityIndicator size="small" color={COLORS.textSecondary} />
+              : <Ionicons name="git-compare-outline" size={16} color={COLORS.textSecondary} />}
+            <Text style={styles.syncButtonText}>
+              {syncing ? 'Syncing pools...' : 'Rebuild monthly pool totals'}
+            </Text>
           </TouchableOpacity>
         )}
 
@@ -365,9 +684,22 @@ export const ContributionsScreen = ({ route, navigation }) => {
                   <View style={styles.contributionRow}>
                     <View style={styles.contributionLeft}>
                       <View style={[styles.statusDot, { backgroundColor: contrib.status === 'paid' ? COLORS.profit : COLORS.loss }]} />
-                      <View>
+                      <View style={styles.contributionTextBlock}>
                         <Text style={styles.memberName}>{contrib.member_name || 'Member'}</Text>
-                        <Text style={styles.contributionAmount}>Rs.{parseFloat(contrib.amount || 0).toLocaleString('en-IN')}</Text>
+                        {/* payable_amount is the cash actually handed over; it
+                            differs from `amount` whenever pool cash is being
+                            returned, which is not new capital. */}
+                        <Text style={styles.contributionAmount}>
+                          {formatExact(contrib.payable_amount ?? contrib.amount)}
+                        </Text>
+                        {adjustmentNotes(contrib).map((note) => (
+                          <Text key={note} style={styles.adjustmentNote}>{note}</Text>
+                        ))}
+                        {(parseFloat(contrib.buyer_topup) || 0) > 0 && (
+                          <View style={styles.buyerTag}>
+                            <Text style={styles.buyerTagText}>BUYER</Text>
+                          </View>
+                        )}
                       </View>
                     </View>
                     <View style={styles.contributionRight}>
@@ -378,7 +710,11 @@ export const ContributionsScreen = ({ route, navigation }) => {
                       {isAdmin && (
                         <View style={styles.actionButtons}>
                           <TouchableOpacity style={styles.iconButton} onPress={() => openEditModal(contrib)}>
-                            <Ionicons name="pencil-outline" size={18} color={COLORS.accent} />
+                            <Ionicons
+                              name="pencil-outline"
+                              size={18}
+                              color={isAdjusted(contrib) ? COLORS.warning : COLORS.accent}
+                            />
                           </TouchableOpacity>
                           <TouchableOpacity style={styles.iconButton} onPress={() => contrib.status === 'paid' ? handleMarkUnpaid(contrib.id) : handleMarkPaid(contrib.id)}>
                             <Ionicons name={contrib.status === 'paid' ? 'close-circle-outline' : 'checkmark-circle-outline'} size={22} color={contrib.status === 'paid' ? COLORS.loss : COLORS.profit} />
@@ -439,6 +775,16 @@ export const ContributionsScreen = ({ route, navigation }) => {
             <Text style={styles.modalSubtitle}>
               {editingContribution?.member_name || 'Member'} - {editingContribution?.month ? formatMonth(editingContribution.month) : ''}
             </Text>
+            {editingContribution && isAdjusted(editingContribution) && (
+              <View style={styles.editWarning}>
+                <Ionicons name="warning-outline" size={16} color={COLORS.warning} />
+                <Text style={styles.editWarningText}>
+                  This amount was set by the settlement (advance repayment or buyer
+                  top-up). Editing it by hand will be overwritten the next time the
+                  month is settled — and can double-charge the member.
+                </Text>
+              </View>
+            )}
             <Text style={styles.modalLabel}>New Amount (Rs.)</Text>
             <TextInput style={styles.modalInput} value={editAmount} onChangeText={setEditAmount} keyboardType="numeric" placeholder="1000" placeholderTextColor="#666" autoFocus />
             <View style={styles.modalActions}>
@@ -449,6 +795,43 @@ export const ContributionsScreen = ({ route, navigation }) => {
                 <Text style={styles.modalConfirmText}>Update</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+      <Modal visible={showBuyerModal} transparent animationType="fade" onRequestClose={() => setShowBuyerModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Buying Member</Text>
+            <Text style={styles.modalSubtitle}>
+              Whose demat account was used for {formatMonth(poolMonth)}?
+            </Text>
+            {savingBuyer ? (
+              <ActivityIndicator size="large" color={COLORS.accent} style={{ marginVertical: SPACING.lg }} />
+            ) : (
+              <ScrollView style={styles.buyerPickerList}>
+                {members.map((member) => {
+                  const active = String(member.id) === String(poolStatus?.buying_member);
+                  return (
+                    <TouchableOpacity
+                      key={member.id}
+                      style={[styles.buyerOption, active && styles.buyerOptionActive]}
+                      onPress={() => handleSelectBuyer(member.id)}
+                    >
+                      <Text style={[styles.buyerOptionText, active && styles.buyerOptionTextActive]}>
+                        {member.name}
+                      </Text>
+                      {active && <Ionicons name="checkmark-circle" size={18} color={COLORS.accent} />}
+                    </TouchableOpacity>
+                  );
+                })}
+                {members.length === 0 && (
+                  <Text style={styles.emptySubtext}>No active members found</Text>
+                )}
+              </ScrollView>
+            )}
+            <TouchableOpacity style={styles.modalCancel} onPress={() => setShowBuyerModal(false)}>
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -506,6 +889,54 @@ const styles = StyleSheet.create({
   emptyCard: { marginTop: SPACING.xl, padding: SPACING.xl, alignItems: 'center', gap: SPACING.sm },
   emptyText: { fontSize: 16, color: COLORS.textSecondary, fontWeight: '600' },
   emptySubtext: { fontSize: 13, color: COLORS.textMuted, textAlign: 'center' },
+  // Pool settlement
+  unsettledBanner: { marginTop: SPACING.md, padding: SPACING.md, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.loss, backgroundColor: COLORS.lossBg },
+  unsettledHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  unsettledTitle: { fontSize: 14, fontWeight: '800', color: COLORS.loss },
+  unsettledChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: SPACING.sm },
+  unsettledChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: COLORS.loss, backgroundColor: COLORS.cardBg },
+  unsettledChipText: { fontSize: 12, fontWeight: '700', color: COLORS.loss },
+  unsettledHint: { fontSize: 11, color: COLORS.textSecondary, marginTop: SPACING.sm },
+  poolCard: { marginTop: SPACING.md, padding: SPACING.lg },
+  poolHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md },
+  poolTitleBlock: { flex: 1, minWidth: 0 },
+  poolTitle: { fontSize: 17, fontWeight: '800', color: COLORS.textPrimary },
+  poolMonthText: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
+  settledBadge: { fontSize: 10, fontWeight: '800', letterSpacing: 0.6, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, overflow: 'hidden' },
+  settledBadgePaid: { color: COLORS.profit, backgroundColor: COLORS.profitBg },
+  settledBadgeOpen: { color: COLORS.warning, backgroundColor: COLORS.warningBg },
+  poolRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
+  poolItem: { flex: 1, alignItems: 'center' },
+  poolLabel: { fontSize: 11, color: COLORS.textSecondary, marginBottom: 4 },
+  poolValue: { fontSize: 16, fontWeight: '800', color: COLORS.textPrimary },
+  poolNote: { marginTop: SPACING.md, padding: SPACING.md, borderRadius: RADIUS.md, borderWidth: 1 },
+  poolNoteWarn: { borderColor: COLORS.warning + '55', backgroundColor: COLORS.warningBg },
+  poolNoteInfo: { borderColor: COLORS.accent + '55', backgroundColor: 'rgba(0, 208, 156, 0.10)' },
+  poolNoteText: { fontSize: 13, fontWeight: '700', color: COLORS.textPrimary, lineHeight: 19 },
+  poolNoteSub: { fontSize: 12, color: COLORS.textSecondary, marginTop: 4, lineHeight: 17 },
+  buyerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: SPACING.md, paddingTop: SPACING.md, borderTopWidth: 1, borderTopColor: COLORS.divider },
+  buyerTextBlock: { flex: 1, minWidth: 0 },
+  buyerName: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
+  buyerChangeButton: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 8, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.accent },
+  buyerChangeText: { fontSize: 12, fontWeight: '700', color: COLORS.accent },
+  poolWarning: { fontSize: 12, color: COLORS.warning, marginTop: SPACING.sm, fontWeight: '600' },
+  settleButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: SPACING.md, paddingVertical: 13, borderRadius: RADIUS.md, backgroundColor: COLORS.accent },
+  settleButtonDisabled: { backgroundColor: COLORS.buttonDisabled },
+  settleButtonText: { color: '#FFF', fontSize: 14, fontWeight: '800' },
+  syncButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: SPACING.sm, paddingVertical: 10, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.border },
+  syncButtonText: { fontSize: 12, color: COLORS.textSecondary, fontWeight: '600' },
+  contributionTextBlock: { flex: 1, minWidth: 0 },
+  adjustmentNote: { fontSize: 11, color: COLORS.accent, marginTop: 2, lineHeight: 15 },
+  buyerTag: { alignSelf: 'flex-start', marginTop: 4, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: COLORS.warningBg },
+  buyerTagText: { fontSize: 9, fontWeight: '800', letterSpacing: 0.5, color: COLORS.warning },
+  editWarning: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', padding: SPACING.md, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.warning + '55', backgroundColor: COLORS.warningBg, marginTop: SPACING.md },
+  editWarningText: { flex: 1, fontSize: 11, color: COLORS.textSecondary, lineHeight: 16 },
+  buyerPickerList: { maxHeight: 280, marginTop: SPACING.sm },
+  buyerOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: SPACING.md, borderRadius: RADIUS.md, backgroundColor: COLORS.surface, marginBottom: SPACING.sm, borderWidth: 1, borderColor: COLORS.borderLight },
+  buyerOptionActive: { borderColor: COLORS.accent, backgroundColor: COLORS.accent + '18' },
+  buyerOptionText: { fontSize: 15, fontWeight: '600', color: COLORS.textPrimary },
+  buyerOptionTextActive: { color: COLORS.accent, fontWeight: '800' },
+
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: SPACING.lg },
   modalContent: { backgroundColor: COLORS.cardBg, borderRadius: RADIUS.lg, padding: SPACING.lg, width: '100%', maxWidth: 400, borderWidth: 1, borderColor: COLORS.border },
   modalTitle: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary, textAlign: 'center' },
