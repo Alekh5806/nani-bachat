@@ -89,11 +89,19 @@ class StockCreateSerializer(serializers.ModelSerializer):
             available_cash += instance.total_invested
 
         if purchase_total > available_cash:
-            raise serializers.ValidationError({
-                'non_field_errors': [
-                    f'Insufficient pool cash. Available ₹{available_cash:.2f}, purchase needs ₹{purchase_total:.2f}.'
-                ]
-            })
+            # A buyer can front the shortfall from their own pocket; settling the
+            # month credits it back to them as an extra contribution. Without a
+            # named buyer there is nobody to charge the gap to, so block it.
+            buyer = attrs.get('buyer', instance.buyer if instance else None)
+            if buyer is None:
+                shortfall = purchase_total - available_cash
+                raise serializers.ValidationError({
+                    'non_field_errors': [
+                        f'Insufficient pool cash. Available ₹{available_cash:.2f}, '
+                        f'purchase needs ₹{purchase_total:.2f} (short by ₹{shortfall:.2f}). '
+                        f'Select the buying member who is covering the shortfall to continue.'
+                    ]
+                })
 
         return attrs
 

@@ -6,14 +6,18 @@ from .models import Contribution, MonthlyPool
 class ContributionSerializer(serializers.ModelSerializer):
     """Serializer for contribution records."""
     member_name = serializers.CharField(source='member.name', read_only=True)
+    payable_amount = serializers.DecimalField(
+        max_digits=10, decimal_places=2, read_only=True
+    )
 
     class Meta:
         model = Contribution
         fields = [
-            'id', 'member', 'member_name', 'month', 'amount',
+            'id', 'member', 'member_name', 'month', 'amount', 'base_amount',
+            'buyer_topup', 'advance_credit', 'carry_forward', 'payable_amount',
             'status', 'paid_date', 'notes', 'created_at', 'updated_at',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'payable_amount', 'created_at', 'updated_at']
 
 
 class ContributionUpdateSerializer(serializers.ModelSerializer):
@@ -21,7 +25,7 @@ class ContributionUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Contribution
-        fields = ['status', 'amount', 'paid_date', 'notes']
+        fields = ['status', 'amount', 'base_amount', 'advance_credit', 'carry_forward', 'paid_date', 'notes']
 
 
 class MonthlyPoolSerializer(serializers.ModelSerializer):
@@ -31,13 +35,16 @@ class MonthlyPoolSerializer(serializers.ModelSerializer):
     )
     contributions = serializers.SerializerMethodField()
     collection_percentage = serializers.SerializerMethodField()
+    difference = serializers.DecimalField(
+        max_digits=12, decimal_places=2, read_only=True
+    )
 
     class Meta:
         model = MonthlyPool
         fields = [
-            'id', 'month', 'total_expected', 'total_collected',
-            'buying_member', 'buying_member_name', 'is_complete',
-            'notes', 'contributions', 'collection_percentage',
+            'id', 'month', 'total_expected', 'total_collected', 'total_invested',
+            'difference', 'buying_member', 'buying_member_name', 'is_complete',
+            'is_settled', 'notes', 'contributions', 'collection_percentage',
         ]
 
     def get_contributions(self, obj):

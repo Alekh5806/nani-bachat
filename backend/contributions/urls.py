@@ -7,6 +7,10 @@ from .views import (
     delete_month_contributions,
     contribution_summary,
     available_months,
+    pool_status,
+    settle_pool_month,
+    set_buying_member,
+    sync_monthly_pools,
 )
 
 router = DefaultRouter()
@@ -18,5 +22,9 @@ urlpatterns = [
     path('delete-month/', delete_month_contributions, name='delete-month-contributions'),
     path('summary/', contribution_summary, name='contribution-summary'),
     path('months/', available_months, name='available-months'),
+    path('pool-status/', pool_status, name='pool-status'),
+    path('settle/', settle_pool_month, name='settle-pool-month'),
+    path('set-buyer/', set_buying_member, name='set-buying-member'),
+    path('sync-pools/', sync_monthly_pools, name='sync-monthly-pools'),
     path('', include(router.urls)),
 ]

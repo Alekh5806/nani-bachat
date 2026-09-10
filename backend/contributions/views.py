@@ -5,10 +5,12 @@ from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from django.db.models import Sum
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 from accounts.models import Member
 from accounts.permissions import IsAdmin
-from .models import Contribution
+from .models import Contribution, MonthlyPool
 from .serializers import ContributionSerializer
+from .services import PoolSettlementService, previous_month
 
 
 class ContributionViewSet(viewsets.ModelViewSet):
@@ -102,11 +104,19 @@ class ContributionViewSet(viewsets.ModelViewSet):
         if amount is None:
             return Response({'error': 'Amount is required'}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            contribution.amount = float(amount)
+            value = Decimal(str(amount))
+            contribution.amount = value
+            # An admin editing the amount is restating the member's own share,
+            # so rebuild the baseline the settlement adjustments hang off.
+            contribution.base_amount = (
+                value
+                + (contribution.advance_credit or Decimal('0.00'))
+                - (contribution.buyer_topup or Decimal('0.00'))
+            )
             contribution.save()
             serializer = self.get_serializer(contribution)
             return Response(serializer.data)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, InvalidOperation):
             return Response({'error': 'Invalid amount'}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -152,6 +162,15 @@ def generate_monthly_contributions(request):
     created_count = 0
     already_exists = 0
 
+    # If last month's buyer is still holding unspent pool cash, bill it now.
+    carried = {}
+    prior = previous_month(target_month)
+    prior_status = PoolSettlementService.get_month_status(prior)
+    if prior_status['is_settled'] and prior_status['underspend'] > 0 and prior_status['buying_member']:
+        carried[prior_status['buying_member']] = Decimal(
+            str(prior_status['underspend'])
+        )
+
     for member in active_members:
         exists = Contribution.objects.filter(
             member=member,
@@ -159,10 +178,13 @@ def generate_monthly_contributions(request):
         ).exists()
 
         if not exists:
+            base = Decimal(str(amount))
             Contribution.objects.create(
                 member=member,
                 month=target_month,
-                amount=float(amount),
+                amount=base,
+                base_amount=base,
+                carry_forward=carried.get(member.id, Decimal('0.00')),
                 status='unpaid'
             )
             created_count += 1
@@ -170,10 +192,17 @@ def generate_monthly_contributions(request):
             already_exists += 1
 
     display = month_name(target_month)
+
+    pool, _ = MonthlyPool.objects.get_or_create(month=target_month)
+    pool.update_totals()
+
     return Response({
         'message': 'Generated {} contributions for {}'.format(created_count, display),
         'created': created_count,
         'already_existed': already_exists,
+        'carried_forward': {
+            str(member_id): float(value) for member_id, value in carried.items()
+        },
         'month': display,
         'month_date': target_month
     })
@@ -297,3 +326,125 @@ def available_months(request):
         })
 
     return Response(month_data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def pool_status(request):
+    """Collected vs actually-spent position for a month, and who owes the gap."""
+    target_month = parse_month(
+        request.query_params.get('month')
+    ) or timezone.now().strftime('%Y-%m')
+
+    data = PoolSettlementService.get_month_status(target_month)
+    data['month_name'] = month_name(target_month)
+    data['unsettled_months'] = PoolSettlementService.unsettled_months()
+    return Response(data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def settle_pool_month(request):
+    """
+    Apply a month's collected-vs-spent difference to that month's buyer.
+
+    Overspend becomes an extra contribution by the buyer (ownership % rises).
+    Underspend is carried onto the buyer's next monthly bill.
+    """
+    if not (request.user.is_staff or request.user.role == 'admin'):
+        return Response({'error': 'Admin only'}, status=status.HTTP_403_FORBIDDEN)
+
+    target_month = parse_month(request.data.get('month'))
+    if not target_month:
+        return Response(
+            {'error': 'Invalid month format. Use YYYY-MM or YYYY-MM-DD'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    buyer = None
+    buyer_id = request.data.get('buying_member')
+    if buyer_id:
+        buyer = Member.objects.filter(pk=buyer_id, is_active=True).first()
+        if buyer is None:
+            return Response(
+                {'error': 'Buying member not found'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    try:
+        result = PoolSettlementService.settle_month(
+            target_month,
+            buying_member=buyer,
+            force=bool(request.data.get('force')),
+        )
+    except ValueError as exc:
+        return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+    result['month_name'] = month_name(target_month)
+    if result['overspend']:
+        result['message'] = (
+            '{} covered ₹{:.2f} extra for {}. It has been added to their '
+            'contribution, so their ownership share goes up.'
+        ).format(result['buying_member_name'], result['overspend'], result['month_name'])
+    elif result['underspend']:
+        result['message'] = (
+            '{} is holding ₹{:.2f} of unspent pool cash from {}. It has been '
+            'added to their next monthly payment.'
+        ).format(result['buying_member_name'], result['underspend'], result['month_name'])
+    else:
+        result['message'] = '{} is fully settled.'.format(result['month_name'])
+
+    return Response(result)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def set_buying_member(request):
+    """Record whose demat account is used for a given month."""
+    if not (request.user.is_staff or request.user.role == 'admin'):
+        return Response({'error': 'Admin only'}, status=status.HTTP_403_FORBIDDEN)
+
+    target_month = parse_month(request.data.get('month'))
+    if not target_month:
+        return Response(
+            {'error': 'Invalid month format. Use YYYY-MM or YYYY-MM-DD'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    buyer = Member.objects.filter(
+        pk=request.data.get('buying_member'), is_active=True
+    ).first()
+    if buyer is None:
+        return Response(
+            {'error': 'Buying member not found'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    pool, _ = MonthlyPool.objects.get_or_create(month=target_month)
+    pool.buying_member = buyer
+    pool.save(update_fields=['buying_member'])
+    pool.update_totals()
+
+    return Response({
+        'month': target_month,
+        'month_name': month_name(target_month),
+        'buying_member': buyer.id,
+        'buying_member_name': buyer.name,
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def sync_monthly_pools(request):
+    """Rebuild the MonthlyPool rows from existing contributions and purchases."""
+    if not (request.user.is_staff or request.user.role == 'admin'):
+        return Response({'error': 'Admin only'}, status=status.HTTP_403_FORBIDDEN)
+
+    result = PoolSettlementService.sync_pools()
+    return Response({
+        'message': 'Synced {} pool(s), {} newly created'.format(
+            len(result['created']) + len(result['updated']), len(result['created'])
+        ),
+        'created': result['created'],
+        'updated': result['updated'],
+    })
