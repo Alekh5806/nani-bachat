@@ -259,6 +259,18 @@ export const usePortfolioStore = create((set, get) => ({
     }
   },
 
+  // Who physically sends what to this month's buyer. The pool keeps no account
+  // of its own, so its spare cash lives in members' hands between purchases.
+  fetchCashHandover: async (month) => {
+    try {
+      const params = month ? `?month=${month}` : '';
+      const response = await api.get(`/contributions/handover/${params}`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { success: false, error: getErrorMessage(error, 'Failed to load cash handover') };
+    }
+  },
+
   settleMonth: async (month, options = {}) => {
     try {
       const body = { month };

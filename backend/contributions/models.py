@@ -64,9 +64,10 @@ class Contribution(models.Model):
         default=Decimal('0.00'),
         validators=[MinValueValidator(Decimal('0.00'))],
         help_text=(
-            'Unspent pool cash this member is still holding from the month they '
-            'were the buyer. Payable now, but NOT new capital - it was already '
-            'counted as a contribution in the month it was collected.'
+            'Extra cash this member owes on top of their share, payable now but '
+            'NOT new capital. Settlement no longer sets this: unspent pool money '
+            'stays in the pool for the next purchase instead of being billed to '
+            'the buyer. Left for an admin to record a one-off amount by hand.'
         )
     )
     status = models.CharField(

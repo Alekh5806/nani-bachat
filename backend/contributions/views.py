@@ -162,14 +162,12 @@ def generate_monthly_contributions(request):
     created_count = 0
     already_exists = 0
 
-    # If last month's buyer is still holding unspent pool cash, bill it now.
-    carried = {}
-    prior = previous_month(target_month)
-    prior_status = PoolSettlementService.get_month_status(prior)
-    if prior_status['is_settled'] and prior_status['underspend'] > 0 and prior_status['buying_member']:
-        carried[prior_status['buying_member']] = Decimal(
-            str(prior_status['underspend'])
-        )
+    # Unspent cash from last month is deliberately not billed to anyone. It is
+    # pool money and already shows up as this month's opening balance, so every
+    # member is asked for the same plain share.
+    opening_cash = float(
+        PoolSettlementService.cash_position(previous_month(target_month))['closing_cash']
+    )
 
     for member in active_members:
         exists = Contribution.objects.filter(
@@ -184,7 +182,6 @@ def generate_monthly_contributions(request):
                 month=target_month,
                 amount=base,
                 base_amount=base,
-                carry_forward=carried.get(member.id, Decimal('0.00')),
                 status='unpaid'
             )
             created_count += 1
@@ -200,9 +197,7 @@ def generate_monthly_contributions(request):
         'message': 'Generated {} contributions for {}'.format(created_count, display),
         'created': created_count,
         'already_existed': already_exists,
-        'carried_forward': {
-            str(member_id): float(value) for member_id, value in carried.items()
-        },
+        'opening_cash': opening_cash,
         'month': display,
         'month_date': target_month
     })
@@ -342,6 +337,25 @@ def pool_status(request):
     return Response(data)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def cash_handover(request):
+    """
+    Who hands what to this month's buyer.
+
+    The pool has no account of its own, so its spare cash sits with whoever
+    sold the shares or bought last. Each of them sends it on, along with their
+    own contribution, to whoever is buying now.
+    """
+    target_month = parse_month(
+        request.query_params.get('month')
+    ) or timezone.now().strftime('%Y-%m')
+
+    data = PoolSettlementService.handover_plan(target_month)
+    data['month_name'] = month_name(target_month)
+    return Response(data)
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def settle_pool_month(request):
@@ -383,14 +397,18 @@ def settle_pool_month(request):
     result['month_name'] = month_name(target_month)
     if result['overspend']:
         result['message'] = (
-            '{} covered ₹{:.2f} extra for {}. It has been added to their '
+            '{} covered ₹{:.2f} extra for {} — what was still short after the '
+            'pool\'s own ₹{:.2f} was spent. It has been added to their '
             'contribution, so their ownership share goes up.'
-        ).format(result['buying_member_name'], result['overspend'], result['month_name'])
+        ).format(
+            result['buying_member_name'], result['overspend'],
+            result['month_name'], result['available_cash'],
+        )
     elif result['underspend']:
         result['message'] = (
-            '{} is holding ₹{:.2f} of unspent pool cash from {}. It has been '
-            'added to their next monthly payment.'
-        ).format(result['buying_member_name'], result['underspend'], result['month_name'])
+            '₹{:.2f} of {} was not spent. It stays in the pool and is available '
+            'for the next purchase — nobody is billed for it.'
+        ).format(result['underspend'], result['month_name'])
     else:
         result['message'] = '{} is fully settled.'.format(result['month_name'])
 

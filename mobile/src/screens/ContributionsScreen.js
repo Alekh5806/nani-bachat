@@ -33,6 +33,7 @@ export const ContributionsScreen = ({ route, navigation }) => {
     members,
     fetchMembers,
     fetchPoolStatus,
+    fetchCashHandover,
     settleMonth,
     setBuyingMember,
     syncPools,
@@ -60,6 +61,8 @@ export const ContributionsScreen = ({ route, navigation }) => {
 
   // ── Pool settlement ──
   const [poolStatus, setPoolStatus] = useState(null);
+  const [handover, setHandover] = useState(null);
+  const [showHandover, setShowHandover] = useState(false);
   const [poolLoading, setPoolLoading] = useState(false);
   const [settling, setSettling] = useState(false);
   const [showBuyerModal, setShowBuyerModal] = useState(false);
@@ -109,10 +112,14 @@ export const ContributionsScreen = ({ route, navigation }) => {
   const loadPoolStatus = useCallback(async () => {
     if (!isAdmin) return;
     setPoolLoading(true);
-    const result = await fetchPoolStatus(poolMonth);
-    setPoolStatus(result.success ? result.data : null);
+    const [status, plan] = await Promise.all([
+      fetchPoolStatus(poolMonth),
+      fetchCashHandover(poolMonth),
+    ]);
+    setPoolStatus(status.success ? status.data : null);
+    setHandover(plan.success ? plan.data : null);
     setPoolLoading(false);
-  }, [isAdmin, poolMonth, fetchPoolStatus]);
+  }, [isAdmin, poolMonth, fetchPoolStatus, fetchCashHandover]);
 
   // Every mutation on this screen can move the pool position, so all of them
   // refresh through here rather than each picking their own subset.
@@ -311,13 +318,24 @@ export const ContributionsScreen = ({ route, navigation }) => {
   };
 
   const handleSettle = () => {
-    const collected = Number(poolStatus?.total_collected || 0);
+    const available = Number(poolStatus?.available_cash || 0);
     const spent = Number(poolStatus?.total_invested || 0);
+    const carried = Number(poolStatus?.opening_cash || 0);
+    const late = Number(poolStatus?.late_sale_proceeds) || 0;
+    const usable = (Number(poolStatus?.sale_proceeds) || 0) - late;
+    // Spell out where the pool's money came from, so the buyer is never
+    // charged for cash the pool already had.
+    const sources = ['Rs.' + available.toFixed(2) + ' of pool cash available'];
+    if (carried > 0) sources.push('incl. Rs.' + carried.toFixed(2) + ' carried over');
+    if (usable > 0) sources.push('incl. Rs.' + usable.toFixed(2) + ' from share sales');
+    if (late > 0) sources.push('(Rs.' + late.toFixed(2) + ' sold after the buy, kept for next month)');
     Alert.alert(
       'Settle ' + formatMonth(poolMonth),
-      'Collected Rs.' + collected.toFixed(2) + ', spent Rs.' + spent.toFixed(2) + '.\n\n'
-        + 'The difference will be applied to ' + (poolStatus?.buying_member_name || 'the buyer')
-        + "'s upcoming installments.",
+      sources.join('\n') + '\nSpent Rs.' + spent.toFixed(2) + '.\n\n'
+        + (spent > available
+          ? 'Only the Rs.' + (spent - available).toFixed(2) + ' shortfall is charged to '
+            + (poolStatus?.buying_member_name || 'the buyer') + ', and repaid from their next installments.'
+          : 'Rs.' + (available - spent).toFixed(2) + ' stays in the pool for the next purchase.'),
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Settle', onPress: () => runSettle(false) },
@@ -399,8 +417,10 @@ export const ContributionsScreen = ({ route, navigation }) => {
     if (advance > 0) {
       notes.push(formatExact(base) + ' - ' + formatExact(advance) + ' advance repaid');
     }
+    // Settlement never sets this any more - unspent money stays in the pool -
+    // so it only appears when an admin has added a one-off charge by hand.
     if (carry > 0) {
-      notes.push('+ ' + formatExact(carry) + ' pool cash being returned');
+      notes.push('+ ' + formatExact(carry) + ' extra charge');
     }
     if (topup > 0) {
       notes.push('Bought this month, paid ' + formatExact(topup) + ' extra');
@@ -412,6 +432,11 @@ export const ContributionsScreen = ({ route, navigation }) => {
     (parseFloat(contrib.advance_credit) || 0) > 0
     || (parseFloat(contrib.buyer_topup) || 0) > 0
   );
+
+  // A sale only counts as spending power if it landed before the month's
+  // purchase. Anything later is real money, but it sits below the line.
+  const lateSales = Number(poolStatus?.late_sale_proceeds) || 0;
+  const usableSales = (Number(poolStatus?.sale_proceeds) || 0) - lateSales;
 
   const groupedContributions = contributions.reduce((groups, contrib) => {
     const month = contrib.month || 'Unknown';
@@ -542,15 +567,49 @@ export const ContributionsScreen = ({ route, navigation }) => {
               )}
             </View>
 
-            <View style={styles.poolRow}>
-              <View style={styles.poolItem}>
-                <Text style={styles.poolLabel}>Collected</Text>
-                <Text style={styles.poolValue}>{formatExact(poolStatus?.total_collected)}</Text>
+            {/* The pool is one pot of money. Showing only "collected vs spent"
+                is what made a buyer look out of pocket for cash the pool
+                already had, so every source is listed. */}
+            <View style={styles.ledger}>
+              {Number(poolStatus?.opening_cash) > 0 && (
+                <View style={styles.ledgerRow}>
+                  <Text style={styles.ledgerLabel}>Carried over</Text>
+                  <Text style={styles.ledgerValue}>{formatExact(poolStatus.opening_cash)}</Text>
+                </View>
+              )}
+              <View style={styles.ledgerRow}>
+                <Text style={styles.ledgerLabel}>Contributions</Text>
+                <Text style={styles.ledgerValue}>{formatExact(poolStatus?.base_collected)}</Text>
               </View>
-              <View style={styles.summaryDivider} />
-              <View style={styles.poolItem}>
-                <Text style={styles.poolLabel}>Spent on Shares</Text>
-                <Text style={styles.poolValue}>{formatExact(poolStatus?.total_invested)}</Text>
+              {usableSales > 0 && (
+                <View style={styles.ledgerRow}>
+                  <Text style={styles.ledgerLabel}>Share sales</Text>
+                  <Text style={[styles.ledgerValue, { color: COLORS.profit }]}>
+                    {formatExact(usableSales)}
+                  </Text>
+                </View>
+              )}
+              <View style={[styles.ledgerRow, styles.ledgerTotalRow]}>
+                <Text style={styles.ledgerTotalLabel}>Pool cash available</Text>
+                <Text style={styles.ledgerTotalValue}>{formatExact(poolStatus?.available_cash)}</Text>
+              </View>
+              <View style={styles.ledgerRow}>
+                <Text style={styles.ledgerLabel}>Spent on shares</Text>
+                <Text style={styles.ledgerValue}>-{formatExact(poolStatus?.total_invested)}</Text>
+              </View>
+              {/* Below the line on purpose: this money landed after the order
+                  was placed, so it could not have paid for it. */}
+              {lateSales > 0 && (
+                <View style={styles.ledgerRow}>
+                  <Text style={styles.ledgerLabel}>Share sales, after the buy</Text>
+                  <Text style={[styles.ledgerValue, { color: COLORS.profit }]}>
+                    {formatExact(lateSales)}
+                  </Text>
+                </View>
+              )}
+              <View style={[styles.ledgerRow, styles.ledgerTotalRow]}>
+                <Text style={styles.ledgerTotalLabel}>Left in pool</Text>
+                <Text style={styles.ledgerTotalValue}>{formatExact(poolStatus?.closing_cash)}</Text>
               </View>
             </View>
 
@@ -561,6 +620,17 @@ export const ContributionsScreen = ({ route, navigation }) => {
                   {poolStatus.buying_member_name || 'Buyer'} paid{' '}
                   {formatExact(poolStatus.overspend)} extra from their own pocket.
                 </Text>
+                <Text style={styles.poolNoteSub}>
+                  That is what was still short after all{' '}
+                  {formatExact(poolStatus.available_cash)} of pool cash was used.
+                </Text>
+                {lateSales > 0 && (
+                  <Text style={styles.poolNoteSub}>
+                    The {formatExact(lateSales)} from share sales arrived after the
+                    purchase, so it could not cover this. It is waiting in the pool
+                    for the next buy.
+                  </Text>
+                )}
                 {poolStatus.next_installment != null && (
                   <Text style={styles.poolNoteSub}>
                     Next installment {formatExact(poolStatus.next_installment)} after reimbursement.
@@ -571,12 +641,101 @@ export const ContributionsScreen = ({ route, navigation }) => {
             {Number(poolStatus?.underspend) > 0 && (
               <View style={[styles.poolNote, styles.poolNoteInfo]}>
                 <Text style={styles.poolNoteText}>
-                  {poolStatus.buying_member_name || 'Buyer'} holds{' '}
-                  {formatExact(poolStatus.underspend)} of unspent pool cash.
+                  {formatExact(poolStatus.underspend)} stays in the pool.
                 </Text>
                 <Text style={styles.poolNoteSub}>
-                  It gets billed on their next monthly payment.
+                  The next purchase spends it on top of that month's
+                  contributions. Nobody is billed for it.
                 </Text>
+              </View>
+            )}
+
+            {/* The pool has no account of its own, so its spare cash is in
+                members' hands. This is who has to send it on. */}
+            {handover?.transfers?.length > 0 && (
+              <View style={styles.handover}>
+                <TouchableOpacity
+                  style={styles.handoverHeader}
+                  onPress={() => setShowHandover(!showHandover)}
+                >
+                  <View style={styles.handoverTitleBlock}>
+                    <Text style={styles.handoverTitle}>
+                      Send to {handover.buying_member_name || 'the buyer'}
+                    </Text>
+                    <Text style={styles.handoverSubtitle}>
+                      {formatExact(handover.expected_to_buyer)} from{' '}
+                      {handover.transfers.length} member
+                      {handover.transfers.length > 1 ? 's' : ''}
+                      {Number(handover.pool_cash_in_hands) > 0
+                        ? ', incl. ' + formatExact(handover.pool_cash_in_hands) + ' of pool cash'
+                        : ''}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name={showHandover ? 'chevron-up' : 'chevron-down'}
+                    size={18}
+                    color={COLORS.textSecondary}
+                  />
+                </TouchableOpacity>
+
+                {showHandover && (
+                  <View style={styles.handoverList}>
+                    {handover.transfers.map((row) => (
+                      <View key={row.member} style={styles.handoverRow}>
+                        <View style={styles.handoverWho}>
+                          <Text style={styles.handoverName}>{row.member_name}</Text>
+                          {/* Only worth spelling out when it is not just
+                              their plain monthly contribution. */}
+                          {Number(row.holding) > 0 && (
+                            <Text style={styles.handoverBreakdown}>
+                              {formatExact(row.contribution)} contribution +{' '}
+                              {formatExact(row.holding)} pool cash held
+                            </Text>
+                          )}
+                          {row.status !== 'paid' && (
+                            <Text style={styles.handoverUnpaid}>Not paid yet</Text>
+                          )}
+                        </View>
+                        <Text
+                          style={[
+                            styles.handoverAmount,
+                            Number(row.holding) > 0 && { color: COLORS.accent },
+                          ]}
+                        >
+                          {formatExact(row.total)}
+                        </Text>
+                      </View>
+                    ))}
+
+                    {handover.buyer_keeps && (
+                      <View style={styles.handoverRow}>
+                        <View style={styles.handoverWho}>
+                          <Text style={styles.handoverName}>
+                            {handover.buyer_keeps.member_name}
+                          </Text>
+                          <Text style={styles.handoverBreakdown}>
+                            Buying this month — keeps their own share
+                          </Text>
+                        </View>
+                        <Text style={styles.handoverAmount}>
+                          {formatExact(handover.buyer_keeps.total)}
+                        </Text>
+                      </View>
+                    )}
+
+                    {Number(handover.unassigned_cash) > 0 && (
+                      <Text style={styles.handoverNote}>
+                        {formatExact(handover.unassigned_cash)} was paid in during an
+                        earlier month that bought nothing, so no one is recorded as
+                        holding it.
+                      </Text>
+                    )}
+                    <Text style={styles.handoverNote}>
+                      Pool cash held is the pool's money, not a debt. Sending it on
+                      does not change anyone's contribution or ownership share.
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
 
@@ -876,15 +1035,20 @@ const styles = StyleSheet.create({
   monthHeader: { fontSize: 16, fontWeight: '700', color: COLORS.textSecondary, textTransform: 'uppercase', letterSpacing: 1 },
   monthCount: { fontSize: 12, color: COLORS.textSecondary },
   contributionCard: { marginBottom: SPACING.sm, padding: SPACING.md },
-  contributionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  contributionLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  statusDot: { width: 10, height: 10, borderRadius: 5 },
+  contributionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: SPACING.sm },
+  // flex + minWidth keep the name/amount block inside the card. Without them
+  // it sizes to its content and shoves the badge and buttons off the screen.
+  contributionLeft: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm },
+  statusDot: { width: 10, height: 10, borderRadius: 5, marginTop: 6 },
   memberName: { fontSize: 15, fontWeight: '600', color: COLORS.textPrimary },
   contributionAmount: { fontSize: 13, color: COLORS.textSecondary, marginTop: 2 },
-  contributionRight: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  // Stacked, and never shrunk: on a narrow phone a badge beside two buttons
+  // does not fit next to a member name, and the controls are what get cut.
+  contributionRight: { flexShrink: 0, alignItems: 'flex-end', gap: 6 },
   statusBadge: { fontSize: 11, fontWeight: '800', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, overflow: 'hidden', letterSpacing: 0.5 },
   actionButtons: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  iconButton: { padding: 4 },
+  // 40pt so the paid/unpaid toggle is a comfortable tap target, not an icon.
+  iconButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: RADIUS.md, backgroundColor: COLORS.surface },
   paidDate: { fontSize: 11, color: COLORS.textSecondary, marginTop: 6, marginLeft: 22 },
   emptyCard: { marginTop: SPACING.xl, padding: SPACING.xl, alignItems: 'center', gap: SPACING.sm },
   emptyText: { fontSize: 16, color: COLORS.textSecondary, fontWeight: '600' },
@@ -909,6 +1073,26 @@ const styles = StyleSheet.create({
   poolItem: { flex: 1, alignItems: 'center' },
   poolLabel: { fontSize: 11, color: COLORS.textSecondary, marginBottom: 4 },
   poolValue: { fontSize: 16, fontWeight: '800', color: COLORS.textPrimary },
+  ledger: { gap: 2 },
+  ledgerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: SPACING.sm, paddingVertical: 4 },
+  ledgerLabel: { flex: 1, minWidth: 0, fontSize: 13, color: COLORS.textSecondary },
+  ledgerValue: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary },
+  ledgerTotalRow: { marginTop: 4, paddingTop: 8, borderTopWidth: 1, borderTopColor: COLORS.divider },
+  ledgerTotalLabel: { flex: 1, minWidth: 0, fontSize: 13, fontWeight: '700', color: COLORS.textPrimary },
+  ledgerTotalValue: { fontSize: 16, fontWeight: '800', color: COLORS.accent },
+  handover: { marginTop: SPACING.md, paddingTop: SPACING.md, borderTopWidth: 1, borderTopColor: COLORS.divider },
+  handoverHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: SPACING.sm },
+  handoverTitleBlock: { flex: 1, minWidth: 0 },
+  handoverTitle: { fontSize: 14, fontWeight: '800', color: COLORS.textPrimary },
+  handoverSubtitle: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2, lineHeight: 17 },
+  handoverList: { marginTop: SPACING.sm, gap: 2 },
+  handoverRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: SPACING.sm, paddingVertical: 6 },
+  handoverWho: { flex: 1, minWidth: 0 },
+  handoverName: { fontSize: 13, fontWeight: '600', color: COLORS.textPrimary },
+  handoverBreakdown: { fontSize: 11, color: COLORS.textSecondary, marginTop: 2, lineHeight: 15 },
+  handoverUnpaid: { fontSize: 11, fontWeight: '700', color: COLORS.loss, marginTop: 2 },
+  handoverAmount: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary },
+  handoverNote: { fontSize: 11, color: COLORS.textMuted, marginTop: SPACING.sm, lineHeight: 16 },
   poolNote: { marginTop: SPACING.md, padding: SPACING.md, borderRadius: RADIUS.md, borderWidth: 1 },
   poolNoteWarn: { borderColor: COLORS.warning + '55', backgroundColor: COLORS.warningBg },
   poolNoteInfo: { borderColor: COLORS.accent + '55', backgroundColor: 'rgba(0, 208, 156, 0.10)' },
