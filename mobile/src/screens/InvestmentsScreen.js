@@ -22,8 +22,15 @@ const PRICE_REFRESH_INTERVAL_MS = 60000;
 
 export const InvestmentsScreen = ({ navigation }) => {
   const { user } = useAuthStore();
-  const { stockSummary, fetchStockSummary, stocks, fetchStocks, deleteStock, refreshPrices } = usePortfolioStore();
+  const {
+    stockSummary, fetchStockSummary,
+    stocks, fetchStocks,
+    soldStocks, fetchSoldStocks,
+    dashboard, fetchDashboard,
+    deleteStock, refreshPrices,
+  } = usePortfolioStore();
   const [refreshing, setRefreshing] = useState(false);
+  const [showSold, setShowSold] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -33,17 +40,26 @@ export const InvestmentsScreen = ({ navigation }) => {
       };
 
       loadPrices();
+      // Sold lots never change price, so they are fetched once per focus
+      // rather than on the polling interval.
+      fetchSoldStocks();
+      fetchDashboard();
       const intervalId = setInterval(loadPrices, PRICE_REFRESH_INTERVAL_MS);
 
       return () => clearInterval(intervalId);
-    }, [fetchStockSummary, fetchStocks])
+    }, [fetchStockSummary, fetchStocks, fetchSoldStocks, fetchDashboard])
   );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([fetchStockSummary(), fetchStocks()]);
+    await Promise.all([
+      fetchStockSummary(),
+      fetchStocks(),
+      fetchSoldStocks(),
+      fetchDashboard(),
+    ]);
     setRefreshing(false);
-  }, [fetchStockSummary, fetchStocks]);
+  }, [fetchStockSummary, fetchStocks, fetchSoldStocks, fetchDashboard]);
 
   const isAdmin = user?.role === 'admin';
 
@@ -88,6 +104,36 @@ export const InvestmentsScreen = ({ navigation }) => {
   };
 
   const summary = stockSummary || {};
+
+  // Realized figures come from the portfolio service, which is the same source
+  // the dashboard uses — so the two screens can never disagree.
+  const realizedPL = Number(dashboard?.portfolio?.realized_profit_loss) || 0;
+  const realizedProceeds = Number(dashboard?.portfolio?.realized_sale_value) || 0;
+  const realizedInvested = realizedProceeds - realizedPL;
+  const realizedPct = realizedInvested > 0 ? (realizedPL / realizedInvested) * 100 : 0;
+
+  const formatMoney = (value) =>
+    `₹${(Number(value) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  const formatDate = (value) => {
+    if (!value) return '—';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  const holdingDays = (buyDate, sellDate) => {
+    if (!buyDate || !sellDate) return null;
+    const start = new Date(buyDate);
+    const end = new Date(sellDate);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
+    return Math.max(Math.round((end - start) / 86400000), 0);
+  };
+
+  // Newest sale first — this reads as a transaction log.
+  const sortedSold = [...soldStocks].sort((a, b) =>
+    String(b.sell_date || '').localeCompare(String(a.sell_date || ''))
+  );
 
   return (
     <View style={styles.container}>
@@ -220,6 +266,122 @@ export const InvestmentsScreen = ({ navigation }) => {
           </>
         )}
 
+        {/* ── Sold Holdings ── */}
+        {sortedSold.length > 0 && (
+          <>
+            <SectionHeader title="Sold Holdings" icon="💸" />
+
+            <GlassCard style={styles.realizedCard}>
+              <View style={styles.realizedRow}>
+                <View style={styles.realizedItem}>
+                  <Text style={styles.realizedLabel}>Sale Proceeds</Text>
+                  <Text style={styles.realizedValue}>{formatMoney(realizedProceeds)}</Text>
+                </View>
+                <View style={styles.realizedDivider} />
+                <View style={styles.realizedItem}>
+                  <Text style={styles.realizedLabel}>Cost of Sold</Text>
+                  <Text style={styles.realizedValue}>{formatMoney(realizedInvested)}</Text>
+                </View>
+              </View>
+              <View style={styles.realizedTotalRow}>
+                <Text style={styles.realizedTotalLabel}>Realized P/L</Text>
+                <Text
+                  style={[
+                    styles.realizedTotalValue,
+                    { color: realizedPL >= 0 ? COLORS.profit : COLORS.loss },
+                  ]}
+                >
+                  {realizedPL >= 0 ? '+' : ''}{formatMoney(realizedPL)}
+                  {realizedInvested > 0 ? `  (${realizedPct >= 0 ? '+' : ''}${realizedPct.toFixed(2)}%)` : ''}
+                </Text>
+              </View>
+              <Text style={styles.realizedNote}>
+                Booked profit is already counted in pool cash and is available to reinvest.
+              </Text>
+            </GlassCard>
+
+            <Pressable
+              onPress={() => setShowSold((prev) => !prev)}
+              style={({ pressed }) => [styles.toggleButton, pressed && styles.txActionPressed]}
+            >
+              <Text style={styles.toggleText}>
+                {showSold
+                  ? 'Hide sale details'
+                  : `Show all ${sortedSold.length} sale${sortedSold.length > 1 ? 's' : ''}`}
+              </Text>
+            </Pressable>
+
+            {showSold && sortedSold.map((sale, index) => {
+              const invested = (Number(sale.buy_price) || 0) * (Number(sale.quantity) || 0)
+                + (Number(sale.brokerage) || 0);
+              const proceeds = (Number(sale.sell_price) || 0) * (Number(sale.quantity) || 0);
+              const pnl = proceeds - invested;
+              const pnlPct = invested > 0 ? (pnl / invested) * 100 : 0;
+              const isProfit = pnl >= 0;
+              const days = holdingDays(sale.buy_date, sale.sell_date);
+
+              return (
+                <GlassCard key={sale.id || index} style={styles.saleCard}>
+                  <View style={styles.saleHeader}>
+                    <View style={styles.saleTitleBlock}>
+                      <Text style={styles.saleName} numberOfLines={1}>{sale.name}</Text>
+                      <Text style={styles.saleSymbol}>
+                        {sale.symbol} • {sale.quantity} share{sale.quantity > 1 ? 's' : ''}
+                      </Text>
+                    </View>
+                    <View style={[styles.salePnlBadge, { backgroundColor: isProfit ? COLORS.profitBg : COLORS.lossBg }]}>
+                      <Text style={[styles.salePnlText, { color: isProfit ? COLORS.profit : COLORS.loss }]}>
+                        {isProfit ? '▲' : '▼'} {Math.abs(pnlPct).toFixed(2)}%
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Bought → sold, so the whole round trip reads in one line. */}
+                  <View style={styles.tradeStrip}>
+                    <View style={styles.tradeLeg}>
+                      <Text style={styles.tradeLegLabel}>BOUGHT</Text>
+                      <Text style={styles.tradeLegPrice}>₹{sale.buy_price}</Text>
+                      <Text style={styles.tradeLegDate}>{formatDate(sale.buy_date)}</Text>
+                    </View>
+                    <Text style={styles.tradeArrow}>→</Text>
+                    <View style={styles.tradeLeg}>
+                      <Text style={styles.tradeLegLabel}>SOLD</Text>
+                      <Text style={styles.tradeLegPrice}>₹{sale.sell_price}</Text>
+                      <Text style={styles.tradeLegDate}>{formatDate(sale.sell_date)}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.saleDetailRow}>
+                    <Text style={styles.saleDetailLabel}>Invested (incl. brokerage {formatMoney(sale.brokerage)})</Text>
+                    <Text style={styles.saleDetailValue}>{formatMoney(invested)}</Text>
+                  </View>
+                  <View style={styles.saleDetailRow}>
+                    <Text style={styles.saleDetailLabel}>Proceeds</Text>
+                    <Text style={styles.saleDetailValue}>{formatMoney(proceeds)}</Text>
+                  </View>
+                  <View style={[styles.saleDetailRow, styles.salePnlRow]}>
+                    <Text style={styles.salePnlLabel}>Realized P/L</Text>
+                    <Text style={[styles.salePnlValue, { color: isProfit ? COLORS.profit : COLORS.loss }]}>
+                      {isProfit ? '+' : ''}{formatMoney(pnl)}
+                    </Text>
+                  </View>
+
+                  <View style={styles.saleFooter}>
+                    <Text style={styles.saleFooterText}>
+                      👤 Held by {sale.buyer_name || 'Not recorded'}
+                    </Text>
+                    {days != null && (
+                      <Text style={styles.saleFooterText}>
+                        ⏱ {days} day{days === 1 ? '' : 's'}
+                      </Text>
+                    )}
+                  </View>
+                </GlassCard>
+              );
+            })}
+          </>
+        )}
+
         <View style={{ height: 100 }} />
       </ScrollView>
     </View>
@@ -259,6 +421,187 @@ const styles = StyleSheet.create({
   },
   txCard: {
     marginBottom: SPACING.md,
+  },
+
+  // ── Sold holdings ──
+  realizedCard: {
+    marginBottom: SPACING.md,
+  },
+  realizedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  realizedItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  realizedDivider: {
+    width: 1,
+    height: 34,
+    backgroundColor: COLORS.border,
+  },
+  realizedLabel: {
+    fontSize: FONTS.xs,
+    color: COLORS.textSecondary,
+    marginBottom: 4,
+  },
+  realizedValue: {
+    fontSize: FONTS.md,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+  },
+  realizedTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: SPACING.md,
+    paddingTop: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
+  },
+  realizedTotalLabel: {
+    fontSize: FONTS.sm,
+    color: COLORS.textSecondary,
+    fontWeight: '600',
+  },
+  realizedTotalValue: {
+    fontSize: FONTS.lg,
+    fontWeight: '800',
+  },
+  realizedNote: {
+    fontSize: FONTS.xs,
+    color: COLORS.textMuted,
+    marginTop: SPACING.sm,
+    lineHeight: 16,
+  },
+  toggleButton: {
+    alignItems: 'center',
+    paddingVertical: SPACING.sm,
+    marginBottom: SPACING.md,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  toggleText: {
+    fontSize: FONTS.sm,
+    fontWeight: '700',
+    color: COLORS.accent,
+  },
+  saleCard: {
+    marginBottom: SPACING.md,
+  },
+  saleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: SPACING.md,
+  },
+  saleTitleBlock: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: SPACING.md,
+  },
+  saleName: {
+    fontSize: FONTS.md,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  saleSymbol: {
+    fontSize: FONTS.xs,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  salePnlBadge: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 3,
+    borderRadius: 6,
+    flexShrink: 0,
+  },
+  salePnlText: {
+    fontSize: FONTS.xs,
+    fontWeight: '800',
+  },
+  tradeStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.cardBgAlt,
+    borderRadius: 10,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  tradeLeg: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  tradeLegLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    color: COLORS.textMuted,
+  },
+  tradeLegPrice: {
+    fontSize: FONTS.md,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+    marginTop: 3,
+  },
+  tradeLegDate: {
+    fontSize: FONTS.xs,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  tradeArrow: {
+    fontSize: FONTS.lg,
+    color: COLORS.accent,
+    paddingHorizontal: SPACING.sm,
+  },
+  saleDetailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 3,
+  },
+  saleDetailLabel: {
+    flex: 1,
+    fontSize: FONTS.xs,
+    color: COLORS.textSecondary,
+    marginRight: SPACING.sm,
+  },
+  saleDetailValue: {
+    fontSize: FONTS.sm,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+  },
+  salePnlRow: {
+    marginTop: SPACING.sm,
+    paddingTop: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
+  },
+  salePnlLabel: {
+    fontSize: FONTS.sm,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  salePnlValue: {
+    fontSize: FONTS.md,
+    fontWeight: '800',
+  },
+  saleFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: SPACING.md,
+    paddingTop: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
+    gap: SPACING.sm,
+  },
+  saleFooterText: {
+    fontSize: FONTS.xs,
+    color: COLORS.textMuted,
   },
   txHeader: {
     flexDirection: 'row',

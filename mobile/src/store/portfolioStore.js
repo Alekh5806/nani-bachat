@@ -10,6 +10,7 @@ export const usePortfolioStore = create((set, get) => ({
   // ── State ──
   dashboard: null,
   stocks: [],
+  soldStocks: [],
   stockSummary: null,
   members: [],
   contributions: [],
@@ -53,6 +54,21 @@ export const usePortfolioStore = create((set, get) => ({
       return response.data;
     } catch (error) {
       console.error('Failed to fetch stocks:', error);
+      return null;
+    }
+  },
+
+  // ── Fetch Sold Lots ──
+  // Selling splits a lot, so each sold row is its own realized transaction
+  // carrying the sell price/date and the buyer it was held under.
+  fetchSoldStocks: async () => {
+    try {
+      const response = await api.get('/investments/stocks/?is_sold=true');
+      const data = response.data.results || response.data;
+      set({ soldStocks: data });
+      return data;
+    } catch (error) {
+      console.error('Failed to fetch sold stocks:', error);
       return null;
     }
   },
@@ -134,6 +150,7 @@ export const usePortfolioStore = create((set, get) => ({
       const response = await api.patch(`/investments/stocks/${id}/sell/`, saleData);
       await Promise.all([
         get().fetchStocks(),
+        get().fetchSoldStocks(),
         get().fetchStockSummary(),
         get().fetchDashboard(),
       ]);
