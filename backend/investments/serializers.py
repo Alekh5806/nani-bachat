@@ -25,7 +25,7 @@ class StockSerializer(serializers.ModelSerializer):
     class Meta:
         model = Stock
         fields = [
-            'id', 'symbol', 'name', 'quantity', 'buy_price', 'brokerage',
+            'id', 'symbol', 'name', 'quantity', 'buy_price', 'reported_share_amount', 'brokerage',
             'buy_date', 'buyer', 'buyer_name', 'buyer_phone', 'notes',
             'current_price', 'last_price_update',
             'is_sold', 'sell_price', 'sell_brokerage', 'sell_date',
@@ -56,7 +56,7 @@ class StockCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Stock
         fields = [
-            'symbol', 'name', 'quantity', 'buy_price', 'brokerage',
+            'symbol', 'name', 'quantity', 'buy_price', 'reported_share_amount', 'brokerage',
             'buy_date', 'buyer', 'notes',
         ]
 
@@ -66,10 +66,6 @@ class StockCreateSerializer(serializers.ModelSerializer):
         if not value.endswith('.NS') and not value.endswith('.BO'):
             value = f'{value}.NS'
         return value
-
-    @staticmethod
-    def _purchase_total(quantity, buy_price, brokerage):
-        return (buy_price * Decimal(quantity)) + brokerage
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -82,7 +78,11 @@ class StockCreateSerializer(serializers.ModelSerializer):
         if quantity is None or buy_price is None:
             return attrs
 
-        purchase_total = self._purchase_total(quantity, buy_price, brokerage)
+        gross = attrs.get('reported_share_amount', instance.reported_share_amount if instance else None)
+        if instance and (quantity != instance.quantity or buy_price != instance.buy_price):
+            # A gross amount belongs to the specific trade terms it was recorded for.
+            gross = attrs.setdefault('reported_share_amount', None)
+        purchase_total = (gross if gross is not None else buy_price * quantity) + brokerage
 
         from portfolio.services import PortfolioService
         available_cash = Decimal(str(PortfolioService.get_portfolio_summary().get('cash_balance', 0)))
@@ -149,7 +149,6 @@ class SaleEditSerializer(SaleDetailsSerializer):
         return super().validate(attrs)
 
     def update(self, stock, validated_data):
-        from contributions.models import MonthlyPool
         from contributions.services import PoolSettlementService
 
         old_date, old_proceeds = stock.sell_date, stock.net_sale_proceeds
@@ -159,16 +158,10 @@ class SaleEditSerializer(SaleDetailsSerializer):
 
         if (old_date, old_proceeds) != (stock.sell_date, stock.net_sale_proceeds):
             first_month = min(old_date or stock.sell_date, stock.sell_date).strftime('%Y-%m')
-            months = MonthlyPool.objects.select_for_update().filter(
-                is_settled=True, month__gte=first_month,
-            ).order_by('month').values_list('month', flat=True)
-            for month in list(months):
-                try:
-                    PoolSettlementService.settle_month(month, force=True)
-                except ValueError as exc:
-                    raise serializers.ValidationError(
-                        f'Could not update the settlement for {month}. {exc}'
-                    ) from exc
+            try:
+                PoolSettlementService.replay_settled_months(first_month)
+            except ValueError as exc:
+                raise serializers.ValidationError(f'Could not update the settlement. {exc}') from exc
         return stock
 
 
@@ -194,14 +187,13 @@ class StockSellSerializer(SaleDetailsSerializer):
         return super().validate(attrs)
 
     @staticmethod
-    def _split_brokerage(total_brokerage, sold_quantity, original_quantity):
-        sold_brokerage = (
-            total_brokerage
+    def _split_amount(total, sold_quantity, original_quantity):
+        sold_amount = (
+            total
             * Decimal(sold_quantity)
             / Decimal(original_quantity)
         ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-        remaining_brokerage = total_brokerage - sold_brokerage
-        return sold_brokerage, remaining_brokerage
+        return sold_amount, total - sold_amount
 
     def update(self, instance, validated_data):
         sell_quantity = validated_data['quantity']
@@ -229,20 +221,26 @@ class StockSellSerializer(SaleDetailsSerializer):
                 stock.save(update_fields=['sell_price', 'sell_brokerage', 'sell_date', 'notes', 'is_sold', 'updated_at'])
                 return stock
 
-            sold_brokerage, remaining_brokerage = self._split_brokerage(
+            sold_brokerage, remaining_brokerage = self._split_amount(
                 stock.brokerage,
                 sell_quantity,
                 original_quantity,
             )
+            sold_gross = None
+            if stock.reported_share_amount is not None:
+                sold_gross, stock.reported_share_amount = self._split_amount(
+                    stock.reported_share_amount, sell_quantity, original_quantity,
+                )
             stock.quantity = original_quantity - sell_quantity
             stock.brokerage = remaining_brokerage
-            stock.save(update_fields=['quantity', 'brokerage', 'updated_at'])
+            stock.save(update_fields=['quantity', 'brokerage', 'reported_share_amount', 'updated_at'])
 
             sold_stock = Stock.objects.create(
                 symbol=stock.symbol,
                 name=stock.name,
                 quantity=sell_quantity,
                 buy_price=stock.buy_price,
+                reported_share_amount=sold_gross,
                 brokerage=sold_brokerage,
                 buy_date=stock.buy_date,
                 buyer=stock.buyer,

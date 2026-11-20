@@ -485,12 +485,12 @@ export const AddStockScreen = ({ navigation }) => {
                     form.buyer ? (
                       <View style={styles.shortfallBox}>
                         <Text style={styles.shortfallTitle}>
-                          Shortfall {formatCurrency(shortfall)} advanced by the buyer
+                          Purchase shortfall {formatCurrency(shortfall)}
                         </Text>
                         <Text style={styles.shortfallText}>
-                          {selectedBuyerName} pays this from their own pocket. Settle{' '}
-                          {form.buy_date?.slice(0, 7) || 'this month'} afterwards and it is
-                          deducted from their next installment, so ownership stays level.
+                          {selectedBuyerName} covers the shortfall. Settlement for{' '}
+                          {form.buy_date?.slice(0, 7) || 'this month'} credits whole rupees
+                          from the total monthly shortfall toward upcoming installments.
                         </Text>
                       </View>
                     ) : (

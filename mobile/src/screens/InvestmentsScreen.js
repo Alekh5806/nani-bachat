@@ -236,7 +236,7 @@ export const InvestmentsScreen = ({ navigation }) => {
                     Brokerage: ₹{stock.brokerage}
                   </Text>
                   <Text style={[styles.txTotal, { color: COLORS.accent }]}>
-                    Total: ₹{(stock.quantity * stock.buy_price + Number(stock.brokerage)).toFixed(2)}
+                    Total: ₹{Number(stock.total_invested).toFixed(2)}
                   </Text>
                 </View>
                 {isAdmin && (

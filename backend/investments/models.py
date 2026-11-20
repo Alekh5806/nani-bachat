@@ -28,6 +28,11 @@ class Stock(models.Model):
         validators=[MinValueValidator(Decimal('0.01'))],
         help_text='Price per share at purchase'
     )
+    reported_share_amount = models.DecimalField(
+        max_digits=14, decimal_places=2, null=True, blank=True,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        help_text='Gross purchase amount when supplied separately from the displayed unit price.',
+    )
     brokerage = models.DecimalField(
         max_digits=10, decimal_places=2,
         default=Decimal('0.00'),
@@ -92,7 +97,10 @@ class Stock(models.Model):
     @property
     def total_invested(self):
         """Total cost including brokerage."""
-        return (self.buy_price * self.quantity) + self.brokerage
+        gross = self.reported_share_amount
+        if gross is None:
+            gross = self.buy_price * self.quantity
+        return gross + self.brokerage
 
     @property
     def net_sale_proceeds(self):

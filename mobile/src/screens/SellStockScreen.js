@@ -53,7 +53,10 @@ export const SellStockScreen = ({ navigation, route }) => {
     ? Math.round(toPaise(stock.brokerage) * sellQuantity / availableQuantity) : 0;
   const grossPaise = toPaise(form.sell_price) * sellQuantity;
   const netPaise = grossPaise - toPaise(form.sell_brokerage);
-  const costPaise = toPaise(stock?.buy_price) * sellQuantity + buyFeePaise;
+  const grossCostPaise = stock?.reported_share_amount != null && validQuantity
+    ? Math.round(toPaise(stock.reported_share_amount) * sellQuantity / availableQuantity)
+    : toPaise(stock?.buy_price) * sellQuantity;
+  const costPaise = grossCostPaise + buyFeePaise;
   const profitLoss = (netPaise - costPaise) / 100;
 
   const validate = () => {

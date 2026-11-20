@@ -92,7 +92,7 @@ class Command(BaseCommand):
             if outcome['overspend']:
                 detail = (
                     f'{outcome["buying_member_name"]} advanced '
-                    f'+{outcome["overspend"]:.2f} -> next installment '
+                    f'+{outcome["overspend"]:.0f} -> next installment '
                     f'{outcome["buyer_next_installment"]:.2f}'
                 )
             elif outcome['underspend']:

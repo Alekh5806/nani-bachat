@@ -72,6 +72,24 @@ class StockSellSerializerTests(TestCase):
             Decimal('550.00'),
         )
 
+    def test_reported_purchase_amount_survives_partial_sale_and_settlement_replay(self):
+        self.stock.buy_price = Decimal('230.77')
+        self.stock.quantity = 62
+        self.stock.reported_share_amount = Decimal('14307.80')
+        self.stock.brokerage = Decimal('43.40')
+        self.stock.save()
+        Contribution.objects.create(member=self.admin, month='2026-01', status='paid',
+                                    amount=Decimal('14280.20'), base_amount=Decimal('14280.20'))
+        sale = StockSellSerializer(self.stock, data={
+            'quantity': 7, 'sell_price': '240.00', 'sell_date': '2026-02-01',
+        }, partial=True)
+        self.assertTrue(sale.is_valid(), sale.errors)
+        sale.save()
+        result = PoolSettlementService.settle_month('2026-01')
+        self.assertEqual(result['total_invested'], 14351.20)
+        self.assertEqual(result['overspend'], 71)
+        self.assertEqual(result['buyer_next_installment'], 929)
+
     def test_full_sale_marks_original_purchase_sold(self):
         serializer = StockSellSerializer(
             self.stock,
@@ -225,8 +243,8 @@ class SaleEditTests(TestCase):
         response = self.client.patch(self.url, {'sell_brokerage': '6.50'})
         self.assertEqual(response.status_code, 200, response.data)
         feb.refresh_from_db()
-        self.assertEqual(feb.buyer_topup, Decimal('46.50'))
-        self.assertEqual(Contribution.objects.get(month='2026-03').advance_credit, Decimal('46.50'))
+        self.assertEqual(feb.buyer_topup, Decimal('46.00'))
+        self.assertEqual(Contribution.objects.get(month='2026-03').advance_credit, Decimal('46.00'))
         self.assertFalse(MonthlyPool.objects.filter(month='2026-03', is_settled=True).exists())
 
     def test_notes_skip_settlement_and_failed_settlement_rolls_back_sale(self):
@@ -281,7 +299,7 @@ class StockCreateSerializerCashValidationTests(TestCase):
 
         self.assertTrue(serializer.is_valid(), serializer.errors)
 
-    def test_purchase_cannot_exceed_available_pool_cash(self):
+    def test_purchase_above_pool_cash_requires_a_buyer(self):
         serializer = StockCreateSerializer(data={
             'symbol': 'INFY',
             'name': 'Infosys',
@@ -289,11 +307,12 @@ class StockCreateSerializerCashValidationTests(TestCase):
             'buy_price': '100.00',
             'brokerage': '0.01',
             'buy_date': '2026-03-01',
-            'buyer': self.admin.id,
         })
 
         self.assertFalse(serializer.is_valid())
         self.assertIn('non_field_errors', serializer.errors)
+        funded = StockCreateSerializer(data={**serializer.initial_data, 'buyer': self.admin.id})
+        self.assertTrue(funded.is_valid(), funded.errors)
 
     def test_purchase_cannot_use_dividend_cash(self):
         sold_stock = Stock.objects.get(symbol='TCS.NS')
@@ -310,7 +329,6 @@ class StockCreateSerializerCashValidationTests(TestCase):
             'buy_price': '100.00',
             'brokerage': '0.00',
             'buy_date': '2026-03-01',
-            'buyer': self.admin.id,
         })
 
         self.assertFalse(serializer.is_valid())

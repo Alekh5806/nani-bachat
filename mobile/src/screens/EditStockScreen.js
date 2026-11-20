@@ -59,12 +59,13 @@ export const EditStockScreen = ({ navigation, route }) => {
     `₹${(Number(value) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
   const originalTotal = useMemo(() => (
-    (Number(stock?.buy_price) || 0) * (Number(stock?.quantity) || 0)
-    + (Number(stock?.brokerage) || 0)
+    Number(stock?.total_invested ?? (Number(stock?.buy_price) * Number(stock?.quantity) + Number(stock?.brokerage))) || 0
   ), [stock]);
 
-  const newTotal = (parseInt(form.quantity || 0, 10) * parseFloat(form.buy_price || 0))
-    + parseFloat(form.brokerage || 0);
+  const sameTerms = Number(form.quantity) === Number(stock?.quantity) && Number(form.buy_price) === Number(stock?.buy_price);
+  const gross = sameTerms && stock?.reported_share_amount != null
+    ? Number(stock.reported_share_amount) : Number(form.quantity) * Number(form.buy_price);
+  const newTotal = gross + Number(form.brokerage);
   const totalDelta = newTotal - originalTotal;
 
   const originalMonth = String(stock?.buy_date || '').slice(0, 7);

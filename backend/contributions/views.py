@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
+from django.db import transaction
 from django.db.models import Sum
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
@@ -10,7 +11,7 @@ from accounts.models import Member
 from accounts.permissions import IsAdmin
 from .models import Contribution, MonthlyPool
 from .serializers import ContributionSerializer
-from .services import PoolSettlementService, previous_month
+from .services import PoolSettlementService, next_month, previous_month
 
 
 class ContributionViewSet(viewsets.ModelViewSet):
@@ -112,6 +113,7 @@ class ContributionViewSet(viewsets.ModelViewSet):
                 value
                 + (contribution.advance_credit or Decimal('0.00'))
                 - (contribution.buyer_topup or Decimal('0.00'))
+                - contribution.additional_payment
             )
             contribution.save()
             serializer = self.get_serializer(contribution)
@@ -362,8 +364,7 @@ def settle_pool_month(request):
     """
     Apply a month's collected-vs-spent difference to that month's buyer.
 
-    Overspend becomes an extra contribution by the buyer (ownership % rises).
-    Underspend is carried onto the buyer's next monthly bill.
+    Credit whole rupees advanced by the buyer toward future installments.
     """
     if not (request.user.is_staff or request.user.role == 'admin'):
         return Response({'error': 'Admin only'}, status=status.HTTP_403_FORBIDDEN)
@@ -386,23 +387,23 @@ def settle_pool_month(request):
             )
 
     try:
-        result = PoolSettlementService.settle_month(
-            target_month,
-            buying_member=buyer,
-            force=bool(request.data.get('force')),
-        )
+        with transaction.atomic():
+            result = PoolSettlementService.settle_month(
+                target_month,
+                buying_member=buyer,
+                force=bool(request.data.get('force')),
+            )
+            PoolSettlementService.replay_settled_months(next_month(target_month))
     except ValueError as exc:
         return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
     result['month_name'] = month_name(target_month)
     if result['overspend']:
         result['message'] = (
-            '{} covered ₹{:.2f} extra for {} — what was still short after the '
-            'pool\'s own ₹{:.2f} was spent. It has been added to their '
-            'contribution, so their ownership share goes up.'
+            '{} is credited ₹{:.0f} extra for {}. This reduces their upcoming installments.'
         ).format(
             result['buying_member_name'], result['overspend'],
-            result['month_name'], result['available_cash'],
+            result['month_name'],
         )
     elif result['underspend']:
         result['message'] = (

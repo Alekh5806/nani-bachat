@@ -6,6 +6,7 @@ pip install -r requirements.txt
 
 python manage.py collectstatic --no-input
 python manage.py migrate
+python manage.py repair_buyer_advances --apply
 
 # Seed data only if no members exist
 python manage.py shell -c "

@@ -332,10 +332,11 @@ export const ContributionsScreen = ({ route, navigation }) => {
     Alert.alert(
       'Settle ' + formatMonth(poolMonth),
       sources.join('\n') + '\nSpent Rs.' + spent.toFixed(2) + '.\n\n'
-        + (spent > available
-          ? 'Only the Rs.' + (spent - available).toFixed(2) + ' shortfall is charged to '
-            + (poolStatus?.buying_member_name || 'the buyer') + ', and repaid from their next installments.'
-          : 'Rs.' + (available - spent).toFixed(2) + ' stays in the pool for the next purchase.'),
+        + (poolStatus?.overspend > 0
+          ? formatBuyerAdvance(poolStatus.overspend) + ' credited to '
+            + (poolStatus.buying_member_name || 'the buyer') + ' toward upcoming installments. '
+          : 'Buyer advance: Rs.0. ')
+        + formatExact(poolStatus?.closing_cash) + ' stays in the pool.',
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Settle', onPress: () => runSettle(false) },
@@ -403,6 +404,8 @@ export const ContributionsScreen = ({ route, navigation }) => {
       maximumFractionDigits: 2,
     });
 
+  const formatBuyerAdvance = (amount) => 'Rs.' + Math.trunc(Number(amount) || 0).toLocaleString('en-IN');
+
   /**
    * Why a row's amount is not the plain monthly share. Without these lines a
    * member just sees an unexplained number and assumes the app is wrong.
@@ -422,8 +425,11 @@ export const ContributionsScreen = ({ route, navigation }) => {
     if (carry > 0) {
       notes.push('+ ' + formatExact(carry) + ' extra charge');
     }
+    if (Number(contrib.additional_payment) > 0) {
+      notes.push(formatExact(contrib.additional_payment) + ' paid above the scheduled installment');
+    }
     if (topup > 0) {
-      notes.push('Bought this month, paid ' + formatExact(topup) + ' extra');
+      notes.push('Bought this month, paid ' + formatBuyerAdvance(topup) + ' extra');
     }
     return notes;
   };
@@ -618,11 +624,10 @@ export const ContributionsScreen = ({ route, navigation }) => {
               <View style={[styles.poolNote, styles.poolNoteWarn]}>
                 <Text style={styles.poolNoteText}>
                   {poolStatus.buying_member_name || 'Buyer'} paid{' '}
-                  {formatExact(poolStatus.overspend)} extra from their own pocket.
+                  {formatBuyerAdvance(poolStatus.overspend)} extra from their own pocket.
                 </Text>
                 <Text style={styles.poolNoteSub}>
-                  That is what was still short after all{' '}
-                  {formatExact(poolStatus.available_cash)} of pool cash was used.
+                  The monthly buyer advance counts whole rupees only.
                 </Text>
                 {lateSales > 0 && (
                   <Text style={styles.poolNoteSub}>

@@ -31,7 +31,7 @@ Against that available cash, every month ends with one of:
                  counted in the month it was collected.
 """
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, ROUND_DOWN
 
 from django.db import transaction
 
@@ -76,7 +76,7 @@ class PoolSettlementService:
 
         buyer_ids = list(
             Stock.objects.filter(buy_date__startswith=month, buyer__isnull=False)
-            .values_list('buyer_id', flat=True)
+            .order_by().values_list('buyer_id', flat=True)
             .distinct()
         )
         if len(buyer_ids) == 1:
@@ -144,7 +144,7 @@ class PoolSettlementService:
             })
 
         for stock in Stock.objects.all():
-            cost = (stock.buy_price * stock.quantity) + stock.brokerage
+            cost = stock.total_invested
             events.append({
                 'date': stock.buy_date,
                 'order': PoolSettlementService._PURCHASE_OUT,
@@ -181,6 +181,7 @@ class PoolSettlementService:
         collected = ZERO
         proceeds = ZERO
         spent = ZERO
+        buyer_shortfall = ZERO
         # Proceeds that had actually landed by the time the month's last
         # purchase was placed. Anything later could not have funded it.
         usable_proceeds = ZERO
@@ -201,6 +202,7 @@ class PoolSettlementService:
                 elif kind == 'sale':
                     proceeds += amount
                 else:
+                    buyer_shortfall += max(-(balance + amount), ZERO)
                     spent -= amount
                     usable_proceeds = proceeds
                     seen_purchase = True
@@ -231,6 +233,10 @@ class PoolSettlementService:
             'available_cash': available,
             'spent': spent,
             'gap': spent - available,
+            # Truncate once, after adding every out-of-pocket purchase in the month.
+            'buyer_shortfall': buyer_shortfall,
+            'overspend': buyer_shortfall.to_integral_value(rounding=ROUND_DOWN),
+            'underspend': balance - (proceeds - usable_proceeds),
             'closing_cash': balance,
         }
 
@@ -376,10 +382,18 @@ class PoolSettlementService:
         position = PoolSettlementService.cash_position(month)
         base_collected = position['collected']
         spent = position['spent']
-        gap = position['gap']
+        overspend = position['overspend']
+        underspend = position['underspend']
 
         buyer = PoolSettlementService.resolve_buying_member(month)
         unpaid_count = rows.exclude(status='paid').count()
+        installment = None
+        if overspend and buyer:
+            following = next_month(month)
+            next_row = Contribution.objects.filter(member=buyer, month=following).first()
+            base = next_row.base_amount if next_row else PoolSettlementService.default_base_amount(following)
+            remaining = PoolSettlementService._prior_advance_balance(buyer, month) + overspend
+            installment = max(base - remaining, ZERO) + (next_row.carry_forward if next_row else ZERO)
 
         return {
             'month': month,
@@ -395,13 +409,10 @@ class PoolSettlementService:
             'late_sale_proceeds': float(position['late_sale_proceeds']),
             'available_cash': float(position['available_cash']),
             'closing_cash': float(position['closing_cash']),
-            # Positive gap = buyer paid extra. Negative gap = buyer holds cash.
-            'overspend': float(gap) if gap > 0 else 0.0,
-            'underspend': float(-gap) if gap < 0 else 0.0,
-            'difference': float(-gap),
-            'next_installment': float(
-                max(PoolSettlementService.default_base_amount(next_month(month)) - gap, ZERO)
-            ) if gap > 0 else None,
+            'overspend': float(overspend),
+            'underspend': float(underspend),
+            'difference': float(underspend - overspend),
+            'next_installment': float(installment) if installment is not None else None,
             'unpaid_count': unpaid_count,
             'is_settled': pool.is_settled,
             'can_settle': buyer is not None and unpaid_count == 0,
@@ -416,7 +427,7 @@ class PoolSettlementService:
         Safe to run repeatedly: the top-up and carry-forward are recomputed from
         scratch each time rather than accumulated.
         """
-        pool, _ = MonthlyPool.objects.get_or_create(month=month)
+        pool, _ = MonthlyPool.objects.select_for_update().get_or_create(month=month)
 
         if buying_member is not None:
             pool.buying_member = buying_member
@@ -456,7 +467,7 @@ class PoolSettlementService:
 
         # Reset the buyer's row to its pre-settlement state so re-running is safe.
         buyer_row.buyer_topup = ZERO
-        buyer_row.amount = max(buyer_row.base_amount - buyer_row.advance_credit, ZERO)
+        buyer_row.amount = max(buyer_row.base_amount - buyer_row.advance_credit, ZERO) + buyer_row.additional_payment
         buyer_row.save(update_fields=['amount', 'buyer_topup'])
 
         # Recomputed after the reset above, so a re-settle measures the month
@@ -467,33 +478,23 @@ class PoolSettlementService:
         base_collected = position['collected']
         available = position['available_cash']
         spent = position['spent']
-        gap = position['gap']
+        overspend = position['overspend']
+        underspend = position['underspend']
 
         carry_month = next_month(month)
-        overspend = ZERO
-        underspend = ZERO
-
-        if gap > 0:
-            # Buyer fronted the excess; it is real cash in, reimbursed next month.
-            overspend = gap
+        if overspend:
             buyer_row.buyer_topup = overspend
-            buyer_row.amount = buyer_row.amount + overspend
-            if buyer_row.status != 'paid':
-                buyer_row.status = 'paid'
+            buyer_row.amount += overspend
+            buyer_row.status = 'paid'
             buyer_row.save(update_fields=['amount', 'buyer_topup', 'status'])
-        elif gap < 0:
-            # Leftover pool money. It is NOT billed to the buyer: it simply
-            # stays in the pot and funds the next month's purchase, whoever
-            # places that order. Charging it to the buyer would take the pool's
-            # own cash out of the pool and put it on one member's bill.
-            underspend = -gap
 
         next_installment = PoolSettlementService._apply_buyer_adjustment(
-            buyer, carry_month, advance=overspend
+            buyer, carry_month, advance=PoolSettlementService._prior_advance_balance(buyer, month) + overspend
         )
 
         pool.is_settled = True
-        pool.save(update_fields=['is_settled'])
+        pool.uncredited_paise = position['buyer_shortfall'] - overspend
+        pool.save(update_fields=['is_settled', 'uncredited_paise'])
         pool.update_totals()
 
         return {
@@ -511,11 +512,22 @@ class PoolSettlementService:
             'underspend': float(underspend),
             # Leftover is pool cash, so it is reported as the balance rolling
             # into the next month rather than as something the buyer owes.
-            'pool_cash_carried': float(underspend),
+            'pool_cash_carried': float(position['closing_cash']),
             'carry_forward_month': carry_month if (overspend or underspend) else None,
             'buyer_amount': float(buyer_row.amount),
             'buyer_next_installment': float(next_installment),
         }
+
+    @staticmethod
+    def _prior_advance_balance(buyer, month):
+        # An older advance can span the month in which the buyer fronts cash again.
+        rows = Contribution.objects.filter(member=buyer, month__lte=month)
+        outstanding = ZERO
+        for row in rows:
+            if row.month < month:
+                outstanding += row.buyer_topup
+            outstanding -= row.advance_credit
+        return max(outstanding, ZERO)
 
     @staticmethod
     def _apply_buyer_adjustment(buyer, carry_month: str, advance: Decimal):
@@ -537,7 +549,7 @@ class PoolSettlementService:
             # clean month would conjure a contribution row for a month the admin
             # has not generated yet.
             row = Contribution.objects.filter(member=buyer, month=carry_month).first()
-            return row.payable_amount if row else ZERO
+            return row.scheduled_installment if row else ZERO
 
         remaining = advance
         month = carry_month
@@ -555,13 +567,13 @@ class PoolSettlementService:
                 )
 
             row.advance_credit = min(remaining, row.base_amount)
-            row.carry_forward = ZERO
-            row.amount = max(row.base_amount - row.advance_credit, ZERO)
+            row.amount = row.base_amount - row.advance_credit + row.buyer_topup + row.additional_payment
             row.save()
+            PoolSettlementService._refresh_existing_pool(month)
 
             remaining -= row.advance_credit
             if first_payable is None:
-                first_payable = row.payable_amount
+                first_payable = row.scheduled_installment
 
             if remaining <= ZERO:
                 break
@@ -578,15 +590,26 @@ class PoolSettlementService:
         from a previous run must go first. Months are re-settled in date order,
         which puts back anything a later month is genuinely owed.
         """
-        month = from_month
-        for _ in range(PoolSettlementService.MAX_SPREAD_MONTHS):
-            row = Contribution.objects.filter(member=buyer, month=month).first()
-            if row is not None and (row.advance_credit or row.carry_forward):
-                row.advance_credit = ZERO
-                row.carry_forward = ZERO
-                row.amount = row.base_amount
-                row.save(update_fields=['advance_credit', 'carry_forward', 'amount'])
-            month = next_month(month)
+        rows = Contribution.objects.filter(member=buyer, month__gte=from_month, advance_credit__gt=0)
+        for row in rows:
+            row.amount += row.advance_credit
+            row.advance_credit = ZERO
+            row.save(update_fields=['advance_credit', 'amount'])
+            PoolSettlementService._refresh_existing_pool(row.month)
+
+    @staticmethod
+    def _refresh_existing_pool(month):
+        pool = MonthlyPool.objects.filter(month=month).first()
+        if pool:
+            pool.update_totals()
+
+    @staticmethod
+    @transaction.atomic
+    def replay_settled_months(from_month):
+        months = MonthlyPool.objects.select_for_update().filter(
+            is_settled=True, month__gte=from_month,
+        ).order_by('month').values_list('month', flat=True)
+        return [PoolSettlementService.settle_month(month, force=True) for month in list(months)]
 
     @staticmethod
     def default_base_amount(month: str) -> Decimal:

@@ -40,6 +40,11 @@ class Contribution(models.Model):
         validators=[MinValueValidator(Decimal('0.00'))],
         help_text='Standard monthly share before any buyer top-up.'
     )
+    additional_payment = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal('0.00'), db_default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        help_text='Additional contribution paid above the scheduled installment.',
+    )
     buyer_topup = models.DecimalField(
         max_digits=10, decimal_places=2,
         default=Decimal('0.00'),
@@ -90,6 +95,10 @@ class Contribution(models.Model):
         return f'{self.member.name} - {self.month} - ₹{self.amount} ({self.status})'
 
     @property
+    def scheduled_installment(self):
+        return max(self.base_amount - self.advance_credit, Decimal('0.00')) + self.carry_forward
+
+    @property
     def payable_amount(self):
         """Cash the member actually hands over: new capital + pool cash returned."""
         return (self.amount or Decimal('0.00')) + (self.carry_forward or Decimal('0.00'))
@@ -120,6 +129,10 @@ class MonthlyPool(models.Model):
         max_digits=12, decimal_places=2,
         default=Decimal('0.00'),
         help_text='Actual cost of shares bought in this month, including brokerage.'
+    )
+    # Actual purchase funding below one rupee excluded from the buyer's credit.
+    uncredited_paise = models.DecimalField(
+        max_digits=2, decimal_places=2, default=Decimal('0.00'), db_default=Decimal('0.00'),
     )
     is_settled = models.BooleanField(
         default=False,
@@ -162,5 +175,5 @@ class MonthlyPool(models.Model):
 
         total = Decimal('0.00')
         for stock in Stock.objects.filter(buy_date__startswith=self.month):
-            total += (stock.buy_price * stock.quantity) + stock.brokerage
+            total += stock.total_invested
         return total

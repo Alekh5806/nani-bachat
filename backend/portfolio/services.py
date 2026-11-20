@@ -223,7 +223,7 @@ class PortfolioService:
         """Calculate complete portfolio summary, including cash from realized sales."""
         from investments.models import Stock
         from dividends.models import Dividend
-        from contributions.models import Contribution
+        from contributions.models import Contribution, MonthlyPool
         from django.db.models import Sum
 
         active_stocks = Stock.objects.filter(is_sold=False)
@@ -243,7 +243,7 @@ class PortfolioService:
                 live_prices[symbol] = PortfolioService._money(price_data['current_price'])
 
         for s in active_stocks:
-            invested = (s.buy_price * s.quantity) + s.brokerage
+            invested = s.total_invested
             active_stock_invested += invested
 
             # Use live price if available, otherwise use stored current_price
@@ -251,7 +251,7 @@ class PortfolioService:
             active_stock_value += price * s.quantity
 
         for s in sold_stocks:
-            sold_stock_invested += (s.buy_price * s.quantity) + s.brokerage
+            sold_stock_invested += s.total_invested
             realized_sale_value += s.net_sale_proceeds
 
         total_dividends = Dividend.objects.aggregate(
@@ -265,7 +265,9 @@ class PortfolioService:
         )['total'] or Decimal('0.00')
 
         stock_purchase_cost = active_stock_invested + sold_stock_invested
-        capital_basis = total_contributions if total_contributions > 0 else stock_purchase_cost
+        # The buyer funded the exact trade. Only whole rupees earn personal credit.
+        uncredited = MonthlyPool.objects.aggregate(total=Sum('uncredited_paise'))['total'] or Decimal('0.00')
+        capital_basis = total_contributions + uncredited if total_contributions > 0 else stock_purchase_cost
         cash_balance = capital_basis + realized_sale_value - stock_purchase_cost
         total_current_value = active_stock_value + cash_balance + total_dividends
         realized_profit_loss = realized_sale_value - sold_stock_invested

@@ -14,10 +14,10 @@ class ContributionSerializer(serializers.ModelSerializer):
         model = Contribution
         fields = [
             'id', 'member', 'member_name', 'month', 'amount', 'base_amount',
-            'buyer_topup', 'advance_credit', 'carry_forward', 'payable_amount',
+            'buyer_topup', 'advance_credit', 'additional_payment', 'scheduled_installment', 'carry_forward', 'payable_amount',
             'status', 'paid_date', 'notes', 'created_at', 'updated_at',
         ]
-        read_only_fields = ['id', 'payable_amount', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'additional_payment', 'scheduled_installment', 'buyer_topup', 'payable_amount', 'created_at', 'updated_at']
 
 
 class ContributionUpdateSerializer(serializers.ModelSerializer):

@@ -9,6 +9,10 @@ wrongly discounted by that amount.
 """
 from datetime import date
 from decimal import Decimal
+from io import StringIO
+from unittest.mock import patch
+
+from django.core.management import call_command
 
 from django.test import TestCase
 
@@ -54,6 +58,104 @@ class PoolCashLedgerTests(TestCase):
         stock.sell_date = sell_day
         stock.save()
         return stock
+
+    def test_whole_rupee_advance_and_exact_pool_cash(self):
+        from portfolio.services import PortfolioService
+
+        self._contribute('2026-12')
+        purchase = self._buy(date(2026, 12, 10), '2040.77')
+        for price, credited, paise in [
+            ('2040.77', 40, '0.77'), ('2040.99', 40, '0.99'),
+            ('2040.00', 40, '0.00'), ('2000.99', 0, '0.99'),
+        ]:
+            with self.subTest(price=price):
+                purchase.buy_price = Decimal(price)
+                purchase.save()
+                status = PoolSettlementService.get_month_status('2026-12')
+                self.assertEqual(status['overspend'], credited)
+                self.assertEqual(status['next_installment'], 1000 - credited if credited else None)
+                result = PoolSettlementService.settle_month('2026-12')
+                self.assertEqual(result['overspend'], credited)
+                self.assertEqual(result['total_invested'], float(price))
+                self.assertEqual(result['closing_cash'], 0)
+                row = Contribution.objects.get(member=self.buyer, month='2026-12')
+                self.assertEqual(row.buyer_topup, credited)
+                self.assertEqual(row.amount, 1000 + credited)
+                jan = Contribution.objects.get(member=self.buyer, month='2027-01')
+                self.assertEqual(jan.advance_credit, credited)
+                self.assertEqual(jan.payable_amount, 1000 - credited)
+                pool = MonthlyPool.objects.get(month='2026-12')
+                self.assertEqual(pool.uncredited_paise, Decimal(paise))
+                with patch('portfolio.services.StockPriceService.get_stock_price', return_value=None):
+                    self.assertEqual(PortfolioService.get_portfolio_summary()['cash_balance'], 0)
+
+    def test_additional_payment_changes_collections_but_preserves_scheduled_installment(self):
+        self._contribute('2026-07')
+        self._contribute('2026-08')
+        self._buy(date(2026, 7, 8), '2912')
+        row = Contribution.objects.get(member=self.buyer, month='2026-08')
+        row.additional_payment = Decimal('25.00')
+        row.amount += row.additional_payment
+        row.save()
+        self._buy(date(2026, 8, 12), '1200')
+
+        for _ in range(2):
+            july = PoolSettlementService.settle_month('2026-07')
+            self.assertEqual(july['buyer_next_installment'], 88)
+            self.assertEqual(PoolSettlementService.get_month_status('2026-07')['next_installment'], 88)
+            august = PoolSettlementService.settle_month('2026-08')
+            self.assertEqual(august['base_collected'], 1113)
+            self.assertEqual(august['overspend'], 87)
+            row.refresh_from_db()
+            self.assertEqual(row.scheduled_installment, 88)
+            self.assertEqual(row.amount - row.buyer_topup, 113)
+
+    def test_advances_are_totalled_before_truncation_even_with_an_intervening_sale(self):
+        self._contribute('2026-08')
+        sold = self._buy(date(2026, 7, 10), '100')
+        self._buy(date(2026, 8, 10), '2020.88')
+        self._sell(sold, date(2026, 8, 15), '100')
+        self._buy(date(2026, 8, 20), '119.89')
+        self.assertEqual(PoolSettlementService.settle_month('2026-08')['overspend'], 40)
+        sold.sell_price = Decimal('200')
+        sold.save()
+        result = PoolSettlementService.settle_month('2026-08')
+        self.assertEqual(result['overspend'], 20)
+        self.assertEqual(result['closing_cash'], 80.11)
+
+    def test_legacy_repair_replays_paid_installments_in_order(self):
+        self._contribute('2026-12')
+        self._contribute('2027-01')
+        self._buy(date(2026, 12, 10), '2040.99')
+        self._buy(date(2027, 1, 10), '2000.50')
+        for month, old_advance, old_credit in [
+            ('2026-12', '40.99', '0'), ('2027-01', '41.49', '40.99'),
+        ]:
+            MonthlyPool.objects.create(month=month, buying_member=self.buyer, is_settled=True)
+            Contribution.objects.filter(member=self.buyer, month=month).update(
+                buyer_topup=Decimal(old_advance), advance_credit=Decimal(old_credit),
+                amount=1000 + Decimal(old_advance) - Decimal(old_credit),
+            )
+        feb = Contribution.objects.create(
+            member=self.buyer, month='2027-02', amount=Decimal('958.51'),
+            advance_credit=Decimal('41.49'), carry_forward=Decimal('2.25'),
+        )
+        pool = MonthlyPool.objects.create(month='2027-02')
+        call_command('repair_buyer_advances', stdout=StringIO())
+        feb.refresh_from_db()
+        self.assertEqual(feb.advance_credit, Decimal('41.49'))
+        for _ in range(2):
+            call_command('repair_buyer_advances', apply=True, stdout=StringIO())
+            jan = Contribution.objects.get(member=self.buyer, month='2027-01')
+            self.assertEqual(jan.buyer_topup, 40)
+            self.assertEqual(jan.advance_credit, 40)
+            self.assertEqual(jan.amount, 1000)
+            feb.refresh_from_db()
+            pool.refresh_from_db()
+            self.assertEqual(feb.advance_credit, 40)
+            self.assertEqual(feb.payable_amount, Decimal('962.25'))
+            self.assertEqual(pool.total_expected, 960)
+            self.assertFalse(pool.is_settled)
 
     def test_sale_proceeds_fund_the_purchase_before_the_buyer_does(self):
         """A sale in the same month is pool cash, not the buyer's own money."""
@@ -180,9 +282,9 @@ class PoolCashLedgerTests(TestCase):
         covered 635.97 from their pocket. The 3,928.20 sale landed on the 20th -
         too late for that order - so it stayed in the pool.
 
-        September: the buyer's installment drops by the 635.97 they are owed,
-        which is why only 10,364.03 comes in. On top of the 3,928.20 already in
-        the pot that makes 14,292.23. Buying 13,266.40 leaves 1,025.83 in the
+        September: the buyer's installment drops by the 635 they are owed,
+        which is why only 10,365.00 comes in. On top of the 3,928.20 already in
+        the pot that makes 14,293.20. Buying 13,266.40 leaves 1,026.80 in the
         pool, with nobody out of pocket and nobody billed.
         """
         self._contribute('2026-08', amounts=('5042.96', '5042.97'))
@@ -194,13 +296,13 @@ class PoolCashLedgerTests(TestCase):
 
         self.assertEqual(august['available_cash'], 10085.93)
         self.assertEqual(august['late_sale_proceeds'], 3928.20)
-        self.assertEqual(august['overspend'], 635.97)
+        self.assertEqual(august['overspend'], 635)
         self.assertEqual(august['closing_cash'], 3928.20)
 
         # Settling August wrote the buyer's September row with their refund.
         buyer_september = Contribution.objects.get(member=self.buyer, month='2026-09')
-        self.assertEqual(buyer_september.advance_credit, Decimal('635.97'))
-        self.assertEqual(buyer_september.amount, Decimal('364.03'))
+        self.assertEqual(buyer_september.advance_credit, Decimal('635'))
+        self.assertEqual(buyer_september.amount, Decimal('365'))
         buyer_september.status = 'paid'
         buyer_september.save()
 
@@ -215,19 +317,19 @@ class PoolCashLedgerTests(TestCase):
         september = PoolSettlementService.settle_month('2026-09', buying_member=self.other)
 
         self.assertEqual(september['opening_cash'], 3928.20)
-        self.assertEqual(september['base_collected'], 10364.03)
-        self.assertEqual(september['available_cash'], 14292.23)
+        self.assertEqual(september['base_collected'], 10365.0)
+        self.assertEqual(september['available_cash'], 14293.20)
         self.assertEqual(september['overspend'], 0.0)
-        self.assertEqual(september['pool_cash_carried'], 1025.83)
+        self.assertEqual(september['pool_cash_carried'], 1026.80)
 
         # September's buyer paid nothing extra and owes nothing extra.
         september_buyer = Contribution.objects.get(member=self.other, month='2026-09')
         self.assertEqual(september_buyer.buyer_topup, Decimal('0.00'))
         self.assertEqual(september_buyer.carry_forward, Decimal('0.00'))
 
-        # And the 1,025.83 is still there for October's purchase.
+        # And the 1,026.80 is still there for October's purchase.
         self.assertEqual(
-            PoolSettlementService.get_month_status('2026-10')['opening_cash'], 1025.83
+            PoolSettlementService.get_month_status('2026-10')['opening_cash'], 1026.80
         )
 
     def test_settling_twice_gives_the_same_answer(self):
