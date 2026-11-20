@@ -6,11 +6,15 @@ from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.db import transaction
 from django.db.models import Sum, F, DecimalField
 from django.db.models.functions import Coalesce
 
 from .models import Stock, StockPriceHistory
-from .serializers import StockSerializer, StockCreateSerializer, StockSellSerializer, StockPriceHistorySerializer
+from .serializers import (
+    SaleEditSerializer, StockCreateSerializer, StockPriceHistorySerializer,
+    StockSellSerializer, StockSerializer,
+)
 from accounts.permissions import IsAdmin, IsAdminOrReadOnly
 from portfolio.services import StockPriceService
 
@@ -30,6 +34,8 @@ class StockListView(generics.ListAPIView):
         symbol = self.request.query_params.get('symbol')
         if symbol:
             queryset = queryset.filter(symbol__icontains=symbol)
+        if is_sold and is_sold.lower() == 'true':
+            return queryset.order_by('-sell_date', '-pk')
         return queryset
 
 
@@ -58,9 +64,13 @@ class StockDetailView(generics.RetrieveAPIView):
 
 class StockUpdateView(generics.UpdateAPIView):
     """Update a stock entry (admin only)."""
-    queryset = Stock.objects.all()
+    queryset = Stock.objects.select_for_update().filter(is_sold=False)
     serializer_class = StockCreateSerializer
     permission_classes = [IsAdmin]
+
+    @transaction.atomic
+    def update(self, request, *args, **kwargs):
+        return super().update(request, *args, **kwargs)
 
 
 class StockSellView(generics.UpdateAPIView):
@@ -79,6 +89,18 @@ class StockSellView(generics.UpdateAPIView):
             notify_stock_sold(sold_stock)
         except Exception as exc:
             logger.warning('Push notification failed (stock sell): %s', exc)
+
+
+class SaleEditView(generics.UpdateAPIView):
+    """Correct the existing sale and its affected settlements atomically."""
+    queryset = Stock.objects.select_for_update().filter(is_sold=True)
+    serializer_class = SaleEditSerializer
+    permission_classes = [IsAdmin]
+    http_method_names = ['patch', 'options']
+
+    @transaction.atomic
+    def patch(self, request, *args, **kwargs):
+        return super().patch(request, *args, **kwargs)
 
 
 class StockDeleteView(generics.DestroyAPIView):

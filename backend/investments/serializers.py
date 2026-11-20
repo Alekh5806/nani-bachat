@@ -5,6 +5,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from rest_framework import serializers
 from django.db import transaction
+from django.utils import timezone
 from django.contrib.auth import get_user_model
 from .models import Stock, StockPriceHistory
 
@@ -27,7 +28,7 @@ class StockSerializer(serializers.ModelSerializer):
             'id', 'symbol', 'name', 'quantity', 'buy_price', 'brokerage',
             'buy_date', 'buyer', 'buyer_name', 'buyer_phone', 'notes',
             'current_price', 'last_price_update',
-            'is_sold', 'sell_price', 'sell_date',
+            'is_sold', 'sell_price', 'sell_brokerage', 'sell_date',
             'total_invested', 'current_value', 'profit_loss',
             'profit_loss_percentage', 'average_buy_price',
             'created_at', 'updated_at',
@@ -111,40 +112,86 @@ class StockCreateSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
-class StockSellSerializer(serializers.ModelSerializer):
-    """Serializer for recording a full or partial stock sale."""
-    quantity = serializers.IntegerField(min_value=1)
+class SaleDetailsSerializer(serializers.ModelSerializer):
+    """Terms shared by a recorded sale and a correction to that sale."""
 
     class Meta:
         model = Stock
-        fields = ['quantity', 'sell_price', 'sell_date', 'notes']
+        fields = ['sell_price', 'sell_brokerage', 'sell_date', 'notes']
+        extra_kwargs = {
+            'sell_price': {'allow_null': False, 'min_value': Decimal('0.01')},
+            'sell_date': {'allow_null': False},
+        }
 
     def validate(self, attrs):
-        instance = self.instance
-        quantity = attrs.get('quantity')
-        sell_price = attrs.get('sell_price')
-        sell_date = attrs.get('sell_date')
+        stock = self.instance
+        price = attrs.get('sell_price', stock.sell_price)
+        date = attrs.get('sell_date', stock.sell_date)
+        quantity = attrs.get('quantity', stock.quantity)
+        fee = attrs.get('sell_brokerage', stock.sell_brokerage)
+        if price is None:
+            raise serializers.ValidationError({'sell_price': 'Enter a sell price.'})
+        if date is None or date < stock.buy_date or date > timezone.localdate():
+            raise serializers.ValidationError({'sell_date': 'Choose a date from the purchase date through today.'})
+        if fee > price * quantity:
+            raise serializers.ValidationError({'sell_brokerage': 'Brokerage cannot exceed the gross sale value.'})
+        return attrs
 
-        if instance is None:
+
+class SaleEditSerializer(SaleDetailsSerializer):
+    def to_representation(self, instance):
+        return StockSerializer(instance, context=self.context).data
+
+    def validate(self, attrs):
+        unsupported = set(self.initial_data) - set(self.fields)
+        if unsupported:
+            raise serializers.ValidationError({key: 'This field cannot be edited here.' for key in unsupported})
+        return super().validate(attrs)
+
+    def update(self, stock, validated_data):
+        from contributions.models import MonthlyPool
+        from contributions.services import PoolSettlementService
+
+        old_date, old_proceeds = stock.sell_date, stock.net_sale_proceeds
+        for key, value in validated_data.items():
+            setattr(stock, key, value)
+        stock.save(update_fields=[*validated_data, 'updated_at'])
+
+        if (old_date, old_proceeds) != (stock.sell_date, stock.net_sale_proceeds):
+            first_month = min(old_date or stock.sell_date, stock.sell_date).strftime('%Y-%m')
+            months = MonthlyPool.objects.select_for_update().filter(
+                is_settled=True, month__gte=first_month,
+            ).order_by('month').values_list('month', flat=True)
+            for month in list(months):
+                try:
+                    PoolSettlementService.settle_month(month, force=True)
+                except ValueError as exc:
+                    raise serializers.ValidationError(
+                        f'Could not update the settlement for {month}. {exc}'
+                    ) from exc
+        return stock
+
+
+class StockSellSerializer(SaleDetailsSerializer):
+    """Serializer for recording a full or partial stock sale."""
+    quantity = serializers.IntegerField(min_value=1)
+
+    class Meta(SaleDetailsSerializer.Meta):
+        fields = ['quantity', *SaleDetailsSerializer.Meta.fields]
+
+    def validate(self, attrs):
+        if self.instance is None:
             raise serializers.ValidationError('Stock sale requires an existing stock purchase.')
-        if instance.is_sold:
+        if self.instance.is_sold:
             raise serializers.ValidationError('This stock purchase is already sold.')
+        quantity = attrs.get('quantity')
         if quantity is None:
             raise serializers.ValidationError({'quantity': 'Sell quantity is required.'})
-        if quantity > instance.quantity:
+        if quantity > self.instance.quantity:
             raise serializers.ValidationError({
-                'quantity': f'Cannot sell {quantity} shares. Only {instance.quantity} shares are available.'
+                'quantity': f'Cannot sell {quantity} shares. Only {self.instance.quantity} shares are available.'
             })
-        if sell_price is None:
-            raise serializers.ValidationError({'sell_price': 'Sell price is required.'})
-        if sell_price <= 0:
-            raise serializers.ValidationError({'sell_price': 'Sell price must be greater than zero.'})
-        if sell_date is None:
-            raise serializers.ValidationError({'sell_date': 'Sell date is required.'})
-        if sell_date < instance.buy_date:
-            raise serializers.ValidationError({'sell_date': 'Sell date cannot be before buy date.'})
-
-        return attrs
+        return super().validate(attrs)
 
     @staticmethod
     def _split_brokerage(total_brokerage, sold_quantity, original_quantity):
@@ -160,6 +207,7 @@ class StockSellSerializer(serializers.ModelSerializer):
         sell_quantity = validated_data['quantity']
         sell_price = validated_data['sell_price']
         sell_date = validated_data['sell_date']
+        sell_brokerage = validated_data.get('sell_brokerage', Decimal('0.00'))
         notes = validated_data.get('notes', instance.notes)
 
         with transaction.atomic():
@@ -173,11 +221,12 @@ class StockSellSerializer(serializers.ModelSerializer):
 
             original_quantity = stock.quantity
             if sell_quantity == original_quantity:
+                stock.sell_brokerage = sell_brokerage
                 stock.sell_price = sell_price
                 stock.sell_date = sell_date
                 stock.notes = notes
                 stock.is_sold = True
-                stock.save(update_fields=['sell_price', 'sell_date', 'notes', 'is_sold', 'updated_at'])
+                stock.save(update_fields=['sell_price', 'sell_brokerage', 'sell_date', 'notes', 'is_sold', 'updated_at'])
                 return stock
 
             sold_brokerage, remaining_brokerage = self._split_brokerage(
@@ -202,6 +251,7 @@ class StockSellSerializer(serializers.ModelSerializer):
                 last_price_update=stock.last_price_update,
                 is_sold=True,
                 sell_price=sell_price,
+                sell_brokerage=sell_brokerage,
                 sell_date=sell_date,
             )
             return sold_stock

@@ -159,7 +159,7 @@ class PoolSettlementService:
                     'order': PoolSettlementService._SALE_IN,
                     'month': stock.sell_date.strftime('%Y-%m'),
                     'kind': 'sale',
-                    'amount': (stock.sell_price or ZERO) * stock.quantity,
+                    'amount': stock.net_sale_proceeds,
                     'member_id': stock.buyer_id,
                 })
 

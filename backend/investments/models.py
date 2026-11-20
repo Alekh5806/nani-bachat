@@ -54,6 +54,12 @@ class Stock(models.Model):
         max_digits=12, decimal_places=2,
         null=True, blank=True
     )
+    sell_brokerage = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal('0.00'),
+        db_default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        help_text='Total brokerage paid on this sale'
+    )
     sell_date = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -89,16 +95,20 @@ class Stock(models.Model):
         return (self.buy_price * self.quantity) + self.brokerage
 
     @property
+    def net_sale_proceeds(self):
+        return (self.sell_price or Decimal('0.00')) * self.quantity - self.sell_brokerage
+
+    @property
     def current_value(self):
         """Current market value of this holding."""
         if self.is_sold:
-            return self.sell_price * self.quantity if self.sell_price else 0
+            return self.net_sale_proceeds
         return self.current_price * self.quantity
 
     @property
     def profit_loss(self):
         """Absolute profit/loss."""
-        return float(self.current_value) - float(self.total_invested)
+        return float(self.current_value - self.total_invested)
 
     @property
     def profit_loss_percentage(self):

@@ -11,5 +11,6 @@ urlpatterns = [
     path('stocks/<int:pk>/', views.StockDetailView.as_view(), name='stock-detail'),
     path('stocks/<int:pk>/update/', views.StockUpdateView.as_view(), name='stock-update'),
     path('stocks/<int:pk>/sell/', views.StockSellView.as_view(), name='stock-sell'),
+    path('stocks/<int:pk>/sale/', views.SaleEditView.as_view(), name='sale-edit'),
     path('stocks/<int:pk>/delete/', views.StockDeleteView.as_view(), name='stock-delete'),
 ]

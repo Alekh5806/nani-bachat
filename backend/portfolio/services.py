@@ -252,7 +252,7 @@ class PortfolioService:
 
         for s in sold_stocks:
             sold_stock_invested += (s.buy_price * s.quantity) + s.brokerage
-            realized_sale_value += (s.sell_price or Decimal('0.00')) * s.quantity
+            realized_sale_value += s.net_sale_proceeds
 
         total_dividends = Dividend.objects.aggregate(
             total=Sum('total_dividend')

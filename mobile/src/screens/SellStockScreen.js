@@ -1,6 +1,6 @@
 /**
  * Sell Stock Screen (Admin Only)
- * Records a full or partial sale for an existing purchase transaction.
+ * Records sales and corrects the terms of a sold lot.
  */
 import React, { useState } from 'react';
 import {
@@ -18,15 +18,18 @@ import { COLORS, SPACING, FONTS } from '../theme/colors';
 
 export const SellStockScreen = ({ navigation, route }) => {
   const stock = route.params?.stock;
-  const { sellStock } = usePortfolioStore();
+  const editing = Boolean(stock?.is_sold);
+  const { sellStock, updateSale } = usePortfolioStore();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
-  const [form, setForm] = useState({
+  const initialForm = {
     quantity: stock?.quantity ? String(stock.quantity) : '',
-    sell_price: stock?.current_price ? String(stock.current_price) : '',
-    sell_date: todayString(),
+    sell_price: String((editing ? stock.sell_price : stock?.current_price) ?? ''),
+    sell_brokerage: String(stock?.sell_brokerage ?? '0.00'),
+    sell_date: editing ? stock.sell_date : todayString(),
     notes: stock?.notes || '',
-  });
+  };
+  const [form, setForm] = useState(initialForm);
 
   const updateForm = (key, value) => {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -40,81 +43,63 @@ export const SellStockScreen = ({ navigation, route }) => {
 
   const formatNumber = (value) => Number(value || 0).toLocaleString('en-IN');
 
-  const roundMoney = (value) => Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
+  const toPaise = (value) => Math.round(Number(value) * 100);
 
-  const isValidDate = (value) => parseDateString(value) !== null;
+  const availableQuantity = Number(stock?.quantity) || 0;
+  const sellQuantity = Number(form.quantity);
+  const validQuantity = Number.isInteger(sellQuantity) && sellQuantity > 0 && sellQuantity <= availableQuantity;
+  const remainingQuantity = availableQuantity - sellQuantity;
+  const buyFeePaise = validQuantity
+    ? Math.round(toPaise(stock.brokerage) * sellQuantity / availableQuantity) : 0;
+  const grossPaise = toPaise(form.sell_price) * sellQuantity;
+  const netPaise = grossPaise - toPaise(form.sell_brokerage);
+  const costPaise = toPaise(stock?.buy_price) * sellQuantity + buyFeePaise;
+  const profitLoss = (netPaise - costPaise) / 100;
 
+  const validate = () => {
+    const problems = {};
+    const money = /^(?:\d+(?:\.\d{0,2})?|\.\d{1,2})$/;
+    if (!validQuantity) problems.quantity = `Enter 1 to ${availableQuantity} whole shares`;
+    if (!money.test(form.sell_price) || Number(form.sell_price) <= 0) {
+      problems.sell_price = 'Enter a positive price with up to two decimal places';
+    }
+    if (form.sell_brokerage && !money.test(form.sell_brokerage)) {
+      problems.sell_brokerage = 'Enter zero or a positive fee with up to two decimal places';
+    } else if (validQuantity && !problems.sell_price && toPaise(form.sell_brokerage) > grossPaise) {
+      problems.sell_brokerage = 'Brokerage cannot exceed the gross sale value';
+    }
+    if (!parseDateString(form.sell_date) || form.sell_date < stock?.buy_date || form.sell_date > todayString()) {
+      problems.sell_date = 'Choose a date from the purchase date through today';
+    }
+    return problems;
+  };
+
+  const changedFields = Object.keys(form).filter(key => form[key] !== initialForm[key]);
   const handleSubmit = async () => {
-    if (!stock?.id) {
-      Toast.show({ type: 'error', text1: 'Missing Stock', text2: 'Open this screen from a stock transaction' });
-      return;
-    }
+    if (!stock?.id || loading) return;
+    setErrors(problems);
+    if (Object.keys(problems).length) return;
 
-    const sellQuantity = parseInt(form.quantity, 10);
-    const availableQuantity = Number(stock.quantity) || 0;
-    const sellPrice = parseFloat(form.sell_price);
-    const nextErrors = {};
-
-    if (!form.quantity || !form.sell_price || !form.sell_date) {
-      if (!form.quantity) nextErrors.quantity = 'Enter quantity to sell';
-      if (!form.sell_price) nextErrors.sell_price = 'Enter sell price';
-      if (!form.sell_date) nextErrors.sell_date = 'Enter sell date';
-      setErrors(nextErrors);
-      Toast.show({ type: 'error', text1: 'Missing Fields', text2: 'Enter quantity, sell price, and sell date' });
-      return;
-    }
-    if (!Number.isInteger(sellQuantity) || sellQuantity < 1) {
-      setErrors({ quantity: 'Quantity must be at least 1' });
-      Toast.show({ type: 'error', text1: 'Invalid Quantity', text2: 'Sell quantity must be at least 1' });
-      return;
-    }
-    if (sellQuantity > availableQuantity) {
-      setErrors({ quantity: `Only ${availableQuantity} shares are available` });
-      Toast.show({ type: 'error', text1: 'Invalid Quantity', text2: `Only ${availableQuantity} shares are available` });
-      return;
-    }
-    if (!Number.isFinite(sellPrice) || sellPrice <= 0) {
-      setErrors({ sell_price: 'Sell price must be greater than zero' });
-      Toast.show({ type: 'error', text1: 'Invalid Price', text2: 'Sell price must be greater than zero' });
-      return;
-    }
-    if (!isValidDate(form.sell_date)) {
-      setErrors({ sell_date: 'Use YYYY-MM-DD format' });
-      Toast.show({ type: 'error', text1: 'Invalid Date', text2: 'Use YYYY-MM-DD format' });
-      return;
-    }
-    if (stock.buy_date && form.sell_date < stock.buy_date) {
-      setErrors({ sell_date: 'Sell date cannot be before buy date' });
-      Toast.show({ type: 'error', text1: 'Invalid Date', text2: 'Sell date cannot be before buy date' });
-      return;
-    }
-
+    const values = { ...form, quantity: sellQuantity, sell_brokerage: form.sell_brokerage || '0' };
     setLoading(true);
-    const result = await sellStock(stock.id, {
-      quantity: sellQuantity,
-      sell_price: sellPrice,
-      sell_date: form.sell_date,
-      notes: form.notes,
-    });
+    const result = editing
+      ? await updateSale(stock.id, Object.fromEntries(changedFields.map(key => [key, values[key]])))
+      : await sellStock(stock.id, values);
     setLoading(false);
-
     if (result.success) {
-      Toast.show({ type: 'success', text1: 'Stock Sold', text2: `${sellQuantity} ${stock.name} share${sellQuantity > 1 ? 's' : ''} sold` });
+      Toast.show({ type: 'success', text1: editing ? 'Sale updated' : 'Stock sold', text2: stock.name });
       navigation.goBack();
     } else {
-      Toast.show({ type: 'error', text1: 'Could Not Sell', text2: result.error });
+      Toast.show({ type: 'error', text1: editing ? 'Could not update sale' : 'Could not sell', text2: result.error });
     }
   };
 
-  const availableQuantity = Number(stock?.quantity) || 0;
-  const sellQuantity = Math.min(Math.max(parseInt(form.quantity, 10) || 0, 0), availableQuantity);
-  const remainingQuantity = Math.max(availableQuantity - sellQuantity, 0);
-  const brokerageShare = roundMoney(availableQuantity > 0 ? (Number(stock?.brokerage) || 0) * (sellQuantity / availableQuantity) : 0);
-  const grossSaleValue = roundMoney((Number(form.sell_price) || 0) * sellQuantity);
-  const investedValue = roundMoney((Number(stock?.buy_price) || 0) * sellQuantity + brokerageShare);
-  const profitLoss = grossSaleValue - investedValue;
-  const profitLossPercentage = investedValue > 0 ? (profitLoss / investedValue) * 100 : 0;
+  const profitLossPercentage = costPaise > 0 ? ((netPaise - costPaise) / costPaise) * 100 : 0;
   const isFullSale = sellQuantity === availableQuantity && availableQuantity > 0;
+
+  const problems = validate();
+  const previewValid = Object.keys(problems).length === 0;
+  const previewMoney = (value) => previewValid ? formatCurrency(value) : '—';
 
   const setQuantityPreset = (quantity) => {
     updateForm('quantity', String(Math.max(1, Math.min(quantity, availableQuantity))));
@@ -129,8 +114,8 @@ export const SellStockScreen = ({ navigation, route }) => {
   return (
     <View style={styles.container}>
       <ScreenHeader
-        title="Sell Stock"
-        subtitle="Record sale transaction"
+        title={editing ? 'Edit Sale' : 'Sell Stock'}
+        subtitle={editing ? undefined : 'Record sale transaction'}
         showBack
         onBack={() => navigation.goBack()}
       />
@@ -156,14 +141,14 @@ export const SellStockScreen = ({ navigation, route }) => {
                 </View>
                 <View style={[styles.modeBadge, isFullSale ? styles.fullBadge : styles.partialBadge]}>
                   <Text style={[styles.modeBadgeText, isFullSale ? styles.fullBadgeText : styles.partialBadgeText]}>
-                    {isFullSale ? 'Full' : 'Partial'}
+                    {editing ? 'Sold' : isFullSale ? 'Full' : 'Partial'}
                   </Text>
                 </View>
               </View>
 
               <View style={styles.holdingStrip}>
                 <View style={styles.holdingItem}>
-                  <Text style={styles.holdingLabel}>Available</Text>
+                  <Text style={styles.holdingLabel}>{editing ? 'Shares sold' : 'Available'}</Text>
                   <Text style={styles.holdingValue}>{formatNumber(availableQuantity)}</Text>
                 </View>
                 <View style={styles.holdingDivider} />
@@ -173,51 +158,55 @@ export const SellStockScreen = ({ navigation, route }) => {
                 </View>
                 <View style={styles.holdingDivider} />
                 <View style={styles.holdingItem}>
-                  <Text style={styles.holdingLabel}>Market</Text>
-                  <Text style={styles.holdingValue}>{formatCurrency(stock.current_price)}</Text>
+                  <Text style={styles.holdingLabel}>{editing ? 'Recorded sale' : 'Market'}</Text>
+                  <Text style={styles.holdingValue}>{formatCurrency(editing ? stock.sell_price : stock.current_price)}</Text>
                 </View>
               </View>
             </GlassCard>
           )}
 
-          <Text style={styles.sectionLabel}>SALE QUANTITY</Text>
-          <GlassCard style={styles.formCard}>
-            <PremiumInput
-              label="Quantity To Sell"
-              value={form.quantity}
-              onChangeText={(value) => updateForm('quantity', value.replace(/[^0-9]/g, ''))}
-              placeholder={`Max ${stock?.quantity || 0}`}
-              keyboardType="number-pad"
-              icon="#"
-              error={errors.quantity}
-              style={styles.compactInput}
-            />
-            <View style={styles.presetRow}>
-              {quantityPresets.map((preset) => (
-                <Pressable
-                  key={preset.label}
-                  onPress={() => setQuantityPreset(preset.value)}
-                  disabled={preset.disabled}
-                  style={({ pressed }) => [
-                    styles.presetButton,
-                    Number(form.quantity) === preset.value && styles.presetButtonActive,
-                    preset.disabled && styles.presetButtonDisabled,
-                    pressed && !preset.disabled && styles.presetPressed,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.presetText,
-                      Number(form.quantity) === preset.value && styles.presetTextActive,
-                      preset.disabled && styles.presetTextDisabled,
-                    ]}
-                  >
-                    {preset.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </GlassCard>
+          {!editing && (
+            <>
+              <Text style={styles.sectionLabel}>SALE QUANTITY</Text>
+              <GlassCard style={styles.formCard}>
+                <PremiumInput
+                  label="Quantity To Sell"
+                  value={form.quantity}
+                  onChangeText={(value) => updateForm('quantity', value.replace(/[^0-9]/g, ''))}
+                  placeholder={`Max ${stock?.quantity || 0}`}
+                  keyboardType="number-pad"
+                  icon="#"
+                  error={errors.quantity}
+                  style={styles.compactInput}
+                />
+                <View style={styles.presetRow}>
+                  {quantityPresets.map((preset) => (
+                    <Pressable
+                      key={preset.label}
+                      onPress={() => setQuantityPreset(preset.value)}
+                      disabled={preset.disabled}
+                      style={({ pressed }) => [
+                        styles.presetButton,
+                        Number(form.quantity) === preset.value && styles.presetButtonActive,
+                        preset.disabled && styles.presetButtonDisabled,
+                        pressed && !preset.disabled && styles.presetPressed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.presetText,
+                          Number(form.quantity) === preset.value && styles.presetTextActive,
+                          preset.disabled && styles.presetTextDisabled,
+                        ]}
+                      >
+                        {preset.label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </GlassCard>
+            </>
+          )}
 
           <Text style={styles.sectionLabel}>SALE DETAILS</Text>
           <GlassCard style={styles.formCard}>
@@ -229,6 +218,15 @@ export const SellStockScreen = ({ navigation, route }) => {
               keyboardType="decimal-pad"
               icon="₹"
               error={errors.sell_price}
+            />
+            <PremiumInput
+              label="Sale Brokerage (total)"
+              value={form.sell_brokerage}
+              onChangeText={(value) => updateForm('sell_brokerage', value)}
+              placeholder="0.00"
+              keyboardType="decimal-pad"
+              icon="₹"
+              error={errors.sell_brokerage}
             />
             <DatePickerField
               label="Sell Date"
@@ -253,44 +251,45 @@ export const SellStockScreen = ({ navigation, route }) => {
           <GlassCard borderGlow style={styles.previewCard}>
             <View style={styles.summaryGrid}>
               <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Quantity Sold</Text>
-                <Text style={styles.summaryValue}>{formatNumber(sellQuantity)}</Text>
+                <Text style={styles.summaryLabel}>Gross sale value</Text>
+                <Text style={styles.summaryValue}>{previewMoney(grossPaise / 100)}</Text>
               </View>
               <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Remaining</Text>
-                <Text style={styles.summaryValue}>{formatNumber(remainingQuantity)}</Text>
+                <Text style={styles.summaryLabel}>Sale brokerage</Text>
+                <Text style={styles.summaryValue}>{previewMoney(form.sell_brokerage)}</Text>
               </View>
               <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Sale Value</Text>
-                <Text style={styles.summaryValue}>{formatCurrency(grossSaleValue)}</Text>
+                <Text style={styles.summaryLabel}>Net proceeds</Text>
+                <Text style={styles.summaryValue}>{previewMoney(netPaise / 100)}</Text>
               </View>
               <View style={styles.summaryItem}>
                 <Text style={styles.summaryLabel}>Cost Basis</Text>
-                <Text style={styles.summaryValue}>{formatCurrency(investedValue)}</Text>
+                <Text style={styles.summaryValue}>{previewMoney(costPaise / 100)}</Text>
               </View>
             </View>
             <View style={[styles.pnlPanel, { backgroundColor: profitLoss >= 0 ? COLORS.profitBg : COLORS.lossBg }]}> 
               <View>
                 <Text style={styles.pnlLabel}>Estimated Sale P/L</Text>
                 <Text style={[styles.pnlValue, { color: profitLoss >= 0 ? COLORS.profit : COLORS.loss }]}> 
-                  {profitLoss >= 0 ? '+' : ''}{formatCurrency(profitLoss)}
+                  {previewValid && profitLoss >= 0 ? '+' : ''}{previewMoney(profitLoss)}
                 </Text>
               </View>
               <Text style={[styles.pnlPercent, { color: profitLoss >= 0 ? COLORS.profit : COLORS.loss }]}> 
-                {profitLossPercentage >= 0 ? '+' : ''}{profitLossPercentage.toFixed(2)}%
+                {previewValid ? `${profitLossPercentage >= 0 ? '+' : ''}${profitLossPercentage.toFixed(2)}%` : '—'}
               </Text>
             </View>
             <Text style={styles.remainingText}>
-              Brokerage used in this sale: {formatCurrency(brokerageShare)}. Final accuracy is validated again by the server before saving.
+              Cost basis includes {formatCurrency(buyFeePaise / 100)} in purchase brokerage.
+              {!editing && validQuantity && ` ${formatNumber(remainingQuantity)} shares will remain.`}
             </Text>
           </GlassCard>
 
           <PremiumButton
-            title={remainingQuantity > 0 ? 'Sell Partial Quantity' : 'Sell Full Quantity'}
+            title={editing ? 'Save Sale Changes' : remainingQuantity > 0 ? 'Sell Partial Quantity' : 'Sell Full Quantity'}
             onPress={handleSubmit}
             loading={loading}
-            disabled={!stock}
-            variant="danger"
+            disabled={!stock || (editing && !changedFields.length)}
+            variant={editing ? 'primary' : 'danger'}
           />
         </ScrollView>
       </KeyboardAvoidingView>

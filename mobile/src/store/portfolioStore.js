@@ -63,10 +63,16 @@ export const usePortfolioStore = create((set, get) => ({
   // carrying the sell price/date and the buyer it was held under.
   fetchSoldStocks: async () => {
     try {
-      const response = await api.get('/investments/stocks/?is_sold=true');
-      const data = response.data.results || response.data;
-      set({ soldStocks: data });
-      return data;
+      const sales = [];
+      let page = 1;
+      while (true) {
+        const { data } = await api.get('/investments/stocks/', { params: { is_sold: true, page } });
+        sales.push(...(data.results || data));
+        if (!data.next) break;
+        page += 1;
+      }
+      set({ soldStocks: sales });
+      return sales;
     } catch (error) {
       console.error('Failed to fetch sold stocks:', error);
       return null;
@@ -160,6 +166,19 @@ export const usePortfolioStore = create((set, get) => ({
         success: false,
         error: getErrorMessage(error, 'Failed to sell stock'),
       };
+    }
+  },
+
+  updateSale: async (id, changes) => {
+    try {
+      const { data } = await api.patch(`/investments/stocks/${id}/sale/`, changes);
+      set(state => ({
+        soldStocks: state.soldStocks.map(sale => sale.id === id ? data : sale),
+      }));
+      await get().fetchDashboard();
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: getErrorMessage(error, 'Could not update sale') };
     }
   },
 

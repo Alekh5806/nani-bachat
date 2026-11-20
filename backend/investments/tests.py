@@ -1,14 +1,17 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from contributions.models import Contribution
+from contributions.models import Contribution, MonthlyPool
+from contributions.services import PoolSettlementService
+from portfolio.services import PortfolioService
 from dividends.models import Dividend
 from .models import Stock
 from .serializers import StockCreateSerializer, StockSellSerializer
@@ -43,6 +46,7 @@ class StockSellSerializerTests(TestCase):
                 'quantity': 2,
                 'sell_price': '130.00',
                 'sell_date': '2026-02-01',
+                'sell_brokerage': '8.75',
                 'notes': 'Partial exit',
             },
             partial=True,
@@ -58,6 +62,8 @@ class StockSellSerializerTests(TestCase):
         self.assertTrue(sold_stock.is_sold)
         self.assertEqual(sold_stock.quantity, 2)
         self.assertEqual(sold_stock.brokerage, Decimal('20.00'))
+        self.assertEqual(sold_stock.net_sale_proceeds, Decimal('251.25'))
+        self.assertEqual(self.stock.sell_brokerage, 0)
         self.assertEqual(sold_stock.sell_price, Decimal('130.00'))
         self.assertEqual(sold_stock.sell_date, date(2026, 2, 1))
         self.assertEqual(Stock.objects.count(), 2)
@@ -73,6 +79,7 @@ class StockSellSerializerTests(TestCase):
                 'quantity': 5,
                 'sell_price': '130.00',
                 'sell_date': '2026-02-01',
+                'sell_brokerage': '9.50',
                 'notes': '',
             },
             partial=True,
@@ -84,6 +91,7 @@ class StockSellSerializerTests(TestCase):
         self.assertEqual(sold_stock.pk, self.stock.pk)
         self.assertTrue(sold_stock.is_sold)
         self.assertEqual(sold_stock.quantity, 5)
+        self.assertEqual(sold_stock.net_sale_proceeds, Decimal('640.50'))
         self.assertEqual(Stock.objects.count(), 1)
 
     def test_sale_quantity_cannot_exceed_available_quantity(self):
@@ -150,6 +158,84 @@ class StockSellSerializerTests(TestCase):
         self.assertTrue(notified_stock.is_sold)
         self.assertEqual(notified_stock.quantity, 2)
         self.assertEqual(notified_stock.sell_price, Decimal('130.00'))
+
+
+class SaleEditTests(TestCase):
+    def setUp(self):
+        self.admin = get_user_model().objects.create_user(phone='9000000001', name='Buyer', role='admin')
+        self.client = APIClient()
+        self.client.force_authenticate(self.admin)
+        self.sale = Stock.objects.create(
+            symbol='TCS.NS', name='TCS', quantity=2, buy_price=Decimal('100.00'),
+            brokerage=Decimal('1.75'), buyer=self.admin, buy_date=date(2026, 1, 1),
+            is_sold=True, sell_date=date(2026, 2, 1), sell_price=Decimal('130.00'),
+        )
+        self.url = reverse('investments:sale-edit', args=[self.sale.pk])
+
+    @patch('accounts.notifications.notify_stock_sold')
+    def test_edit_and_retry_correct_the_existing_sale_and_cash(self, notify):
+        Contribution.objects.create(member=self.admin, month='2026-01', amount=1000, status='paid')
+        changes = {'sell_price': '128.10', 'sell_brokerage': '4.55', 'sell_date': '2026-03-01', 'notes': 'Contract note'}
+        for _ in range(2):
+            response = self.client.patch(self.url, changes, format='json')
+            self.assertEqual(response.status_code, 200, response.data)
+        self.sale.refresh_from_db()
+        self.assertEqual(Stock.objects.count(), 1)
+        self.assertTrue(self.sale.is_sold)
+        self.assertEqual(self.sale.quantity, 2)
+        self.assertEqual(self.sale.total_invested, Decimal('201.75'))
+        self.assertEqual(self.sale.net_sale_proceeds, Decimal('251.65'))
+        self.assertEqual(self.sale.notes, 'Contract note')
+        self.assertEqual(self.sale.sell_date, date(2026, 3, 1))
+        summary = PortfolioService.get_portfolio_summary()
+        self.assertEqual(summary['realized_profit_loss'], 49.90)
+        self.assertEqual(summary['cash_balance'], 1049.90)
+        self.assertEqual(PoolSettlementService.cash_position('2026-02')['sale_proceeds'], 0)
+        self.assertEqual(PoolSettlementService.cash_position('2026-03')['sale_proceeds'], Decimal('251.65'))
+        notify.assert_not_called()
+
+    def test_edit_validates_amounts_dates_and_fixed_fields(self):
+        for changes in [
+            {'sell_brokerage': '-0.01'}, {'sell_brokerage': '260.01'},
+            {'sell_price': '0'}, {'sell_price': '1.001'}, {'sell_price': None},
+            {'sell_date': '2025-12-31'}, {'sell_date': str(timezone.localdate() + timedelta(days=1))},
+            {'quantity': 1}, {'brokerage': '10.00'},
+        ]:
+            with self.subTest(changes=changes):
+                self.assertEqual(self.client.patch(self.url, changes, format='json').status_code, 400)
+        self.sale.refresh_from_db()
+        self.assertEqual(self.sale.sell_brokerage, 0)
+        self.assertEqual(self.sale.net_sale_proceeds, Decimal('260.00'))
+
+    def test_member_cannot_edit_and_active_purchase_cannot_be_targeted(self):
+        self.client.force_authenticate(get_user_model().objects.create_user(phone='9000000002', name='Member'))
+        self.assertEqual(self.client.patch(self.url, {'notes': 'edit'}).status_code, 403)
+        self.client.force_authenticate(self.admin)
+        self.sale.is_sold = False
+        self.sale.save()
+        self.assertEqual(self.client.patch(self.url, {'notes': 'edit'}).status_code, 404)
+
+    def test_edit_revises_settled_advance_and_next_installment(self):
+        Contribution.objects.create(member=self.admin, month='2026-02', status='paid')
+        Stock.objects.create(symbol='TEST', name='Test', quantity=1, buy_price=1300,
+                             buyer=self.admin, buy_date=date(2026, 2, 10))
+        PoolSettlementService.settle_month('2026-02', buying_member=self.admin)
+        feb = Contribution.objects.get(month='2026-02')
+        self.assertEqual(feb.buyer_topup, 40)
+        response = self.client.patch(self.url, {'sell_brokerage': '6.50'})
+        self.assertEqual(response.status_code, 200, response.data)
+        feb.refresh_from_db()
+        self.assertEqual(feb.buyer_topup, Decimal('46.50'))
+        self.assertEqual(Contribution.objects.get(month='2026-03').advance_credit, Decimal('46.50'))
+        self.assertFalse(MonthlyPool.objects.filter(month='2026-03', is_settled=True).exists())
+
+    def test_notes_skip_settlement_and_failed_settlement_rolls_back_sale(self):
+        MonthlyPool.objects.create(month='2026-02', is_settled=True)  # Missing contributions
+        self.assertEqual(self.client.patch(self.url, {'notes': 'Receipt checked'}).status_code, 200)
+        self.assertEqual(self.client.patch(self.url, {'sell_price': '150.00'}).status_code, 400)
+        self.sale.refresh_from_db()
+        self.assertEqual(self.sale.notes, 'Receipt checked')
+        self.assertEqual(self.sale.sell_price, Decimal('130.00'))
 
 
 class StockCreateSerializerCashValidationTests(TestCase):

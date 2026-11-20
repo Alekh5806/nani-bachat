@@ -274,7 +274,7 @@ export const InvestmentsScreen = ({ navigation }) => {
             <GlassCard style={styles.realizedCard}>
               <View style={styles.realizedRow}>
                 <View style={styles.realizedItem}>
-                  <Text style={styles.realizedLabel}>Sale Proceeds</Text>
+                  <Text style={styles.realizedLabel}>Net Sale Proceeds</Text>
                   <Text style={styles.realizedValue}>{formatMoney(realizedProceeds)}</Text>
                 </View>
                 <View style={styles.realizedDivider} />
@@ -312,11 +312,10 @@ export const InvestmentsScreen = ({ navigation }) => {
             </Pressable>
 
             {showSold && sortedSold.map((sale, index) => {
-              const invested = (Number(sale.buy_price) || 0) * (Number(sale.quantity) || 0)
-                + (Number(sale.brokerage) || 0);
-              const proceeds = (Number(sale.sell_price) || 0) * (Number(sale.quantity) || 0);
-              const pnl = proceeds - invested;
-              const pnlPct = invested > 0 ? (pnl / invested) * 100 : 0;
+              const invested = Number(sale.total_invested);
+              const proceeds = Number(sale.current_value);
+              const pnl = Number(sale.profit_loss);
+              const pnlPct = Number(sale.profit_loss_percentage);
               const isProfit = pnl >= 0;
               const days = holdingDays(sale.buy_date, sale.sell_date);
 
@@ -352,11 +351,15 @@ export const InvestmentsScreen = ({ navigation }) => {
                   </View>
 
                   <View style={styles.saleDetailRow}>
-                    <Text style={styles.saleDetailLabel}>Invested (incl. brokerage {formatMoney(sale.brokerage)})</Text>
+                    <Text style={styles.saleDetailLabel}>Cost basis (incl. buy brokerage {formatMoney(sale.brokerage)})</Text>
                     <Text style={styles.saleDetailValue}>{formatMoney(invested)}</Text>
                   </View>
                   <View style={styles.saleDetailRow}>
-                    <Text style={styles.saleDetailLabel}>Proceeds</Text>
+                    <Text style={styles.saleDetailLabel}>Sale brokerage</Text>
+                    <Text style={styles.saleDetailValue}>{formatMoney(sale.sell_brokerage)}</Text>
+                  </View>
+                  <View style={styles.saleDetailRow}>
+                    <Text style={styles.saleDetailLabel}>Net proceeds</Text>
                     <Text style={styles.saleDetailValue}>{formatMoney(proceeds)}</Text>
                   </View>
                   <View style={[styles.saleDetailRow, styles.salePnlRow]}>
@@ -376,6 +379,19 @@ export const InvestmentsScreen = ({ navigation }) => {
                       </Text>
                     )}
                   </View>
+                  {!!sale.notes && <Text style={styles.saleNote}>{sale.notes}</Text>}
+                  {isAdmin && (
+                    <View style={styles.txActions}>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Edit sale of ${sale.name} on ${sale.sell_date}`}
+                        onPress={() => handleSellStock(sale)}
+                        style={({ pressed }) => [styles.txActionButton, pressed && styles.txActionPressed]}
+                      >
+                        <Text style={styles.txActionText}>Edit sale</Text>
+                      </Pressable>
+                    </View>
+                  )}
                 </GlassCard>
               );
             })}
@@ -589,6 +605,7 @@ const styles = StyleSheet.create({
     fontSize: FONTS.md,
     fontWeight: '800',
   },
+  saleNote: { color: COLORS.textSecondary, fontSize: FONTS.sm, marginTop: SPACING.sm },
   saleFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
