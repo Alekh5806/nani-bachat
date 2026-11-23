@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, KeyboardAvoidingView,
+  View, Text, Image, StyleSheet, KeyboardAvoidingView,
   Platform, ScrollView
 } from 'react-native';
-import Checkbox from 'expo-checkbox';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -12,16 +10,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '../store/authStore';
 import { PremiumInput } from '../components/PremiumInput';
 import { PremiumButton } from '../components/PremiumButton';
-import { COLORS, SPACING, FONTS, RADIUS } from '../theme/colors';
+import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
 
 export const LoginScreen = () => {
   const insets = useSafeAreaInsets();
   const { login, isLoading, error } = useAuthStore();
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  
-  // Default to false, let storage dictate if it should be checked
-  const [rememberMe, setRememberMe] = useState(false); 
 
   // Fetch credentials when screen mounts
   useEffect(() => {
@@ -33,7 +28,6 @@ export const LoginScreen = () => {
         if (savedPhone && savedPassword) {
           setPhone(savedPhone);
           setPassword(savedPassword);
-          setRememberMe(true); // Check the box automatically
         }
       } catch (e) {
         console.log("Failed to load credentials", e);
@@ -45,27 +39,22 @@ export const LoginScreen = () => {
 
   const handleLogin = async () => {
     if (!phone.trim() || !password.trim()) {
-      Toast.show({ type: 'error', text1: 'Missing Fields', text2: 'Enter phone and password' });
+      Toast.show({ type: 'error', text1: 'Missing fields', text2: 'Enter your phone number and password' });
       return;
     }
 
-    // Pass the rememberMe state to the store
-    const result = await login(phone.trim(), password, rememberMe);
+    // Always remembered: the session stays signed in on this device.
+    const result = await login(phone.trim(), password, true);
     
     if (result.success) {
-      Toast.show({ type: 'success', text1: 'Welcome!', text2: 'Logged in successfully' });
+      Toast.show({ type: 'success', text1: 'Signed in' });
     } else {
-      Toast.show({ type: 'error', text1: 'Login Failed', text2: result.error });
+      Toast.show({ type: 'error', text1: 'Sign in failed', text2: result.error });
     }
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <LinearGradient
-        colors={['#0F172A', '#1E293B', '#0F172A']}
-        style={StyleSheet.absoluteFillObject}
-      />
-
+    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, SPACING.lg) }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}
@@ -73,75 +62,48 @@ export const LoginScreen = () => {
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          {/* ── Logo Section ── */}
-          <View style={styles.logoSection}>
-            <LinearGradient
-              colors={[COLORS.gradientStart, COLORS.gradientEnd]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.logoGradient}
-            >
-              <Text style={styles.logoIcon}>📊</Text>
-            </LinearGradient>
-            <Text style={styles.appName}>Nani Bachat</Text>
-            <Text style={styles.tagline}>
-              Smart Group Investment Tracker
-            </Text>
+          {/* ── Top: 3D illustration ── */}
+          <View style={styles.tiles}>
+            <Image source={require('../../assets/login/growth.webp')} style={styles.art} resizeMode="contain" />
           </View>
 
-          {/* ── Login Form ── */}
-          <View style={styles.formContainer}>
-            <View style={styles.formCard}>
-              <Text style={styles.formTitle}>Sign In</Text>
-              <Text style={styles.formSubtitle}>
-                Enter your credentials to continue
-              </Text>
+          {/* ── Heading ── */}
+          <Text style={styles.title}>Let's sign you in</Text>
+          <Text style={styles.subtitle}>Welcome back,{'\n'}Nani Bachat is waiting</Text>
 
-              <PremiumInput
-                label="Phone Number"
-                value={phone}
-                onChangeText={setPhone}
-                placeholder="Enter phone number"
-                keyboardType="phone-pad"
-                icon="📱"
-              />
+          {/* ── Form ── */}
+          <View style={styles.form}>
+            <PremiumInput
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="Phone number"
+              keyboardType="phone-pad"
+            />
+            <PremiumInput
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Password"
+              secureTextEntry
+            />
 
-              <PremiumInput
-                label="Password"
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Enter password"
-                secureTextEntry
-                icon="🔒"
-              />
-
-              {/* Remember Me Checkbox */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 10 }}>
-                <Checkbox
-                  value={rememberMe}
-                  onValueChange={setRememberMe}
-                  color={rememberMe ? COLORS.accent : COLORS.textMuted}
-                />
-                <Text style={{ marginLeft: 8, color: COLORS.textSecondary, fontSize: FONTS.sm }}>
-                  Remember Me
-                </Text>
+            {error && (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
               </View>
+            )}
+          </View>
 
-              {error && (
-                <View style={styles.errorContainer}>
-                  <Text style={styles.errorText}>❌ {error}</Text>
-                </View>
-              )}
-
-              <PremiumButton
-                title="Sign In"
-                onPress={handleLogin}
-                loading={isLoading}
-                icon="→"
-                style={{ marginTop: SPACING.lg }}
-              />
-            </View>
+          {/* ── Bottom: note and Sign in ── */}
+          <View style={styles.bottom}>
+            <Text style={styles.note}>Accounts are created by your group admin</Text>
+            <PremiumButton
+              title="Sign In"
+              onPress={handleLogin}
+              loading={isLoading}
+              buttonStyle={{ minHeight: 44, paddingVertical: SPACING.md }}
+            />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -149,7 +111,7 @@ export const LoginScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -157,66 +119,55 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
-    padding: SPACING.xxl,
+    paddingHorizontal: SPACING.xxl,
+    paddingTop: SPACING.xxl,
+    maxWidth: 480,
+    width: '100%',
+    alignSelf: 'center',
   },
-  logoSection: {
+  tiles: {
     alignItems: 'center',
+    justifyContent: 'center',
+    height: 180,
+    marginBottom: SPACING.xxl,
+  },
+  art: {
+    width: 220,
+    height: 180,
+  },
+  title: {
+    ...TYPE.screenTitle,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.md,
+  },
+  subtitle: {
+    ...TYPE.body,
+    lineHeight: 22,
+    color: COLORS.textMuted,
     marginBottom: SPACING.xxxl,
   },
-  logoGradient: {
-    width: 80,
-    height: 80,
-    borderRadius: RADIUS.xl,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: SPACING.lg,
-  },
-  logoIcon: {
-    fontSize: 36,
-  },
-  appName: {
-    fontSize: FONTS.hero,
-    fontWeight: '900',
-    color: COLORS.textPrimary,
-    letterSpacing: -1,
-  },
-  tagline: {
-    fontSize: FONTS.md,
-    color: COLORS.textSecondary,
-    marginTop: SPACING.xs,
-    letterSpacing: 0.5,
-  },
-  formContainer: {
+  form: {
     width: '100%',
   },
-  formCard: {
-    backgroundColor: COLORS.glass,
-    borderRadius: RADIUS.xl,
-    borderWidth: 1,
-    borderColor: COLORS.glassBorder,
-    padding: SPACING.xxl,
+  bottom: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    paddingTop: SPACING.xxxl,
   },
-  formTitle: {
-    fontSize: FONTS.xl,
-    fontWeight: '800',
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.xs,
-  },
-  formSubtitle: {
-    fontSize: FONTS.sm,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.xxl,
+  note: {
+    ...TYPE.secondary,
+    textAlign: 'center',
+    color: COLORS.textMuted,
+    marginBottom: SPACING.lg,
   },
   errorContainer: {
     backgroundColor: COLORS.lossBg,
     borderRadius: RADIUS.sm,
     padding: SPACING.md,
-    marginTop: SPACING.sm,
+    marginTop: SPACING.md,
   },
   errorText: {
+    ...TYPE.secondary,
     color: COLORS.loss,
-    fontSize: FONTS.sm,
-    fontWeight: '500',
   },
-});
+}));

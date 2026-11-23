@@ -4,13 +4,13 @@
  */
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { COLORS, SPACING, FONTS } from '../theme/colors';
+import { Icon } from './Icon';
+import { COLORS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
 
 export const SectionHeader = ({ title, actionLabel, onAction, icon }) => (
   <View style={styles.container}>
     <View style={styles.left}>
-      {icon && <Text style={styles.icon}>{icon}</Text>}
-      <Text style={styles.title}>{title}</Text>
+            <Text style={styles.title}>{title}</Text>
     </View>
     {actionLabel && (
       <Pressable onPress={onAction}>
@@ -20,7 +20,7 @@ export const SectionHeader = ({ title, actionLabel, onAction, icon }) => (
   </View>
 );
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -33,18 +33,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   icon: {
-    fontSize: 16,
     marginRight: SPACING.sm,
   },
   title: {
-    fontSize: FONTS.lg,
-    fontWeight: '700',
+    ...TYPE.sectionTitle,
     color: COLORS.textPrimary,
-    letterSpacing: -0.3,
   },
   action: {
-    fontSize: FONTS.sm,
-    fontWeight: '600',
+    ...TYPE.secondaryMedium,
     color: COLORS.accent,
   },
-});
+}));

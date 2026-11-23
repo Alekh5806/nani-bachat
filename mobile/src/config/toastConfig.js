@@ -4,11 +4,12 @@
  */
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS, RADIUS, SPACING, FONTS } from '../theme/colors';
+import { Icon } from '../components/Icon';
+import { COLORS, RADIUS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
 
 const ToastBase = ({ text1, text2, bgColor, borderColor, icon }) => (
   <View style={[styles.container, { backgroundColor: bgColor, borderLeftColor: borderColor }]}>
-    <Text style={styles.icon}>{icon}</Text>
+    <Icon name={icon} size={20} color={borderColor} style={styles.icon} />
     <View style={styles.textContainer}>
       {text1 && <Text style={styles.title}>{text1}</Text>}
       {text2 && <Text style={styles.message}>{text2}</Text>}
@@ -28,7 +29,7 @@ export const toastConfig = {
   ),
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -39,20 +40,18 @@ const styles = StyleSheet.create({
     marginTop: SPACING.lg,
   },
   icon: {
-    fontSize: 20,
     marginRight: SPACING.md,
   },
   textContainer: {
     flex: 1,
   },
   title: {
+    ...TYPE.cardTitle,
     color: COLORS.textPrimary,
-    fontSize: FONTS.md,
-    fontWeight: '600',
   },
   message: {
+    ...TYPE.secondary,
     color: COLORS.textSecondary,
-    fontSize: FONTS.sm,
     marginTop: 2,
   },
-});
+}));

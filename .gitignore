@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+
+# Expo / Metro caches
+.expo/
+.metro-health-check*
+
+# Build output
+dist/
+build/
+web-build/
+
+# Logs
+*.log
+npm-debug.*
+
+# Tool output
+repomix-output.xml
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

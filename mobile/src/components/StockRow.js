@@ -4,12 +4,14 @@
  */
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { COLORS, RADIUS, SPACING, FONTS, SHADOWS } from '../theme/colors';
+import { CompanyLogo } from './CompanyLogo';
+import { COLORS, RADIUS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
 
 export const StockRow = ({ stock, onPress, showDetails = true }) => {
   const isProfit = stock.profit_loss >= 0;
-  const pnlColor = isProfit ? COLORS.profit : COLORS.loss;
-  const pnlBg = isProfit ? COLORS.profitBg : COLORS.lossBg;
+  const isFlat = Number(stock.profit_loss) === 0;
+  const pnlColor = isFlat ? COLORS.neutral : isProfit ? COLORS.profit : COLORS.loss;
+  const pnlBg = isFlat ? COLORS.neutralBg : isProfit ? COLORS.profitBg : COLORS.lossBg;
 
   return (
     <Pressable
@@ -21,11 +23,7 @@ export const StockRow = ({ stock, onPress, showDetails = true }) => {
     >
       {/* Stock Info */}
       <View style={styles.leftSection}>
-        <View style={[styles.symbolBadge, { backgroundColor: pnlBg }]}>
-          <Text style={[styles.symbolText, { color: pnlColor }]}>
-            {(stock.symbol || '').replace('.NS', '').substring(0, 3)}
-          </Text>
-        </View>
+        <CompanyLogo symbol={stock.symbol} name={stock.name} size={44} style={styles.logo} />
         <View style={styles.nameContainer}>
           <Text style={styles.name} numberOfLines={1} adjustsFontSizeToFit>
             {stock.name}
@@ -48,7 +46,7 @@ export const StockRow = ({ stock, onPress, showDetails = true }) => {
         </Text>
         <View style={[styles.pnlBadge, { backgroundColor: pnlBg }]}>
           <Text style={[styles.pnlText, { color: pnlColor }]}>
-            {isProfit ? '▲' : '▼'}{' '}
+            {isProfit ? '+' : '-'}
             {Math.abs(stock.profit_loss_percentage || 0).toFixed(2)}%
           </Text>
         </View>
@@ -64,7 +62,7 @@ export const StockRow = ({ stock, onPress, showDetails = true }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -75,7 +73,6 @@ const styles = StyleSheet.create({
     borderColor: COLORS.glassBorder,
     padding: SPACING.lg,
     marginBottom: SPACING.md,
-    ...SHADOWS.cardLight,
   },
   pressed: {
     opacity: 0.8,
@@ -86,6 +83,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
+  logo: { marginRight: SPACING.md },
   symbolBadge: {
     width: 44,
     height: 44,
@@ -96,25 +94,23 @@ const styles = StyleSheet.create({
   },
   symbolText: {
     fontSize: FONTS.sm,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    fontWeight: '600',
   },
   nameContainer: {
     flex: 1,
     minWidth: 0,
   },
   name: {
-    fontSize: FONTS.md,
-    fontWeight: '600',
+    ...TYPE.cardTitle,
     color: COLORS.textPrimary,
   },
   symbol: {
-    fontSize: FONTS.xs,
+    ...TYPE.caption,
     color: COLORS.textMuted,
     marginTop: 1,
   },
   qty: {
-    fontSize: FONTS.xs,
+    ...TYPE.quantity,
     color: COLORS.textSecondary,
     marginTop: 2,
   },
@@ -124,8 +120,7 @@ const styles = StyleSheet.create({
     maxWidth: 132,
   },
   price: {
-    fontSize: FONTS.md,
-    fontWeight: '700',
+    ...TYPE.stockPrice,
     color: COLORS.textPrimary,
   },
   pnlBadge: {
@@ -135,12 +130,10 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   pnlText: {
-    fontSize: FONTS.xs,
-    fontWeight: '700',
+    ...TYPE.plPercent,
   },
   pnlAmount: {
-    fontSize: FONTS.xs,
-    fontWeight: '600',
+    ...TYPE.smallValue,
     marginTop: 2,
   },
-});
+}));

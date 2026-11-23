@@ -17,7 +17,7 @@ import { GlassCard } from '../components/GlassCard';
 import { PremiumButton } from '../components/PremiumButton';
 import { PremiumInput } from '../components/PremiumInput';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { COLORS, FONTS, RADIUS, SPACING } from '../theme/colors';
+import { COLORS, FONTS, RADIUS, SPACING, themedStyles, TYPE } from '../theme/colors';
 
 const AVATAR_COLORS = ['#00D09C', '#4F46E5', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
 
@@ -264,7 +264,7 @@ export const AddMemberScreen = ({ navigation }) => {
 
 export default AddMemberScreen;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -284,17 +284,14 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
   },
   sectionTitle: {
+    ...TYPE.sectionTitle,
     color: COLORS.textPrimary,
-    fontSize: FONTS.lg,
-    fontWeight: '800',
     marginBottom: SPACING.md,
   },
   label: {
+    ...TYPE.inputLabel,
     color: COLORS.textSecondary,
-    fontSize: FONTS.sm,
-    fontWeight: '700',
     marginBottom: SPACING.sm,
-    textTransform: 'uppercase',
   },
   swatchRow: {
     flexDirection: 'row',
@@ -321,8 +318,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   helperText: {
+    ...TYPE.secondary,
     color: COLORS.textSecondary,
-    fontSize: FONTS.sm,
     marginTop: -SPACING.sm,
     marginBottom: SPACING.md,
   },
@@ -342,17 +339,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   totalLabel: {
+    ...TYPE.secondaryMedium,
     color: COLORS.textSecondary,
-    fontSize: FONTS.sm,
-    fontWeight: '600',
     marginBottom: SPACING.xs,
   },
   totalAmount: {
+    ...TYPE.plAmount,
     color: COLORS.accent,
-    fontSize: FONTS.xxl,
-    fontWeight: '900',
   },
   submitButton: {
     marginTop: SPACING.sm,
   },
-});
+}));

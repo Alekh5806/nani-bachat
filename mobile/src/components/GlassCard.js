@@ -1,11 +1,10 @@
 /**
  * Card Component
- * Clean flat card — Groww-style, no glassmorphism
+ * Flat card with a hairline border. `gradient` is accepted for old callers and ignored
  */
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, RADIUS, SPACING, SHADOWS } from '../theme/colors';
+import { COLORS, RADIUS, SPACING, themedStyles } from '../theme/colors';
 
 export const GlassCard = ({
   children,
@@ -15,19 +14,6 @@ export const GlassCard = ({
   borderGlow = false,
   padding = SPACING.lg,
 }) => {
-  if (gradient) {
-    return (
-      <LinearGradient
-        colors={gradientColors || [COLORS.gradientStart, COLORS.gradientEnd]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.gradientCard, { padding }, style]}
-      >
-        {children}
-      </LinearGradient>
-    );
-  }
-
   return (
     <View
       style={[
@@ -42,20 +28,15 @@ export const GlassCard = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   card: {
     backgroundColor: COLORS.cardBg,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.glassBorder,
-    ...SHADOWS.cardLight,
-  },
-  gradientCard: {
-    borderRadius: RADIUS.lg,
-    ...SHADOWS.card,
   },
   borderHighlight: {
     borderColor: COLORS.accent + '30',
     borderWidth: 1,
   },
-});
+}));

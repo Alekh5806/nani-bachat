@@ -4,6 +4,8 @@ Fetches real-time stock prices from Yahoo Finance.
 Supports NSE stocks with .NS suffix.
 """
 import logging
+import threading
+import time
 from decimal import Decimal
 from django.core.cache import cache
 from django.utils import timezone
@@ -12,6 +14,10 @@ logger = logging.getLogger(__name__)
 
 # Cache live quotes briefly so the app can feel current without hammering Yahoo.
 PRICE_CACHE_TIMEOUT = 60
+
+# Price refreshes run in the background so API requests never wait on Yahoo.
+_refresh_lock = threading.Lock()
+_last_refresh = 0.0
 HISTORY_CACHE_TIMEOUT = 1800
 
 
@@ -154,6 +160,32 @@ class StockPriceService:
             return None
 
     @staticmethod
+    def refresh_in_background(symbols: list = None) -> None:
+        """
+        Start a price refresh without blocking the caller. Runs at most once per
+        cache window and never two at the same time; requests keep using the
+        prices already stored in the database until the refresh finishes.
+        """
+        global _last_refresh
+        if time.time() - _last_refresh < PRICE_CACHE_TIMEOUT:
+            return
+        if not _refresh_lock.acquire(blocking=False):
+            return
+        _last_refresh = time.time()
+
+        def run():
+            from django.db import close_old_connections
+            try:
+                StockPriceService.refresh_active_stock_prices(symbols)
+            except Exception as e:
+                logger.warning(f'Background price refresh failed: {e}')
+            finally:
+                close_old_connections()
+                _refresh_lock.release()
+
+        threading.Thread(target=run, daemon=True).start()
+
+    @staticmethod
     def refresh_active_stock_prices(symbols: list = None) -> int:
         """
         Refresh and persist latest prices for active holdings.
@@ -238,7 +270,8 @@ class PortfolioService:
         symbols = active_stocks.values_list('symbol', flat=True).distinct()
         live_prices = {}
         for symbol in symbols:
-            price_data = StockPriceService.get_stock_price(symbol)
+            # Cached quotes only: no network call inside a request.
+            price_data = cache.get(f'stock_price_{symbol}')
             if price_data and price_data.get('current_price', 0) > 0:
                 live_prices[symbol] = PortfolioService._money(price_data['current_price'])
 

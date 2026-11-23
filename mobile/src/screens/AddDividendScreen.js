@@ -14,7 +14,8 @@ import { PremiumInput } from '../components/PremiumInput';
 import { PremiumButton } from '../components/PremiumButton';
 import { GlassCard } from '../components/GlassCard';
 import { DatePickerField, todayString, formatDateDisplay } from '../components/DatePickerField';
-import { COLORS, SPACING, FONTS, RADIUS } from '../theme/colors';
+import { CompanyLogo } from '../components/CompanyLogo';
+import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
 
 export const AddDividendScreen = ({ navigation }) => {
   const { createDividend, stocks, fetchStocks, members, fetchMembers } = usePortfolioStore();
@@ -88,7 +89,7 @@ export const AddDividendScreen = ({ navigation }) => {
           keyboardShouldPersistTaps="handled"
         >
           {/* ── Holding Selector ── */}
-          <Text style={styles.sectionLabel}>SELECT HOLDING</Text>
+          <Text style={styles.sectionLabel}>Select holding</Text>
           {holdings.length === 0 && (
             <GlassCard style={styles.selectedCard}>
               <Text style={styles.selectedQty}>No active holdings to record a dividend against.</Text>
@@ -106,6 +107,7 @@ export const AddDividendScreen = ({ navigation }) => {
                   pressed && styles.holdingRowPressed,
                 ]}
               >
+                <CompanyLogo symbol={stock.symbol} name={stock.name} size={40} style={{ marginRight: SPACING.md }} />
                 <View style={styles.holdingLeft}>
                   <Text style={[styles.holdingSymbol, active && styles.holdingSymbolActive]}>
                     {stock.symbol?.replace('.NS', '')}
@@ -113,7 +115,7 @@ export const AddDividendScreen = ({ navigation }) => {
                   <Text style={styles.holdingName} numberOfLines={1}>{stock.name}</Text>
                   {/* Whose demat holds these shares — the dividend lands there. */}
                   <Text style={styles.holdingBuyer}>
-                    👤 Buyer: {stock.buyer_name || 'Not recorded'}
+                    Buyer: {stock.buyer_name || 'Not recorded'}
                   </Text>
                   <Text style={styles.holdingMeta}>
                     {stock.quantity} shares · bought at ₹{stock.buy_price} on{' '}
@@ -212,14 +214,14 @@ export const AddDividendScreen = ({ navigation }) => {
             style={{ marginTop: SPACING.lg }}
           />
 
-          <View style={{ height: 100 }} />
+          <View style={{ height: 110 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -230,10 +232,8 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.huge,
   },
   sectionLabel: {
+    ...TYPE.captionMedium,
     color: COLORS.textSecondary,
-    fontSize: FONTS.xs,
-    fontWeight: '700',
-    letterSpacing: 1,
     marginBottom: SPACING.sm,
   },
   holdingRow: {
@@ -262,39 +262,34 @@ const styles = StyleSheet.create({
     marginLeft: SPACING.md,
   },
   holdingSymbol: {
-    fontSize: FONTS.sm,
-    fontWeight: '800',
+    ...TYPE.secondaryMedium,
     color: COLORS.textSecondary,
-    letterSpacing: 0.5,
   },
   holdingSymbolActive: {
     color: COLORS.accent,
   },
   holdingName: {
-    fontSize: FONTS.md,
-    fontWeight: '700',
+    ...TYPE.cardTitle,
     color: COLORS.textPrimary,
     marginTop: 2,
   },
   holdingBuyer: {
-    fontSize: FONTS.xs,
-    fontWeight: '600',
+    ...TYPE.captionMedium,
     color: COLORS.accent,
     marginTop: 4,
   },
   holdingMeta: {
-    fontSize: FONTS.xs,
+    ...TYPE.caption,
     color: COLORS.textMuted,
     marginTop: 2,
   },
   holdingCheck: {
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '600',
     color: COLORS.accent,
   },
   holdingSelect: {
-    fontSize: FONTS.xs,
-    fontWeight: '700',
+    ...TYPE.captionMedium,
     color: COLORS.textMuted,
   },
   selectedCard: {
@@ -312,38 +307,34 @@ const styles = StyleSheet.create({
     paddingRight: SPACING.sm,
   },
   selectedLabel: {
-    fontSize: FONTS.xs,
+    ...TYPE.caption,
     color: COLORS.textMuted,
   },
   selectedValue: {
-    fontSize: FONTS.sm,
-    fontWeight: '700',
+    ...TYPE.smallValue,
     color: COLORS.textPrimary,
     marginTop: 2,
   },
   selectedName: {
+    ...TYPE.cardTitle,
     color: COLORS.textPrimary,
-    fontSize: FONTS.md,
-    fontWeight: '700',
   },
   selectedQty: {
+    ...TYPE.secondary,
     color: COLORS.textSecondary,
-    fontSize: FONTS.sm,
     marginTop: 4,
   },
   previewCard: {
     marginTop: SPACING.lg,
   },
   previewTitle: {
+    ...TYPE.cardTitle,
     color: COLORS.accent,
-    fontSize: FONTS.sm,
-    fontWeight: '700',
     marginBottom: SPACING.sm,
   },
   previewText: {
+    ...TYPE.body,
     color: COLORS.textPrimary,
-    fontSize: FONTS.md,
-    fontWeight: '600',
     marginBottom: 4,
   },
-});
+}));

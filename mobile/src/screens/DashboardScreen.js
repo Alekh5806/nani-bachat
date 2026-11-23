@@ -1,84 +1,150 @@
 /**
- * Dashboard Screen — Groww-style Portfolio View
- * Clean, minimal, portfolio-first. No emojis in section titles.
- * Dark flat cards, bright green/red for P&L, simple list holdings.
+ * Dashboard Screen
+ * Portfolio first. Flat dark surfaces with hairline borders, green and red only for gains and losses.
  */
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl,
   Dimensions, Pressable, Platform
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { usePortfolioStore } from '../store/portfolioStore';
-import { useAuthStore } from '../store/authStore';
+import { ScreenHeader } from '../components/ScreenHeader';
+import { fmtFull, fmtShort } from '../utils/currency';
+import { Icon, AppIcon } from '../components/Icon';
+import { AllocationDonut } from '../components/AllocationDonut';
+import { GrowthChart, formatChartPoint } from '../components/GrowthChart';
 import { DashboardSkeleton } from '../components/LoadingSkeleton';
-import { COLORS, SPACING, FONTS, RADIUS, SHADOWS } from '../theme/colors';
+import { CompanyLogo } from '../components/CompanyLogo';
+import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const PRICE_REFRESH_INTERVAL_MS = 60000;
+const RANGES = [['1W', 7], ['1M', 30], ['3M', 90], ['1Y', 365], ['ALL', 3650]];
+const RANGE_LABEL = { '1W': 'this week', '1M': 'this month', '3M': 'last 3 months', '1Y': 'this year', ALL: 'all time' };
 
-// Currency helpers
-const fmtFull = (v) => {
-  const n = Number(v) || 0;
-  return '\u20B9' + n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-};
-const fmtShort = (v) => {
-  const n = Number(v) || 0;
-  if (Math.abs(n) >= 10000000) return '\u20B9' + (n / 10000000).toFixed(2) + ' Cr';
-  if (Math.abs(n) >= 100000) return '\u20B9' + (n / 100000).toFixed(2) + ' L';
-  if (Math.abs(n) >= 1000) return '\u20B9' + (n / 1000).toFixed(1) + 'K';
-  return '\u20B9' + n.toLocaleString('en-IN', { maximumFractionDigits: 0 });
-};
+// Categorical colours for the allocation donut (not P/L colours).
+const CHART_COLORS = ['#4D6BFF', '#8B5CF6', '#06B6D4', '#F59E0B', '#EC4899', '#10B981', '#F97316', '#84CC16', '#14B8A6', '#64748B'];
+
 
 // Component
 export const DashboardScreen = () => {
   const insets = useSafeAreaInsets();
-  const { user } = useAuthStore();
+  const navigation = useNavigation();
   const {
     dashboard, fetchDashboard,
     stockSummary, fetchStockSummary,
+    dividends, fetchDividends,
+    growthData, fetchGrowthData,
     isLoading,
   } = usePortfolioStore();
   const [refreshing, setRefreshing] = useState(false);
+  const [range, setRange] = useState('1M');
+  const [scrub, setScrub] = useState(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchGrowthData(RANGES.find(([k]) => k === range)[1]);
+    }, [range, fetchGrowthData])
+  );
+
+  const chartData = [...(growthData || [])]
+    .reverse()
+    .map((d) => ({ date: d.date, value: Number(d.total_current_value) || 0 }));
+  const scrubbed = scrub ? formatChartPoint(scrub) : null;
+
+  // Change over the selected range, taken from the same points the chart draws.
+  const rangeStart = chartData.length > 1 ? chartData[0].value : 0;
+  const rangeEnd = chartData.length > 1 ? chartData[chartData.length - 1].value : 0;
+  const rangePct = rangeStart > 0 ? ((rangeEnd - rangeStart) / rangeStart) * 100 : 0;
+  const rangeUp = rangePct >= 0;
 
   useFocusEffect(
     useCallback(() => {
       const loadPrices = () => {
         fetchDashboard();
         fetchStockSummary();
+        fetchDividends();
       };
 
       loadPrices();
       const intervalId = setInterval(loadPrices, PRICE_REFRESH_INTERVAL_MS);
 
       return () => clearInterval(intervalId);
-    }, [fetchDashboard, fetchStockSummary])
+    }, [fetchDashboard, fetchStockSummary, fetchDividends])
   );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([fetchDashboard(), fetchStockSummary()]);
+    await Promise.all([fetchDashboard(), fetchStockSummary(), fetchDividends()]);
     setRefreshing(false);
-  }, [fetchDashboard, fetchStockSummary]);
+  }, [fetchDashboard, fetchStockSummary, fetchDividends]);
 
   const p = dashboard?.portfolio || {};
-  const my = dashboard?.my_portfolio || {};
   const holdings = stockSummary?.stocks || [];
-  const allocation = dashboard?.allocation || [];
-
   const pnl = Number(p.profit_loss) || 0;
-  const pnlPct = Number(p.growth_percentage) || 0;
   const isUp = pnl >= 0;
+
 
   const totalVal = holdings.reduce((s, h) => s + (Number(h.current_value) || 0), 0) || 1;
 
-  // Calculate today's return from all holdings
-  const todayReturn = holdings.reduce((s, h) => s + (Number(h.day_change_value) || 0), 0);
-  const totalDayChange = Number(stockSummary?.total_day_change) || todayReturn;
-  const todayPct = totalVal > 0 ? (totalDayChange / (totalVal - totalDayChange)) * 100 : 0;
-  const todayUp = totalDayChange >= 0;
+
+  // Asset allocation: stocks and club cash.
+  const stocksValue = Number(p.active_stock_value) || 0;
+  const cashValue = Math.max(Number(p.cash_balance) || 0, 0);
+  const assetTotal = stocksValue + cashValue || 1;
+  const assets = [
+    {
+      key: 'stocks', name: 'Stocks', color: COLORS.accent, value: stocksValue,
+      invested: Number(p.active_stock_invested) || 0,
+      sub: `${holdings.length} stocks · ${((stocksValue / assetTotal) * 100).toFixed(2)}%`,
+      up: stocksValue >= (Number(p.active_stock_invested) || 0),
+    },
+    {
+      key: 'cash', name: 'Club Cash', color: COLORS.neutral, value: cashValue,
+      sub: `${((cashValue / assetTotal) * 100).toFixed(2)}%`,
+    },
+  ].filter((a) => a.value > 0);
+
+  // Dividends: the last four calendar quarters, newest first (empty ones show 0).
+  const quarterNames = ['Jan - Mar', 'Apr - Jun', 'Jul - Sep', 'Oct - Dec'];
+  const byQuarter = {};
+  (dividends || []).forEach((d) => {
+    const dt = new Date(d.ex_date);
+    if (Number.isNaN(dt.getTime())) return;
+    const idx = dt.getFullYear() * 4 + Math.floor(dt.getMonth() / 3);
+    byQuarter[idx] = (byQuarter[idx] || 0) + (Number(d.total_dividend) || 0);
+  });
+  const nowDate = new Date();
+  const currentQuarter = nowDate.getFullYear() * 4 + Math.floor(nowDate.getMonth() / 3);
+  const quarters = [0, 1, 2, 3].map((i) => {
+    const idx = currentQuarter - i;
+    const year = Math.floor(idx / 4);
+    const label = quarterNames[idx % 4] + (year === nowDate.getFullYear() ? '' : ` '${String(year).slice(2)}`);
+    return { key: idx, label, total: byQuarter[idx] || 0 };
+  });
+  const maxQuarter = Math.max(...quarters.map((x) => x.total), 1);
+  const firstDividend = (dividends || [])
+    .map((d) => new Date(d.ex_date)).filter((d) => !Number.isNaN(d.getTime()))
+    .sort((a, b) => a - b)[0];
+  const receivedSince = firstDividend
+    ? firstDividend.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' }).replace(' ', " '")
+    : null;
+
+  // Donut and legend: the five largest holdings.
+  const sorted = [...holdings].sort((a, b) => (Number(b.current_value) || 0) - (Number(a.current_value) || 0));
+  const toSlice = (h, i) => ({
+    key: h.symbol,
+    name: h.name || (h.symbol || '').replace('.NS', ''),
+    value: Number(h.current_value) || 0,
+    invested: Number(h.total_invested) || 0,
+    pnl: (Number(h.current_value) || 0) - (Number(h.total_invested) || 0),
+    sub: `${h.total_quantity || h.quantity} shares · ${(((Number(h.current_value) || 0) / totalVal) * 100).toFixed(1)}%`,
+    color: CHART_COLORS[i % CHART_COLORS.length],
+  });
+  const slices = sorted.slice(0, 5).map(toSlice);
 
   if (isLoading && !dashboard) {
     return (
@@ -90,264 +156,164 @@ export const DashboardScreen = () => {
 
   return (
     <View style={styles.container}>
+      <ScreenHeader title="Portfolio" subtitle={getMonthLabel()} />
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 12 }]}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh}
             tintColor={COLORS.accent} colors={[COLORS.accent]} />
         }
       >
-        {/* TOP BAR */}
-        <View style={styles.topBar}>
-          <View>
-            <Text style={styles.greeting}>
-              {getGreeting()}, {(user?.name || 'User').split(' ')[0]}
-            </Text>
-            <Text style={styles.greetingSub}>Nani Bachat Portfolio</Text>
-          </View>
-          <View style={styles.avatarCircle}>
-            <Text style={styles.avatarText}>
-              {(user?.name || 'U')[0].toUpperCase()}
-            </Text>
-          </View>
-        </View>
-
         {/* PORTFOLIO VALUE CARD */}
         <View style={styles.valueCard}>
-          <Text style={styles.valueLabel}>Current Value</Text>
-          <Text style={styles.valueAmount} numberOfLines={1} adjustsFontSizeToFit>
-            {fmtFull(p.current_value)}
-          </Text>
-
-          <View style={styles.pnlRow}>
-            <Text style={[styles.pnlAmount, { color: isUp ? COLORS.profit : COLORS.loss }]}>
-              {isUp ? '+' : ''}{fmtFull(pnl)}
+          <View style={styles.valueTop}>
+            <Text style={styles.valueLabel}>{scrubbed ? scrubbed.date : 'Total Balance'}</Text>
+            <Text style={styles.valueAmount} numberOfLines={1} adjustsFontSizeToFit>
+              {scrubbed ? scrubbed.value : fmtFull(p.current_value)}
             </Text>
-            <View style={[styles.pnlPill, { backgroundColor: isUp ? COLORS.profitBg : COLORS.lossBg }]}>
-              <Text style={[styles.pnlPillText, { color: isUp ? COLORS.profit : COLORS.loss }]}>
-                {isUp ? '\u2191' : '\u2193'} {Math.abs(pnlPct).toFixed(2)}%
-              </Text>
-            </View>
-          </View>
-
-          {/* Today's Return */}
-          <View style={styles.todayRow}>
-            <Text style={styles.todayLabel}>Today's Return</Text>
-            <View style={styles.todayRight}>
-              <Text style={[styles.todayValue, { color: todayUp ? COLORS.profit : COLORS.loss }]}>
-                {todayUp ? '+' : ''}{fmtFull(totalDayChange)}
-              </Text>
-              <Text style={[styles.todayPct, { color: todayUp ? COLORS.profit : COLORS.loss }]}>
-                {' '}({todayUp ? '+' : ''}{Math.abs(todayPct).toFixed(2)}%)
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.stripRow}>
-            <StripItem label="Capital" value={fmtShort(p.total_invested)} />
-            <View style={styles.stripDivider} />
-            <StripItem label="Returns" value={fmtShort(p.total_returns)} color={isUp ? COLORS.profit : COLORS.loss} />
-            <View style={styles.stripDivider} />
-            <StripItem label="Cash" value={fmtShort(p.cash_balance)} />
-          </View>
-        </View>
-
-        {/* YOUR SHARE */}
-        <View style={styles.shareCard}>
-          <View style={styles.shareRow}>
-            <View style={styles.shareLeft}>
-              <Text style={styles.shareLabel}>Your Share</Text>
-              <Text style={styles.shareSub}>
-                {Number(my.ownership_percentage || 0).toFixed(1)}% ownership
-              </Text>
-            </View>
-            <View style={styles.shareRight}>
-              <Text style={styles.shareValue}>{fmtFull(my.current_value)}</Text>
-              <Text style={[styles.sharePnl, { color: isUp ? COLORS.profit : COLORS.loss }]}>
-                {isUp ? '+' : ''}{fmtFull(my.profit_loss)}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.shareMiniRow}>
-            <View style={styles.shareMiniItem}>
-              <Text style={styles.shareMiniLabel}>Contributed</Text>
-              <Text style={styles.shareMiniValue}>{fmtShort(my.total_contribution)}</Text>
-            </View>
-            <View style={styles.shareMiniItem}>
-              <Text style={styles.shareMiniLabel}>Dividends</Text>
-              <Text style={styles.shareMiniValue}>{fmtShort(my.dividend_earned)}</Text>
-            </View>
-            <View style={styles.shareMiniItem}>
-              <Text style={styles.shareMiniLabel}>Members</Text>
-              <Text style={styles.shareMiniValue}>{dashboard?.active_members || 0}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* HOLDINGS */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Your Stocks</Text>
-          <Text style={styles.sectionCount}>{holdings.length}</Text>
-        </View>
-
-        <View style={styles.holdingsCard}>
-          {holdings.length === 0 && (
-            <View style={styles.emptyBox}>
-              <Text style={styles.emptyTitle}>No investments yet</Text>
-              <Text style={styles.emptySub}>Add your first stock from the Investments tab</Text>
-            </View>
-          )}
-
-          {holdings.map((stock, idx) => {
-            const sPnl = Number(stock.profit_loss) || 0;
-            const sPct = Number(stock.profit_loss_percentage) || 0;
-            const sUp = sPnl >= 0;
-            const sColor = sUp ? COLORS.profit : COLORS.loss;
-            const allocPct = ((Number(stock.current_value) || 0) / totalVal * 100);
-
-            return (
-              <View key={`${stock.symbol || 'stock'}-${idx}`}>
-                {idx > 0 && <View style={styles.holdingDivider} />}
-                <View style={styles.holdingRow}>
-                  <View style={styles.holdingLeft}>
-                    <View style={styles.holdingIcon}>
-                      <Text style={styles.holdingIconText}>
-                        {(stock.symbol || '').replace('.NS', '').substring(0, 2)}
-                      </Text>
-                    </View>
-                    <View style={styles.holdingInfo}>
-                      <Text style={styles.holdingName} numberOfLines={1}>
-                        {(stock.symbol || '').replace('.NS', '')}
-                      </Text>
-                      <Text style={styles.holdingQty}>
-                        {stock.total_quantity || stock.quantity} shares
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.holdingRight}>
-                    <Text style={styles.holdingValue} numberOfLines={1} adjustsFontSizeToFit>
-                      {fmtFull(stock.current_value)}
-                    </Text>
-                    <Text style={[styles.holdingPnl, { color: sColor }]}>
-                      {sUp ? '+' : ''}{fmtFull(sPnl)} ({sUp ? '+' : ''}{sPct.toFixed(2)}%)
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.holdingDetails}>
-                  <Text style={styles.detailItem} numberOfLines={1} adjustsFontSizeToFit>
-                    Avg. {'\u20B9'}{Number(stock.average_buy_price || 0).toFixed(2)}
-                  </Text>
-                  <Text style={styles.detailDot}>{'\u00B7'}</Text>
-                  <Text style={styles.detailItem} numberOfLines={1} adjustsFontSizeToFit>
-                    LTP {'\u20B9'}{Number(stock.current_price || 0).toFixed(2)}
-                  </Text>
-                  <Text style={styles.detailDot}>{'\u00B7'}</Text>
-                  <Text style={styles.detailItem} numberOfLines={1} adjustsFontSizeToFit>
-                    {allocPct.toFixed(1)}% of portfolio
-                  </Text>
-                </View>
-
-                <View style={styles.allocBarTrack}>
-                  <View style={[
-                    styles.allocBarFill,
-                    {
-                      width: Math.max(allocPct, 3) + '%',
-                      backgroundColor: sUp ? COLORS.profit : COLORS.loss,
-                    }
-                  ]} />
-                </View>
+            {chartData.length > 1 && (
+              <View style={styles.changeRow}>
+                <Icon name={rangeUp ? '📈' : '📉'} size={16} color={rangeUp ? COLORS.profit : COLORS.loss} />
+                <Text style={[styles.changeText, { color: rangeUp ? COLORS.profit : COLORS.loss }]}>
+                  {rangeUp ? '+' : '-'}{Math.abs(rangePct).toFixed(2)}%
+                </Text>
+                <Text style={styles.changeLabel}>{RANGE_LABEL[range]}</Text>
               </View>
-            );
-          })}
+            )}
+          </View>
+
+          <GrowthChart data={chartData} onScrub={setScrub} />
+
+          <View style={styles.rangeRow}>
+            {RANGES.map(([key]) => (
+              <Pressable
+                key={key}
+                onPress={() => setRange(key)}
+                style={[styles.rangeChip, range === key && styles.rangeChipActive]}
+              >
+                <Text style={[styles.rangeText, range === key && styles.rangeTextActive]}>{key}</Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
+
+        {/* SUMMARY */}
+        {holdings.length > 0 && (
+          <View style={styles.overviewCard}>
+            <View style={styles.overviewHeader}>
+              <Text style={styles.overviewTitle}>Summary</Text>
+            </View>
+            <OverviewRow label="Total invested" value={fmtFull(p.total_invested)} />
+            <OverviewRow label="Current value" value={fmtFull(p.current_value)} />
+            <OverviewRow label="Available cash" value={fmtFull(p.cash_balance)} />
+            <OverviewRow label="Active stock value" value={fmtFull(p.active_stock_value)} />
+            <OverviewRow label="P&L" value={(isUp ? '+' : '') + fmtFull(pnl)} valueColor={isUp ? COLORS.profit : COLORS.loss} />
+            <OverviewRow label="Realized P&L" value={(Number(p.realized_profit_loss) >= 0 ? '+' : '') + fmtFull(p.realized_profit_loss)} valueColor={Number(p.realized_profit_loss) >= 0 ? COLORS.profit : COLORS.loss} />
+            <OverviewRow label="Unrealized P&L" value={(Number(p.unrealized_profit_loss) >= 0 ? '+' : '') + fmtFull(p.unrealized_profit_loss)} valueColor={Number(p.unrealized_profit_loss) >= 0 ? COLORS.profit : COLORS.loss} />
+            <OverviewRow label="Total dividends" value={fmtFull(p.total_dividends)} />
+            <OverviewRow label="Total returns" value={(Number(p.total_returns) >= 0 ? '+' : '') + fmtFull(p.total_returns)} valueColor={Number(p.total_returns) >= 0 ? COLORS.profit : COLORS.loss} isLast />
+          </View>
+        )}
 
         {/* OVERVIEW */}
         {holdings.length > 0 && (
-          <>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Overview</Text>
+          <View style={styles.overviewCard}>
+            <View style={styles.overviewHeader}>
+              <Text style={styles.overviewTitle}>Top Holdings</Text>
+              <Pressable onPress={() => navigation.navigate('Investments')} hitSlop={8}>
+                <Text style={styles.viewAll}>View all</Text>
+              </Pressable>
             </View>
 
-            <View style={styles.overviewCard}>
-              <OverviewRow label="Total Invested" value={fmtFull(p.total_invested)} />
-              <OverviewRow label="Current Value" value={fmtFull(p.current_value)} />
-              <OverviewRow label="Pool Cash" value={fmtFull(p.cash_balance)} />
-              <OverviewRow label="Active Stock Value" value={fmtFull(p.active_stock_value)} />
-              <OverviewRow
-                label="P&L"
-                value={(isUp ? '+' : '') + fmtFull(pnl)}
-                valueColor={isUp ? COLORS.profit : COLORS.loss}
-              />
-              <OverviewRow
-                label="Realized P&L"
-                value={(Number(p.realized_profit_loss) >= 0 ? '+' : '') + fmtFull(p.realized_profit_loss)}
-                valueColor={Number(p.realized_profit_loss) >= 0 ? COLORS.profit : COLORS.loss}
-              />
-              <OverviewRow
-                label="Unrealized P&L"
-                value={(Number(p.unrealized_profit_loss) >= 0 ? '+' : '') + fmtFull(p.unrealized_profit_loss)}
-                valueColor={Number(p.unrealized_profit_loss) >= 0 ? COLORS.profit : COLORS.loss}
-              />
-              <OverviewRow label="Total Dividends" value={fmtFull(p.total_dividends)} />
-              <OverviewRow
-                label="Total Returns"
-                value={(Number(p.total_returns) >= 0 ? '+' : '') + fmtFull(p.total_returns)}
-                valueColor={Number(p.total_returns) >= 0 ? COLORS.profit : COLORS.loss}
-                isLast
-              />
+            <AllocationDonut
+              slices={slices}
+              label="Current value"
+              value={fmtShort(p.current_value)}
+            />
+
+            <View style={styles.legendHeader}>
+              <Text style={styles.legendHeaderText}>Holding</Text>
+              <Text style={styles.legendHeaderText}>Current (Invested)</Text>
             </View>
 
-            {/* ALLOCATION */}
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Allocation</Text>
-            </View>
-
-            <View style={styles.overviewCard}>
-              {allocation.map((item, i) => {
-                const pct = Number(item.percentage) || 0;
-                const barColors = ['#00D09C', '#5AC53A', '#42A5F5', '#FFB74D', '#E91E63', '#7C3AED', '#26C6DA', '#FF7043'];
-                const barColor = barColors[i % barColors.length];
-
-                return (
-                  <View key={`${item.symbol || 'allocation'}-${i}`}>
-                    {i > 0 && <View style={styles.overviewDivider} />}
-                    <View style={styles.allocRow}>
-                      <View style={[styles.allocDot, { backgroundColor: barColor }]} />
-                      <Text style={styles.allocName} numberOfLines={1}>
-                        {(item.symbol || '').replace('.NS', '')}
-                      </Text>
-                      <Text style={styles.allocPctText}>{pct.toFixed(1)}%</Text>
-                      <Text style={styles.allocValue}>{fmtShort(item.value)}</Text>
-                    </View>
-                    <View style={styles.allocMiniBar}>
-                      <View style={[styles.allocMiniFill, { width: pct + '%', backgroundColor: barColor }]} />
-                    </View>
+            {slices.map((slice, i) => {
+              const up = slice.pnl >= 0;
+              return (
+                <View key={`${slice.key}-${i}`} style={styles.legendRow}>
+                  <View style={[styles.legendBar, { backgroundColor: slice.color }]} />
+                  <View style={styles.legendMain}>
+                    <Text style={styles.legendName} numberOfLines={1}>{slice.name}</Text>
+                    <Text style={styles.legendSub}>{slice.sub}</Text>
                   </View>
-                );
-              })}
-            </View>
-          </>
+                  <View style={styles.legendRight}>
+                    <Text style={[styles.legendValue, { color: up ? COLORS.profit : COLORS.loss }]}>
+                      {fmtFull(slice.value)}
+                    </Text>
+                    <Text style={styles.legendSub}>({fmtFull(slice.invested)})</Text>
+                  </View>
+                </View>
+              );
+            })}
+
+          </View>
         )}
 
-        <View style={{ height: 100 }} />
+        {/* ASSET ALLOCATION */}
+        {assets.length > 0 && (
+          <Pressable style={styles.overviewCard} onPress={() => navigation.navigate('AssetStocks')}>
+            <View style={styles.overviewHeader}>
+              <Text style={styles.overviewTitle}>Asset Allocation</Text>
+            </View>
+            <AllocationDonut slices={assets} half size={220} thickness={34} />
+            {assets.map((a) => (
+              <View key={a.key} style={styles.legendRow}>
+                <View style={styles.legendMain}>
+                  <Text style={styles.legendName} numberOfLines={1}>{a.name}</Text>
+                  <Text style={styles.legendSub}>{a.sub}</Text>
+                </View>
+                <View style={styles.legendRight}>
+                  <Text style={[styles.legendValue, a.invested != null && { color: a.up ? COLORS.profit : COLORS.loss }]}>
+                    {fmtFull(a.value)}
+                  </Text>
+                  {a.invested != null && <Text style={styles.legendSub}>({fmtFull(a.invested)})</Text>}
+                </View>
+              </View>
+            ))}
+          </Pressable>
+        )}
+
+        {/* DIVIDENDS */}
+        <Pressable style={styles.overviewCard} onPress={() => navigation.navigate('Dividends')}>
+          <View style={styles.overviewHeader}>
+            <Text style={styles.overviewTitle}>Dividends</Text>
+            <AppIcon name="chevron-forward" size={18} color={COLORS.textSecondary} />
+          </View>
+          <Text style={styles.divTotal}>{fmtFull(p.total_dividends)}</Text>
+          <Text style={styles.divSub}>
+            {receivedSince ? `Received from ${receivedSince} till date` : 'No dividends received yet'}
+          </Text>
+          {quarters.length > 0 && <View style={{ marginTop: SPACING.xl }}>
+            {quarters.map((q) => (
+              <View key={q.key} style={styles.qRow}>
+                <Text style={styles.qLabel}>{q.label}</Text>
+                <View style={styles.qTrack}>
+                  <View style={[styles.qBar, { width: `${Math.max((q.total / maxQuarter) * 100, 1.5)}%` }]} />
+                </View>
+                <Text style={styles.qAmount}>{fmtFull(q.total)}</Text>
+              </View>
+            ))}
+          </View>}
+        </Pressable>
+
+        <View style={{ height: 110 }} />
       </ScrollView>
     </View>
   );
 };
 
 // Sub-components
-const StripItem = ({ label, value, color }) => (
-  <View style={styles.stripItem}>
-    <Text style={styles.stripLabel}>{label}</Text>
-    <Text style={[styles.stripValue, color && { color }]}>{value}</Text>
-  </View>
-);
-
 const OverviewRow = ({ label, value, valueColor, isLast }) => (
   <>
     <View style={styles.overviewRow}>
@@ -358,15 +324,12 @@ const OverviewRow = ({ label, value, valueColor, isLast }) => (
   </>
 );
 
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 17) return 'Good afternoon';
-  return 'Good evening';
+function getMonthLabel() {
+  return new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 }
 
 // Styles
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -376,397 +339,179 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
   },
 
-  // Top bar
-  topBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.xxl,
-    paddingTop: SPACING.sm,
-  },
-  greeting: {
-    fontSize: FONTS.xl,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-  },
-  greetingSub: {
-    fontSize: FONTS.sm,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  avatarCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.accent,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    color: '#fff',
-    fontSize: FONTS.lg,
-    fontWeight: '800',
-  },
-
   // Value card
   valueCard: {
     backgroundColor: COLORS.cardBg,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.xl,
-    marginBottom: SPACING.md,
-    ...SHADOWS.card,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    overflow: 'hidden',
+    paddingTop: SPACING.xl,
+    paddingBottom: SPACING.lg,
+    marginBottom: SPACING.xl,
+  },
+  valueTop: {
+    paddingHorizontal: SPACING.xl,
+    marginBottom: SPACING.lg,
   },
   valueLabel: {
-    fontSize: FONTS.sm,
+    ...TYPE.secondary,
     color: COLORS.textMuted,
     marginBottom: SPACING.xs,
   },
   valueAmount: {
-    fontSize: 30,
-    fontWeight: '800',
+    ...TYPE.portfolioValue,
     color: COLORS.textPrimary,
-    letterSpacing: -0.5,
   },
-  pnlRow: {
+  changeRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: SPACING.xs,
     marginTop: SPACING.sm,
   },
-  pnlAmount: {
-    fontSize: FONTS.md,
-    fontWeight: '600',
-    marginRight: SPACING.sm,
+  changeText: {
+    ...TYPE.plPercent,
   },
-  pnlPill: {
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 3,
-    borderRadius: RADIUS.full,
+  changeLabel: {
+    ...TYPE.secondary,
+    color: COLORS.textMuted,
   },
-  pnlPillText: {
-    fontSize: FONTS.xs,
-    fontWeight: '700',
-  },
-  todayRow: {
+  rangeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    paddingHorizontal: SPACING.xl,
     marginTop: SPACING.lg,
-    paddingTop: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.divider,
   },
-  todayLabel: {
-    fontSize: FONTS.sm,
+  rangeChip: {
+    minWidth: 48,
+    alignItems: 'center',
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  rangeChipActive: {
+    backgroundColor: COLORS.surface,
+    borderColor: COLORS.border,
+  },
+  rangeText: {
+    ...TYPE.secondaryMedium,
     color: COLORS.textMuted,
   },
-  todayRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  todayValue: {
-    fontSize: FONTS.sm,
-    fontWeight: '700',
-  },
-  todayPct: {
-    fontSize: FONTS.xs,
-    fontWeight: '600',
-  },
-  stripRow: {
-    flexDirection: 'row',
-    marginTop: SPACING.xl,
-    paddingTop: SPACING.lg,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.divider,
-  },
-  stripItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  stripDivider: {
-    width: 1,
-    backgroundColor: COLORS.divider,
-  },
-  stripLabel: {
-    fontSize: FONTS.xs,
-    color: COLORS.textMuted,
-    marginBottom: 4,
-  },
-  stripValue: {
-    fontSize: FONTS.md,
-    fontWeight: '700',
+  rangeTextActive: {
     color: COLORS.textPrimary,
   },
 
   // Share card
-  shareCard: {
-    backgroundColor: COLORS.cardBg,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.xl,
-    marginBottom: SPACING.xxl,
-    ...SHADOWS.card,
-  },
-  shareRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  shareLeft: {},
-  shareLabel: {
-    fontSize: FONTS.md,
-    fontWeight: '600',
-    color: COLORS.textPrimary,
-  },
-  shareSub: {
-    fontSize: FONTS.xs,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  shareRight: {
-    alignItems: 'flex-end',
-  },
-  shareValue: {
-    fontSize: FONTS.lg,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-  },
-  sharePnl: {
-    fontSize: FONTS.xs,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  shareMiniRow: {
-    flexDirection: 'row',
-    marginTop: SPACING.lg,
-    paddingTop: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.divider,
-  },
-  shareMiniItem: {
-    flex: 1,
-  },
-  shareMiniLabel: {
-    fontSize: FONTS.xs,
-    color: COLORS.textMuted,
-    marginBottom: 3,
-  },
-  shareMiniValue: {
-    fontSize: FONTS.md,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-  },
-
   // Section header
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.md,
-  },
-  sectionTitle: {
-    fontSize: FONTS.lg,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-  },
-  sectionCount: {
-    fontSize: FONTS.sm,
-    fontWeight: '600',
-    color: COLORS.textMuted,
-    backgroundColor: COLORS.surface,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 3,
-    borderRadius: RADIUS.full,
-    overflow: 'hidden',
-  },
 
   // Holdings card
-  holdingsCard: {
-    backgroundColor: COLORS.cardBg,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
-    marginBottom: SPACING.xxl,
-    ...SHADOWS.card,
-  },
-  holdingDivider: {
-    height: 1,
-    backgroundColor: COLORS.divider,
-    marginVertical: SPACING.md,
-  },
-  holdingRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  holdingLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  holdingIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: COLORS.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.md,
-  },
-  holdingIconText: {
-    color: COLORS.textSecondary,
-    fontSize: FONTS.sm,
-    fontWeight: '800',
-  },
-  holdingInfo: {
-    flex: 1,
-    minWidth: 0,
-  },
-  holdingName: {
-    fontSize: FONTS.md,
-    fontWeight: '600',
-    color: COLORS.textPrimary,
-  },
-  holdingQty: {
-    fontSize: FONTS.xs,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  holdingRight: {
-    alignItems: 'flex-end',
-    marginLeft: SPACING.sm,
-    flexShrink: 0,
-    maxWidth: 158,
-  },
-  holdingValue: {
-    fontSize: FONTS.md,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-  },
-  holdingPnl: {
-    fontSize: FONTS.xs,
-    fontWeight: '600',
-    marginTop: 2,
-    textAlign: 'right',
-  },
 
   // Holding details row
-  holdingDetails: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    marginTop: SPACING.sm,
-    paddingLeft: 38 + SPACING.md,
-  },
-  detailItem: {
-    fontSize: FONTS.xs,
-    color: COLORS.textMuted,
-    maxWidth: '100%',
-  },
-  detailDot: {
-    fontSize: FONTS.xs,
-    color: COLORS.textMuted,
-    marginHorizontal: SPACING.xs,
-  },
 
   // Allocation bar inside holdings
-  allocBarTrack: {
-    height: 3,
-    backgroundColor: COLORS.surface,
-    borderRadius: 2,
-    marginTop: SPACING.sm,
-    marginLeft: 38 + SPACING.md,
-    overflow: 'hidden',
-  },
-  allocBarFill: {
-    height: 3,
-    borderRadius: 2,
-  },
 
   // Empty state
-  emptyBox: {
-    alignItems: 'center',
-    paddingVertical: SPACING.xxxl,
-  },
-  emptyTitle: {
-    fontSize: FONTS.lg,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.xs,
-  },
-  emptySub: {
-    fontSize: FONTS.sm,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-  },
 
   // Overview card
   overviewCard: {
     backgroundColor: COLORS.cardBg,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
-    marginBottom: SPACING.xxl,
-    ...SHADOWS.card,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: SPACING.xl,
+    marginBottom: SPACING.xl,
   },
   overviewRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: SPACING.sm,
+    paddingVertical: 10,
   },
   overviewLabel: {
-    fontSize: FONTS.sm,
+    ...TYPE.secondary,
+    fontSize: 12,
     color: COLORS.textMuted,
   },
   overviewValue: {
-    fontSize: FONTS.sm,
-    fontWeight: '600',
+    ...TYPE.smallValue,
+    fontSize: 12,
     color: COLORS.textPrimary,
   },
   overviewDivider: {
     height: 1,
     backgroundColor: COLORS.divider,
   },
-
-  // Allocation section
-  allocRow: {
+  overviewHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: SPACING.sm,
+    marginBottom: SPACING.xl,
   },
-  allocDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: SPACING.sm,
-  },
-  allocName: {
-    flex: 1,
-    fontSize: FONTS.sm,
-    fontWeight: '600',
+  overviewTitle: {
+    ...TYPE.sectionTitle,
+    fontSize: 16,
     color: COLORS.textPrimary,
   },
-  allocPctText: {
-    fontSize: FONTS.sm,
-    fontWeight: '700',
-    color: COLORS.textSecondary,
-    minWidth: 45,
-    textAlign: 'right',
-    marginRight: SPACING.lg,
+  viewAll: {
+    ...TYPE.secondaryMedium,
+    fontSize: TYPE.secondaryMedium.fontSize - 2,
+    color: COLORS.accent,
   },
-  allocValue: {
-    fontSize: FONTS.xs,
-    fontWeight: '600',
+  legendHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: SPACING.xl,
+    marginBottom: SPACING.sm,
+  },
+  legendHeaderText: {
+    ...TYPE.secondary,
+    fontSize: 9,
     color: COLORS.textMuted,
-    minWidth: 55,
-    textAlign: 'right',
   },
-  allocMiniBar: {
-    height: 3,
-    backgroundColor: COLORS.surface,
+  divTotal: { ...TYPE.sectionTitle, fontSize: 28, color: COLORS.textPrimary },
+  divSub: { ...TYPE.secondary, color: COLORS.textMuted, marginTop: SPACING.xs },
+  qRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
+  qLabel: { ...TYPE.secondary, fontSize: 12, color: COLORS.textMuted, minWidth: 76 },
+  qTrack: { flex: 1, marginHorizontal: SPACING.md },
+  qBar: { height: 12, borderRadius: 4, backgroundColor: COLORS.accent },
+  qAmount: { ...TYPE.smallValue, fontSize: 12, color: COLORS.textPrimary, minWidth: 84, textAlign: 'right' },
+  legendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  legendBar: {
+    width: 4,
+    height: 36,
     borderRadius: 2,
-    overflow: 'hidden',
-    marginBottom: SPACING.xs,
+    marginRight: SPACING.md,
   },
-  allocMiniFill: {
-    height: 3,
-    borderRadius: 2,
+  legendMain: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: SPACING.md,
   },
-});
+  legendName: {
+    ...TYPE.cardTitle,
+    fontSize: TYPE.cardTitle.fontSize - 2,
+    color: COLORS.textPrimary,
+  },
+  legendSub: {
+    ...TYPE.caption,
+    fontSize: TYPE.caption.fontSize - 2,
+    color: COLORS.textMuted,
+    marginTop: 4,
+  },
+  legendRight: {
+    alignItems: 'flex-end',
+    flexShrink: 0,
+  },
+  legendValue: {
+    ...TYPE.smallValue,
+    fontSize: TYPE.smallValue.fontSize - 2,
+  },
+
+  // Allocation section
+}));

@@ -5,12 +5,14 @@
  */
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import api, { setLogoutCallback } from '../config/api';
+import { usePortfolioStore } from './portfolioStore';
+import api, { setLogoutCallback, setSessionTokens } from '../config/api';
 
 export const useAuthStore = create((set, get) => {
   // Register the force-logout callback so the API interceptor
   // can kick the user back to login if the refresh token expires
   setLogoutCallback(() => {
+    usePortfolioStore.getState().clearCache();
     set({ token: null, refreshToken: null, user: null, error: null });
   });
 
@@ -51,6 +53,8 @@ export const useAuthStore = create((set, get) => {
       try {
         const response = await api.post('/auth/login/', { phone, password });
         const { access, refresh, member } = response.data;
+        setSessionTokens(access, refresh);
+        if (get().user?.id !== member?.id) await usePortfolioStore.getState().clearCache();
 
        if (rememberMe) {
         // Save session tokens
@@ -98,7 +102,9 @@ export const useAuthStore = create((set, get) => {
         // Ignore logout API errors
       }
 
+      setSessionTokens(null, null);
       await AsyncStorage.multiRemove(['access_token', 'refresh_token', 'user']);
+      await usePortfolioStore.getState().clearCache();
       set({ token: null, refreshToken: null, user: null, error: null });
     },
 

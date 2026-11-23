@@ -4,7 +4,7 @@
  */
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { COLORS, RADIUS, SPACING, FONTS, SHADOWS } from '../theme/colors';
+import { COLORS, RADIUS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
 
 export const MemberRow = ({ member, onPress }) => {
   const isProfit = (member.profit_loss || 0) >= 0;
@@ -61,7 +61,7 @@ export const MemberRow = ({ member, onPress }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -71,7 +71,6 @@ const styles = StyleSheet.create({
     borderColor: COLORS.glassBorder,
     padding: SPACING.lg,
     marginBottom: SPACING.md,
-    ...SHADOWS.cardLight,
   },
   pressed: {
     opacity: 0.8,
@@ -87,8 +86,8 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontSize: FONTS.lg,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    fontWeight: '600',
+    color: COLORS.onAccent,
   },
   infoContainer: {
     flex: 1,
@@ -96,12 +95,11 @@ const styles = StyleSheet.create({
     marginRight: SPACING.sm,
   },
   name: {
-    fontSize: FONTS.md,
-    fontWeight: '600',
+    ...TYPE.cardTitle,
     color: COLORS.textPrimary,
   },
   phone: {
-    fontSize: FONTS.xs,
+    ...TYPE.caption,
     color: COLORS.textMuted,
     marginTop: 2,
   },
@@ -114,10 +112,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   adminText: {
-    fontSize: 9,
-    fontWeight: '800',
+    ...TYPE.caption,
+    fontWeight: '500',
     color: COLORS.gradientPurple,
-    letterSpacing: 1,
   },
   valuesContainer: {
     alignItems: 'flex-end',
@@ -125,18 +122,16 @@ const styles = StyleSheet.create({
     maxWidth: 116,
   },
   contribution: {
-    fontSize: FONTS.sm,
-    fontWeight: '600',
+    ...TYPE.smallValue,
     color: COLORS.textSecondary,
   },
   value: {
-    fontSize: FONTS.sm,
-    fontWeight: '700',
+    ...TYPE.smallValue,
     marginTop: 2,
   },
   ownership: {
-    fontSize: FONTS.xs,
+    ...TYPE.caption,
     color: COLORS.textMuted,
     marginTop: 2,
   },
-});
+}));

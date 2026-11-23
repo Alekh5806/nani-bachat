@@ -3,8 +3,9 @@
  * Styled text input with floating label effect
  */
 import React, { useState } from 'react';
-import { View, TextInput, Text, StyleSheet } from 'react-native';
-import { COLORS, RADIUS, SPACING, FONTS } from '../theme/colors';
+import { View, TextInput, Text, StyleSheet, Platform } from 'react-native';
+import { Icon } from './Icon';
+import { COLORS, RADIUS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
 
 export const PremiumInput = ({
   label,
@@ -35,7 +36,7 @@ export const PremiumInput = ({
           error && styles.inputContainerError,
         ]}
       >
-        {icon && <Text style={styles.icon}>{icon}</Text>}
+        {icon && <Icon name={icon} size={18} color={focused ? COLORS.accent : COLORS.textMuted} style={styles.icon} />}
         <TextInput
           value={value}
           onChangeText={onChangeText}
@@ -55,17 +56,14 @@ export const PremiumInput = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     marginBottom: SPACING.lg,
   },
   label: {
-    fontSize: FONTS.sm,
-    fontWeight: '600',
+    ...TYPE.inputLabel,
     color: COLORS.textSecondary,
     marginBottom: SPACING.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   labelFocused: {
     color: COLORS.accent,
@@ -75,7 +73,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: COLORS.inputBg,
     borderRadius: RADIUS.md,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: COLORS.inputBorder,
     paddingHorizontal: SPACING.lg,
   },
@@ -87,24 +85,23 @@ const styles = StyleSheet.create({
     borderColor: COLORS.loss,
   },
   icon: {
-    fontSize: 18,
     marginRight: SPACING.md,
   },
   input: {
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : null), // no browser focus box; the container shows focus
     flex: 1,
     color: COLORS.textPrimary,
-    fontSize: FONTS.md,
+    ...TYPE.inputText,
     paddingVertical: SPACING.lg,
-    fontWeight: '500',
   },
   multiline: {
     minHeight: 80,
     textAlignVertical: 'top',
   },
   error: {
-    fontSize: FONTS.xs,
+    ...TYPE.caption,
     color: COLORS.loss,
     marginTop: SPACING.xs,
     marginLeft: SPACING.xs,
   },
-});
+}));

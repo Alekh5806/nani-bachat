@@ -11,9 +11,9 @@ import { usePortfolioStore } from '../store/portfolioStore';
 import { useAuthStore } from '../store/authStore';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { GlassCard } from '../components/GlassCard';
-import { StatCard } from '../components/StatCard';
-import { SectionHeader } from '../components/SectionHeader';
-import { COLORS, SPACING, FONTS, RADIUS } from '../theme/colors';
+import { Icon } from '../components/Icon';
+import { CompanyLogo } from '../components/CompanyLogo';
+import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
 
 export const DividendsScreen = ({ navigation }) => {
   const { user } = useAuthStore();
@@ -36,6 +36,29 @@ export const DividendsScreen = ({ navigation }) => {
     (sum, d) => sum + (Number(d.total_dividend) || 0), 0
   );
 
+  const money = (v) => `₹${(Number(v) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const fmtDate = (v) => {
+    const d = new Date(v);
+    if (Number.isNaN(d.getTime())) return v || '';
+    return `${String(d.getDate()).padStart(2, '0')} ${MON[d.getMonth()]} '${String(d.getFullYear()).slice(2)}`;
+  };
+
+  // Group by month, newest first.
+  const groups = [];
+  [...dividends]
+    .sort((a, b) => String(b.ex_date || '').localeCompare(String(a.ex_date || '')))
+    .forEach((div) => {
+      const d = new Date(div.ex_date);
+      const valid = !Number.isNaN(d.getTime());
+      const key = valid ? `${d.getFullYear()}-${d.getMonth()}` : 'none';
+      const label = valid ? `${MON[d.getMonth()]} ${d.getFullYear()}` : 'Other';
+      let g = groups.find((x) => x.key === key);
+      if (!g) { g = { key, label, total: 0, items: [] }; groups.push(g); }
+      g.items.push(div);
+      g.total += Number(div.total_dividend) || 0;
+    });
+
   return (
     <View style={styles.container}>
       <ScreenHeader
@@ -55,48 +78,45 @@ export const DividendsScreen = ({ navigation }) => {
         }
       >
         {/* ── Summary ── */}
-        <StatCard
-          label="Total Dividends Earned"
-          value={`₹${totalDividends.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
-          icon="🎁"
-          gradient
-          gradientColors={['#8B5CF6', '#EC4899']}
-          style={{ marginBottom: SPACING.lg }}
-        />
+        <GlassCard style={styles.summaryCard}>
+          <Text style={styles.summaryValue}>{money(totalDividends)}</Text>
+          <Text style={styles.summaryLabel}>Total dividends received</Text>
+        </GlassCard>
 
-        {/* ── Dividend List ── */}
-        <SectionHeader title="Dividend History" icon="📋" />
-        {dividends.map((div, index) => (
-          <GlassCard key={div.id || index} style={styles.divCard}>
-            <View style={styles.divHeader}>
-              <View style={styles.divLeft}>
-                <Text style={styles.divStock}>{div.stock_name}</Text>
-                <Text style={styles.divSymbol}>{div.stock_symbol}</Text>
-              </View>
-              <View style={styles.divRight}>
-                <Text style={styles.divTotal}>
-                  ₹{Number(div.total_dividend).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </Text>
-                <View style={styles.dpsBadge}>
-                  <Text style={styles.dpsText}>
-                    ₹{div.dividend_per_share}/share
-                  </Text>
+        <View style={styles.listHeader}>
+          <Text style={styles.listHeaderText}>Dividends ({dividends.length})</Text>
+          <Text style={styles.listHeaderText}>Total amount (Shares)</Text>
+        </View>
+
+        {groups.map((group) => (
+          <View key={group.key}>
+            <View style={styles.band}>
+              <Text style={styles.bandText}>{group.label}</Text>
+              <Text style={styles.bandTotal}>{money(group.total)}</Text>
+            </View>
+            {group.items.map((div, i) => {
+              const dps = Number(div.dividend_per_share) || 0;
+              const shares = div.quantity || (dps > 0 ? Math.round(Number(div.total_dividend) / dps) : 0);
+              return (
+                <View key={div.id || i} style={[styles.row, i > 0 && styles.rowDivider]}>
+                  <CompanyLogo symbol={div.stock_symbol} name={div.stock_name} size={44} style={{ marginRight: SPACING.md }} />
+                  <View style={styles.rowLeft}>
+                    <Text style={styles.rowName} numberOfLines={1}>{div.stock_name}</Text>
+                    <Text style={styles.rowSub}>{fmtDate(div.ex_date)}  •  ₹{div.dividend_per_share}/share</Text>
+                  </View>
+                  <View style={styles.rowRight}>
+                    <Text style={styles.rowAmount}>{money(div.total_dividend)}</Text>
+                    <Text style={styles.rowSub}>{shares} shares</Text>
+                  </View>
                 </View>
-              </View>
-            </View>
-
-            <View style={styles.divFooter}>
-              <Text style={styles.divDate}>📅 {div.ex_date}</Text>
-              <Text style={styles.divPerMember}>
-                👤 ₹{Number(div.per_member_share).toFixed(2)}/member
-              </Text>
-            </View>
-          </GlassCard>
+              );
+            })}
+          </View>
         ))}
 
         {dividends.length === 0 && (
           <GlassCard style={styles.emptyCard}>
-            <Text style={styles.emptyIcon}>🎁</Text>
+            <Icon name="🎁" size={40} color={COLORS.textMuted} style={styles.emptyIcon} />
             <Text style={styles.emptyText}>No dividends recorded yet</Text>
             <Text style={styles.emptySubtext}>
               Dividends will appear here when added
@@ -104,13 +124,13 @@ export const DividendsScreen = ({ navigation }) => {
           </GlassCard>
         )}
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: 110 }} />
       </ScrollView>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -120,62 +140,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     paddingBottom: SPACING.huge,
   },
-  divCard: {
-    marginBottom: SPACING.md,
+  summaryCard: { marginBottom: SPACING.lg },
+  summaryValue: { ...TYPE.portfolioValue, color: COLORS.textPrimary },
+  summaryLabel: { ...TYPE.secondary, color: COLORS.textSecondary, marginTop: SPACING.xs },
+  listHeader: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: SPACING.md },
+  listHeaderText: { ...TYPE.secondary, color: COLORS.textSecondary },
+  band: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    backgroundColor: COLORS.surface, paddingVertical: SPACING.md,
+    marginHorizontal: -SPACING.xl, paddingHorizontal: SPACING.xl,
   },
-  divHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  divLeft: {},
-  divStock: {
-    fontSize: FONTS.md,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-  },
-  divSymbol: {
-    fontSize: FONTS.xs,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  divRight: {
-    alignItems: 'flex-end',
-  },
-  divTotal: {
-    fontSize: FONTS.lg,
-    fontWeight: '800',
-    color: COLORS.profit,
-  },
-  dpsBadge: {
-    backgroundColor: COLORS.profitBg,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 2,
-    borderRadius: RADIUS.sm,
-    marginTop: 4,
-  },
-  dpsText: {
-    fontSize: FONTS.xs,
-    fontWeight: '600',
-    color: COLORS.profit,
-  },
-  divFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: SPACING.md,
-    paddingTop: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.divider,
-  },
-  divDate: {
-    fontSize: FONTS.xs,
-    color: COLORS.textMuted,
-  },
-  divPerMember: {
-    fontSize: FONTS.xs,
-    color: COLORS.accent,
-    fontWeight: '600',
-  },
+  bandTotal: { ...TYPE.caption, color: COLORS.textMuted },
+  bandText: { ...TYPE.secondaryMedium, color: COLORS.textSecondary },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: SPACING.lg },
+  rowDivider: { borderTopWidth: 1, borderTopColor: COLORS.divider },
+  rowLeft: { flex: 1, minWidth: 0, marginRight: SPACING.md },
+  rowRight: { alignItems: 'flex-end' },
+  rowName: { ...TYPE.cardTitle, color: COLORS.textPrimary },
+  rowAmount: { ...TYPE.smallValue, color: COLORS.textPrimary },
+  rowSub: { ...TYPE.caption, color: COLORS.textMuted, marginTop: 3 },
   emptyCard: {
     alignItems: 'center',
     paddingVertical: SPACING.xxxl,
@@ -185,13 +168,12 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   emptyText: {
-    fontSize: FONTS.lg,
-    fontWeight: '700',
+    ...TYPE.cardTitle,
     color: COLORS.textPrimary,
   },
   emptySubtext: {
-    fontSize: FONTS.sm,
+    ...TYPE.secondary,
     color: COLORS.textMuted,
     marginTop: SPACING.xs,
   },
-});
+}));

@@ -5,24 +5,26 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl,
-  Linking, ActivityIndicator,
+  Linking, ActivityIndicator, Pressable,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import Toast from 'react-native-toast-message';
 import { Alert } from '../utils/alert';
 
 import { useAuthStore } from '../store/authStore';
+import { useThemeStore } from '../store/themeStore';
 import { usePortfolioStore } from '../store/portfolioStore';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { GlassCard } from '../components/GlassCard';
 import { PremiumButton } from '../components/PremiumButton';
 import { SectionHeader } from '../components/SectionHeader';
-import { COLORS, SPACING, FONTS, RADIUS, SHADOWS } from '../theme/colors';
+import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
 import api from '../config/api';
 
-export const ProfileScreen = () => {
+export const ProfileScreen = ({ navigation }) => {
   const { user, logout, fetchProfile } = useAuthStore();
   const { dashboard, fetchDashboard } = usePortfolioStore();
+  const themePreference = useThemeStore((st) => st.preference);
+  const setThemePreference = useThemeStore((st) => st.setPreference);
   const [downloading, setDownloading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [profileData, setProfileData] = useState(null);
@@ -66,7 +68,7 @@ export const ProfileScreen = () => {
           style: 'destructive',
           onPress: async () => {
             await logout();
-            Toast.show({ type: 'success', text1: 'Logged Out', text2: 'See you soon!' });
+            Toast.show({ type: 'success', text1: 'Signed out' });
           },
         },
       ]
@@ -94,18 +96,16 @@ export const ProfileScreen = () => {
 
   // Use fresh profile data if available, fallback to stored user
   const displayUser = profileData || user;
-  const myPortfolio = dashboard?.my_portfolio;
-
-  const totalContribution = Number(displayUser?.total_contribution) || 0;
-  const ownershipPct = Number(displayUser?.ownership_percentage) || 0;
-  const currentValue = Number(displayUser?.current_value) || Number(myPortfolio?.current_value) || 0;
-  const profitLoss = Number(displayUser?.profit_loss) || Number(myPortfolio?.profit_loss) || 0;
-  const totalDividend = Number(displayUser?.total_dividend) || Number(myPortfolio?.dividend_earned) || 0;
-  const isProfit = profitLoss >= 0;
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title="Profile" subtitle="Your account" />
+      <ScreenHeader
+        title="Profile"
+        subtitle="Your account"
+        showBack
+        onBack={() => navigation.goBack()}
+        hideProfile
+      />
 
       <ScrollView
         style={styles.scrollView}
@@ -117,69 +117,36 @@ export const ProfileScreen = () => {
       >
         {/* ── Profile Card ── */}
         <GlassCard style={styles.profileCard}>
-          <LinearGradient
-            colors={[displayUser?.avatar_color || COLORS.accent, COLORS.gradientEnd]}
-            style={styles.avatar}
-          >
+          <View style={[styles.avatar, { backgroundColor: COLORS.surface }]}>
             <Text style={styles.avatarText}>
               {(displayUser?.name || '').charAt(0).toUpperCase()}
             </Text>
-          </LinearGradient>
+          </View>
           <Text style={styles.name}>{displayUser?.name || 'Member'}</Text>
           <Text style={styles.phone}>{displayUser?.phone || ''}</Text>
           {displayUser?.email && <Text style={styles.email}>{displayUser.email}</Text>}
           <View style={styles.roleBadge}>
             <Text style={styles.roleText}>
-              {(displayUser?.role || 'member').toUpperCase()}
+              {(displayUser?.role || 'member')}
             </Text>
           </View>
         </GlassCard>
 
-        {/* ── Portfolio Stats ── */}
-        <SectionHeader title="My Portfolio" icon="📊" />
-        {loading ? (
-          <GlassCard style={styles.statsCard}>
-            <View style={{ padding: SPACING.xxl, alignItems: 'center' }}>
-              <ActivityIndicator color={COLORS.accent} />
-              <Text style={{ color: COLORS.textMuted, marginTop: SPACING.sm, fontSize: FONTS.sm }}>
-                Loading portfolio...
+        {/* ── Appearance ── */}
+        <SectionHeader title="Appearance" />
+        <View style={styles.segment}>
+          {[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(([value, label]) => (
+            <Pressable
+              key={value}
+              onPress={() => setThemePreference(value)}
+              style={[styles.segmentItem, themePreference === value && styles.segmentItemActive]}
+            >
+              <Text style={[styles.segmentText, themePreference === value && styles.segmentTextActive]}>
+                {label}
               </Text>
-            </View>
-          </GlassCard>
-        ) : (
-          <GlassCard style={styles.statsCard}>
-            <View style={styles.statRow}>
-              <Text style={styles.statLabel}>Total Contributed</Text>
-              <Text style={styles.statValue}>₹{totalContribution.toLocaleString('en-IN')}</Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.statRow}>
-              <Text style={styles.statLabel}>Current Value</Text>
-              <Text style={[styles.statValue, { color: COLORS.accent }]}>
-                ₹{currentValue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-              </Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.statRow}>
-              <Text style={styles.statLabel}>Profit / Loss</Text>
-              <Text style={[styles.statValue, { color: isProfit ? COLORS.profit : COLORS.loss }]}>
-                {isProfit ? '+' : ''}₹{profitLoss.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-              </Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.statRow}>
-              <Text style={styles.statLabel}>Dividends Earned</Text>
-              <Text style={[styles.statValue, { color: COLORS.profit }]}>
-                ₹{totalDividend.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-              </Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.statRow}>
-              <Text style={styles.statLabel}>Ownership</Text>
-              <Text style={styles.statValue}>{ownershipPct}%</Text>
-            </View>
-          </GlassCard>
-        )}
+            </Pressable>
+          ))}
+        </View>
 
         {/* ── Actions ── */}
         <SectionHeader title="Actions" icon="⚙️" />
@@ -196,7 +163,8 @@ export const ProfileScreen = () => {
           title="Logout"
           onPress={handleLogout}
           icon="🚪"
-          variant="danger"
+          variant="secondary"
+          textStyle={{ color: COLORS.loss }}
           style={{ marginBottom: SPACING.lg }}
         />
 
@@ -204,18 +172,15 @@ export const ProfileScreen = () => {
         <GlassCard style={styles.infoCard}>
           <Text style={styles.appName}>Nani Bachat</Text>
           <Text style={styles.version}>Version 1.0.0</Text>
-          <Text style={styles.description}>
-            Private group investment tracking app for smart investing together.
-          </Text>
         </GlassCard>
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: 110 }} />
       </ScrollView>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -236,42 +201,56 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: SPACING.lg,
-    ...SHADOWS.glow,
   },
   avatarText: {
     fontSize: 32,
-    fontWeight: '900',
-    color: '#FFFFFF',
+    fontWeight: '600',
+    color: COLORS.onAccent,
   },
   name: {
-    fontSize: FONTS.xxl,
-    fontWeight: '800',
+    ...TYPE.sectionTitle,
     color: COLORS.textPrimary,
     marginBottom: SPACING.xs,
   },
   phone: {
-    fontSize: FONTS.md,
+    ...TYPE.caption,
     color: COLORS.textSecondary,
   },
   email: {
-    fontSize: FONTS.sm,
+    ...TYPE.secondary,
     color: COLORS.textMuted,
     marginTop: 2,
   },
   roleBadge: {
-    backgroundColor: COLORS.accent + '20',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.xs,
-    borderRadius: RADIUS.full,
-    marginTop: SPACING.md,
-    borderWidth: 1,
-    borderColor: COLORS.accent + '40',
+    marginTop: SPACING.sm,
   },
   roleText: {
-    color: COLORS.accent,
-    fontSize: FONTS.sm,
-    fontWeight: '700',
-    letterSpacing: 1,
+    ...TYPE.secondaryMedium,
+    color: COLORS.textMuted,
+    textTransform: 'capitalize',
+  },
+  segment: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.cardBg,
+    borderRadius: RADIUS.md,
+    padding: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
+  segmentItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.sm,
+  },
+  segmentItemActive: {
+    backgroundColor: COLORS.background,
+  },
+  segmentText: {
+    ...TYPE.secondaryMedium,
+    color: COLORS.textMuted,
+  },
+  segmentTextActive: {
+    color: COLORS.textPrimary,
   },
   statsCard: {
     padding: 0,
@@ -284,12 +263,11 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.lg,
   },
   statLabel: {
-    fontSize: FONTS.md,
+    ...TYPE.secondary,
     color: COLORS.textSecondary,
   },
   statValue: {
-    fontSize: FONTS.md,
-    fontWeight: '700',
+    ...TYPE.smallValue,
     color: COLORS.textPrimary,
   },
   divider: {
@@ -303,21 +281,19 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xl,
   },
   appName: {
-    fontSize: FONTS.xl,
-    fontWeight: '900',
+    ...TYPE.sectionTitle,
     color: COLORS.accent,
-    letterSpacing: -0.5,
   },
   version: {
-    fontSize: FONTS.xs,
+    ...TYPE.caption,
     color: COLORS.textMuted,
     marginTop: 4,
   },
   description: {
-    fontSize: FONTS.sm,
+    ...TYPE.secondary,
     color: COLORS.textSecondary,
     textAlign: 'center',
     marginTop: SPACING.md,
     lineHeight: 20,
   },
-});
+}));

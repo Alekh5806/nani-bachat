@@ -5,7 +5,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, FONTS } from '../theme/colors';
+import { Icon } from './Icon';
+import { ProfileButton } from './ProfileButton';
+import { COLORS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
 
 export const ScreenHeader = ({
   title,
@@ -15,6 +17,7 @@ export const ScreenHeader = ({
   rightIcon,
   onBack,
   showBack = false,
+  hideProfile = false,
 }) => {
   const insets = useSafeAreaInsets();
 
@@ -23,7 +26,7 @@ export const ScreenHeader = ({
       <View style={styles.leftSection}>
         {showBack && (
           <Pressable onPress={onBack} style={styles.backButton}>
-            <Text style={styles.backIcon}>←</Text>
+            <Icon name="←" size={24} color={COLORS.textPrimary} />
           </Pressable>
         )}
         <View style={styles.titleBlock}>
@@ -34,23 +37,26 @@ export const ScreenHeader = ({
         </View>
       </View>
 
-      {rightAction && (
-        <Pressable
-          onPress={rightAction}
-          style={({ pressed }) => [
-            styles.actionButton,
-            pressed && styles.actionPressed,
-          ]}
-        >
-          {rightIcon && <Text style={styles.actionIcon}>{rightIcon}</Text>}
-          {rightLabel && <Text style={styles.actionLabel}>{rightLabel}</Text>}
-        </Pressable>
-      )}
+      <View style={styles.rightSection}>
+        {rightAction && (
+          <Pressable
+            onPress={rightAction}
+            style={({ pressed }) => [
+              styles.actionButton,
+              pressed && styles.actionPressed,
+            ]}
+          >
+            {rightIcon && <Icon name={rightIcon} size={16} color={COLORS.accent} style={styles.actionIcon} />}
+            {rightLabel && <Text style={styles.actionLabel}>{rightLabel}</Text>}
+          </Pressable>
+        )}
+        {!hideProfile && <ProfileButton />}
+      </View>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -66,6 +72,12 @@ const styles = StyleSheet.create({
     minWidth: 0,
     marginRight: SPACING.md,
   },
+  rightSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    flexShrink: 0,
+  },
   titleBlock: {
     flex: 1,
     minWidth: 0,
@@ -74,21 +86,14 @@ const styles = StyleSheet.create({
     marginRight: SPACING.md,
     padding: SPACING.xs,
   },
-  backIcon: {
-    fontSize: 24,
-    color: COLORS.textPrimary,
-    fontWeight: '600',
-  },
   title: {
-    fontSize: FONTS.xxl,
-    fontWeight: '800',
+    ...TYPE.sectionTitle, // same as the Home header ("Portfolio")
     color: COLORS.textPrimary,
-    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: FONTS.sm,
-    color: COLORS.textSecondary,
-    marginTop: 2,
+    ...TYPE.secondary,
+    color: COLORS.textMuted,
+    marginTop: 4,
   },
   actionButton: {
     flexDirection: 'row',
@@ -105,12 +110,10 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   actionIcon: {
-    fontSize: 16,
     marginRight: SPACING.xs,
   },
   actionLabel: {
+    ...TYPE.secondaryMedium,
     color: COLORS.accent,
-    fontSize: FONTS.sm,
-    fontWeight: '700',
   },
-});
+}));

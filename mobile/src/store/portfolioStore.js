@@ -3,8 +3,18 @@
  * Manages dashboard, portfolio, and stock data
  */
 import { create } from 'zustand';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../config/api';
 import { getErrorMessage } from '../utils/errors';
+
+// Data that is saved on the device, so screens show the last known values
+// immediately and refresh in the background.
+const CACHE_KEY = 'portfolio_cache_v1';
+const CACHED_KEYS = ['dashboard', 'stockSummary', 'stocks', 'soldStocks', 'members', 'dividends', 'growthData'];
+const EMPTY_CACHE = {
+  dashboard: null, stockSummary: null, stocks: [], soldStocks: [],
+  members: [], dividends: [], growthData: [],
+};
 
 export const usePortfolioStore = create((set, get) => ({
   // ── State ──
@@ -20,6 +30,12 @@ export const usePortfolioStore = create((set, get) => ({
   growthData: [],
   isLoading: false,
   error: null,
+
+  // ── Forget saved data (logout, or a different user signs in) ──
+  clearCache: async () => {
+    set({ ...EMPTY_CACHE, error: null });
+    await AsyncStorage.removeItem(CACHE_KEY).catch(() => {});
+  },
 
   // ── Fetch Dashboard Data ──
   fetchDashboard: async () => {
@@ -343,3 +359,25 @@ export const usePortfolioStore = create((set, get) => ({
     }
   },
 }));
+
+// ── Save to the device ──
+// zustand's persist middleware uses `import.meta`, which breaks the web
+// bundle, so the cache is written by hand: a debounced save on every change.
+let saveTimer = null;
+usePortfolioStore.subscribe((state) => {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    const snapshot = Object.fromEntries(CACHED_KEYS.map((k) => [k, state[k]]));
+    AsyncStorage.setItem(CACHE_KEY, JSON.stringify(snapshot)).catch(() => {});
+  }, 300);
+});
+
+/** Fill the store from the saved copy. Call once before the first screen renders. */
+export const loadPortfolioCache = async () => {
+  try {
+    const raw = await AsyncStorage.getItem(CACHE_KEY);
+    if (raw) usePortfolioStore.setState(JSON.parse(raw));
+  } catch (e) {
+    // A missing or unreadable cache just means screens load normally
+  }
+};

@@ -117,7 +117,7 @@ class StockSummaryView(generics.GenericAPIView):
         """Return consolidated view of all stocks grouped by symbol."""
         active_stocks = Stock.objects.filter(is_sold=False)
         symbols = active_stocks.values_list('symbol', flat=True).distinct()
-        StockPriceService.refresh_active_stock_prices(list(symbols))
+        StockPriceService.refresh_in_background(list(symbols))
 
         summary = []
         for symbol in symbols:

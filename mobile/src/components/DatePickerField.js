@@ -8,8 +8,9 @@
  */
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Modal, ScrollView } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS, RADIUS, SPACING, FONTS } from '../theme/colors';
+import { Icon } from './Icon';
+import { AppIcon } from './Icon';
+import { COLORS, RADIUS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -120,16 +121,16 @@ export const DatePickerField = ({
           pressed && styles.fieldPressed,
         ]}
       >
-        <Text style={styles.icon}>{icon}</Text>
+        <Icon name={icon} size={18} color={COLORS.textMuted} style={styles.icon} />
         <Text style={[styles.fieldText, !value && styles.placeholder]} numberOfLines={1}>
           {value ? formatDateDisplay(value) : placeholder}
         </Text>
         {clearable && !!value ? (
           <Pressable onPress={() => onChange('')} hitSlop={10} style={styles.clearBtn}>
-            <Ionicons name="close-circle" size={18} color={COLORS.textMuted} />
+            <AppIcon name="close-circle" size={18} color={COLORS.textMuted} />
           </Pressable>
         ) : (
-          <Ionicons name="calendar-outline" size={18} color={COLORS.textMuted} />
+          <AppIcon name="calendar-outline" size={18} color={COLORS.textMuted} />
         )}
       </Pressable>
 
@@ -142,19 +143,19 @@ export const DatePickerField = ({
             {/* Month / year navigation */}
             <View style={styles.navRow}>
               <Pressable onPress={() => shiftYear(-1)} style={styles.navBtn} hitSlop={6}>
-                <Ionicons name="play-back" size={14} color={COLORS.textSecondary} />
+                <AppIcon name="play-back" size={14} color={COLORS.textSecondary} />
               </Pressable>
               <Pressable onPress={() => shiftMonth(-1)} style={styles.navBtn} hitSlop={6}>
-                <Ionicons name="chevron-back" size={18} color={COLORS.textPrimary} />
+                <AppIcon name="chevron-back" size={18} color={COLORS.textPrimary} />
               </Pressable>
               <Text style={styles.navTitle}>
                 {MONTH_NAMES[cursor.getMonth()]} {cursor.getFullYear()}
               </Text>
               <Pressable onPress={() => shiftMonth(1)} style={styles.navBtn} hitSlop={6}>
-                <Ionicons name="chevron-forward" size={18} color={COLORS.textPrimary} />
+                <AppIcon name="chevron-forward" size={18} color={COLORS.textPrimary} />
               </Pressable>
               <Pressable onPress={() => shiftYear(1)} style={styles.navBtn} hitSlop={6}>
-                <Ionicons name="play-forward" size={14} color={COLORS.textSecondary} />
+                <AppIcon name="play-forward" size={14} color={COLORS.textSecondary} />
               </Pressable>
             </View>
 
@@ -213,15 +214,12 @@ export const DatePickerField = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: { marginBottom: SPACING.lg },
   label: {
-    fontSize: FONTS.sm,
-    fontWeight: '600',
+    ...TYPE.inputLabel,
     color: COLORS.textSecondary,
     marginBottom: SPACING.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   field: {
     flexDirection: 'row',
@@ -235,17 +233,16 @@ const styles = StyleSheet.create({
   },
   fieldPressed: { borderColor: COLORS.accent, opacity: 0.9 },
   fieldError: { borderColor: COLORS.loss },
-  icon: { fontSize: 18, marginRight: SPACING.md },
+  icon: { marginRight: SPACING.md },
   fieldText: {
+    ...TYPE.inputText,
     flex: 1,
     color: COLORS.textPrimary,
-    fontSize: FONTS.md,
-    fontWeight: '500',
   },
   placeholder: { color: COLORS.placeholder, fontWeight: '400' },
   clearBtn: { padding: 2 },
   errorText: {
-    fontSize: FONTS.xs,
+    ...TYPE.caption,
     color: COLORS.loss,
     marginTop: SPACING.xs,
     marginLeft: SPACING.xs,
@@ -282,18 +279,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   navTitle: {
+    ...TYPE.cardTitle,
     flex: 1,
     textAlign: 'center',
-    fontSize: FONTS.md,
-    fontWeight: '800',
     color: COLORS.textPrimary,
   },
   weekRow: { flexDirection: 'row', marginBottom: SPACING.xs },
   weekday: {
+    ...TYPE.captionMedium,
     width: `${100 / 7}%`,
     textAlign: 'center',
-    fontSize: FONTS.xs,
-    fontWeight: '700',
     color: COLORS.textMuted,
   },
   grid: { maxHeight: 260 },
@@ -308,8 +303,8 @@ const styles = StyleSheet.create({
   daySelected: { backgroundColor: COLORS.accent },
   dayToday: { borderWidth: 1, borderColor: COLORS.accent + '66' },
   dayPressed: { backgroundColor: COLORS.surface },
-  dayText: { fontSize: FONTS.sm, fontWeight: '600', color: COLORS.textPrimary },
-  dayTextSelected: { color: '#FFFFFF', fontWeight: '800' },
+  dayText: { ...TYPE.secondaryMedium, color: COLORS.textPrimary },
+  dayTextSelected: { color: COLORS.onAccent, fontWeight: '600' },
   dayTextToday: { color: COLORS.accent },
   dayTextDisabled: { color: COLORS.textMuted, opacity: 0.4 },
   actions: {
@@ -325,6 +320,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   actionPrimary: { backgroundColor: COLORS.accent },
-  actionText: { fontSize: FONTS.sm, fontWeight: '700', color: COLORS.textSecondary },
-  actionPrimaryText: { color: '#FFFFFF' },
-});
+  actionText: { ...TYPE.button, color: COLORS.textSecondary },
+  actionPrimaryText: { color: COLORS.onAccent },
+}));

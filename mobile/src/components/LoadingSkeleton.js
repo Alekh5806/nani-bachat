@@ -4,7 +4,7 @@
  */
 import React, { useEffect, useRef } from 'react';
 import { View, Animated, StyleSheet } from 'react-native';
-import { COLORS, RADIUS, SPACING } from '../theme/colors';
+import { COLORS, RADIUS, SPACING, themedStyles } from '../theme/colors';
 
 export const LoadingSkeleton = ({ width = '100%', height = 20, style, borderRadius }) => {
   const opacity = useRef(new Animated.Value(0.3)).current;
@@ -58,7 +58,7 @@ export const DashboardSkeleton = () => (
   </View>
 );
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   skeleton: {
     backgroundColor: COLORS.surface,
   },
@@ -69,4 +69,4 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-});
+}));

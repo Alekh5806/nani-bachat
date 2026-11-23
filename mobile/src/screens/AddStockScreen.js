@@ -8,7 +8,6 @@ import {
   View, Text, StyleSheet, ScrollView, KeyboardAvoidingView,
   Platform, Pressable, ActivityIndicator, TextInput
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import Toast from 'react-native-toast-message';
 
 import { usePortfolioStore } from '../store/portfolioStore';
@@ -17,7 +16,8 @@ import { PremiumInput } from '../components/PremiumInput';
 import { PremiumButton } from '../components/PremiumButton';
 import { GlassCard } from '../components/GlassCard';
 import { DatePickerField, todayString } from '../components/DatePickerField';
-import { COLORS, SPACING, FONTS, RADIUS, SHADOWS } from '../theme/colors';
+import { CompanyLogo } from '../components/CompanyLogo';
+import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
 
 export const AddStockScreen = ({ navigation }) => {
   const {
@@ -123,7 +123,7 @@ export const AddStockScreen = ({ navigation }) => {
     if (totalInvestment > availableCash && !form.buyer) {
       Toast.show({
         type: 'error',
-        text1: 'Insufficient Pool Cash',
+        text1: 'Insufficient Cash',
         text2: `Available ${formatCurrency(availableCash)}, needed ${formatCurrency(totalInvestment)}. Select the buying member.`,
       });
       return;
@@ -143,10 +143,10 @@ export const AddStockScreen = ({ navigation }) => {
     setLoading(false);
 
     if (result.success) {
-      Toast.show({ type: 'success', text1: 'Stock Added! ✅', text2: `${selectedStock.name} added to portfolio` });
+      Toast.show({ type: 'success', text1: 'Stock added', text2: `${selectedStock.name} added to portfolio` });
       navigation.goBack();
     } else {
-      Toast.show({ type: 'error', text1: 'Could Not Add Stock', text2: result.error });
+      Toast.show({ type: 'error', text1: 'Could Not Add Investment', text2: result.error });
     }
   };
 
@@ -170,7 +170,7 @@ export const AddStockScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <ScreenHeader
-        title="Add Stock"
+        title="Add Investment"
         subtitle="Search & add investment"
         showBack
         onBack={() => navigation.goBack()}
@@ -186,7 +186,7 @@ export const AddStockScreen = ({ navigation }) => {
           keyboardShouldPersistTaps="handled"
         >
           {/* ── Stock Search ── */}
-          <Text style={styles.sectionLabel}>🔍 SEARCH STOCK</Text>
+          <Text style={styles.sectionLabel}>Search stock</Text>
           <View style={styles.searchContainer}>
             <TextInput
               value={searchQuery}
@@ -225,11 +225,7 @@ export const AddStockScreen = ({ navigation }) => {
                   >
                     {/* Left: Symbol badge + name */}
                     <View style={styles.resultLeft}>
-                      <View style={[styles.symbolBadge, { backgroundColor: isPositive ? COLORS.profitBg : COLORS.lossBg }]}>
-                        <Text style={[styles.symbolBadgeText, { color: changeColor }]}>
-                          {stock.symbol.replace('.NS', '').substring(0, 4)}
-                        </Text>
-                      </View>
+                      <CompanyLogo symbol={stock.symbol} name={stock.name} size={44} style={{ marginRight: SPACING.md }} />
                       <View style={styles.resultInfo}>
                         <Text style={styles.resultName} numberOfLines={1}>
                           {stock.name}
@@ -247,7 +243,7 @@ export const AddStockScreen = ({ navigation }) => {
                       </Text>
                       <View style={[styles.changeBadge, { backgroundColor: isPositive ? COLORS.profitBg : COLORS.lossBg }]}>
                         <Text style={[styles.changeText, { color: changeColor }]}>
-                          {isPositive ? '▲' : '▼'} {Math.abs(stock.change_percentage).toFixed(2)}%
+                          {isPositive ? '+' : '-'}{Math.abs(stock.change_percentage).toFixed(2)}%
                         </Text>
                       </View>
                     </View>
@@ -275,16 +271,7 @@ export const AddStockScreen = ({ navigation }) => {
           {selectedStock && (
             <GlassCard borderGlow style={styles.selectedCard}>
               <View style={styles.selectedHeader}>
-                <LinearGradient
-                  colors={[COLORS.gradientStart, COLORS.gradientEnd]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.selectedBadge}
-                >
-                  <Text style={styles.selectedBadgeText}>
-                    {selectedStock.symbol.replace('.NS', '').substring(0, 4)}
-                  </Text>
-                </LinearGradient>
+                <CompanyLogo symbol={selectedStock.symbol} name={selectedStock.name} size={48} style={{ marginRight: SPACING.md }} />
                 <View style={styles.selectedInfo}>
                   <Text style={styles.selectedName}>{selectedStock.name}</Text>
                   <Text style={styles.selectedSymbol}>{selectedStock.symbol}</Text>
@@ -358,7 +345,7 @@ export const AddStockScreen = ({ navigation }) => {
           {selectedStock && (
             <>
               <Text style={[styles.sectionLabel, { marginTop: SPACING.xl }]}>
-                📋 PURCHASE DETAILS
+                Purchase details
               </Text>
 
               <View style={styles.row}>
@@ -443,10 +430,10 @@ export const AddStockScreen = ({ navigation }) => {
               {/* ── Investment Preview ── */}
               {form.quantity && form.buy_price && (
                 <GlassCard style={styles.previewCard}>
-                  <Text style={styles.previewTitle}>💰 Investment Preview</Text>
+                  <Text style={styles.previewTitle}>Investment preview</Text>
                   <View style={styles.cashBox}>
                     <View>
-                      <Text style={styles.cashLabel}>Available Pool Cash</Text>
+                      <Text style={styles.cashLabel}>Available Cash</Text>
                       <Text style={styles.cashSub}>Contributions + sale cash </Text>
                     </View>
                     <Text style={styles.cashValue}>{formatCurrency(availableCash)}</Text>
@@ -477,7 +464,7 @@ export const AddStockScreen = ({ navigation }) => {
                   </View>
                   <View style={[styles.previewRow, styles.cashAfterRow]}>
                     <Text style={styles.previewLabel}>Cash After Purchase</Text>
-                    <Text style={[styles.previewValue, { color: hasEnoughCash ? COLORS.accent : COLORS.loss }]}> 
+                    <Text style={[styles.previewValue, { color: hasEnoughCash ? COLORS.profit : COLORS.loss }]}> 
                       {formatCurrency(remainingCash)}
                     </Text>
                   </View>
@@ -503,7 +490,7 @@ export const AddStockScreen = ({ navigation }) => {
                   )}
                   <View style={styles.previewRow}>
                     <Text style={styles.previewLabel}>Current Value</Text>
-                    <Text style={[styles.previewValue, { color: COLORS.accent }]}>
+                    <Text style={styles.previewValue}>
                       {formatCurrency(parseInt(form.quantity || 0, 10) * (selectedStock.current_price || form.buy_price || 0))}
                     </Text>
                   </View>
@@ -528,7 +515,7 @@ export const AddStockScreen = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -539,10 +526,8 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.huge,
   },
   sectionLabel: {
+    ...TYPE.captionMedium,
     color: COLORS.textSecondary,
-    fontSize: FONTS.xs,
-    fontWeight: '800',
-    letterSpacing: 1.5,
     marginBottom: SPACING.md,
     marginTop: SPACING.sm,
   },
@@ -559,9 +544,10 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   searchInput: {
+    ...TYPE.inputText,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : null),
     flex: 1,
     color: COLORS.textPrimary,
-    fontSize: FONTS.md,
     paddingVertical: Platform.OS === 'ios' ? SPACING.lg : SPACING.md,
   },
   searchSpinner: {
@@ -576,7 +562,6 @@ const styles = StyleSheet.create({
     borderColor: COLORS.glassBorder,
     overflow: 'hidden',
     marginBottom: SPACING.lg,
-    ...SHADOWS.card,
   },
   resultRow: {
     flexDirection: 'row',
@@ -607,19 +592,17 @@ const styles = StyleSheet.create({
   },
   symbolBadgeText: {
     fontSize: FONTS.xs,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    fontWeight: '600',
   },
   resultInfo: {
     flex: 1,
   },
   resultName: {
-    fontSize: FONTS.md,
-    fontWeight: '600',
+    ...TYPE.cardTitle,
     color: COLORS.textPrimary,
   },
   resultSymbol: {
-    fontSize: FONTS.xs,
+    ...TYPE.caption,
     color: COLORS.textMuted,
     marginTop: 2,
   },
@@ -628,8 +611,7 @@ const styles = StyleSheet.create({
     marginLeft: SPACING.sm,
   },
   resultPrice: {
-    fontSize: FONTS.md,
-    fontWeight: '700',
+    ...TYPE.smallValue,
     color: COLORS.textPrimary,
   },
   changeBadge: {
@@ -639,8 +621,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   changeText: {
-    fontSize: FONTS.xs,
-    fontWeight: '700',
+    ...TYPE.plPercent,
   },
   manualButton: {
     minHeight: 44,
@@ -654,9 +635,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
   },
   manualButtonText: {
+    ...TYPE.button,
     color: COLORS.accent,
-    fontSize: FONTS.sm,
-    fontWeight: '700',
     textAlign: 'center',
   },
 
@@ -678,21 +658,19 @@ const styles = StyleSheet.create({
     marginRight: SPACING.md,
   },
   selectedBadgeText: {
-    color: '#FFFFFF',
+    color: COLORS.onAccent,
     fontSize: FONTS.sm,
-    fontWeight: '900',
-    letterSpacing: 0.5,
+    fontWeight: '600',
   },
   selectedInfo: {
     flex: 1,
   },
   selectedName: {
-    fontSize: FONTS.lg,
-    fontWeight: '700',
+    ...TYPE.cardTitle,
     color: COLORS.textPrimary,
   },
   selectedSymbol: {
-    fontSize: FONTS.sm,
+    ...TYPE.secondary,
     color: COLORS.textSecondary,
     marginTop: 2,
   },
@@ -704,9 +682,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.accent,
   },
   changeBtnText: {
+    ...TYPE.captionMedium,
     color: COLORS.accent,
-    fontSize: FONTS.xs,
-    fontWeight: '700',
   },
   priceGrid: {
     flexDirection: 'row',
@@ -720,13 +697,12 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
   },
   priceLabel: {
-    fontSize: FONTS.xs,
+    ...TYPE.caption,
     color: COLORS.textMuted,
     marginBottom: 2,
   },
   priceValue: {
-    fontSize: FONTS.md,
-    fontWeight: '700',
+    ...TYPE.smallValue,
     color: COLORS.textPrimary,
   },
 
@@ -739,9 +715,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   inputLabel: {
-    fontSize: FONTS.sm,
+    ...TYPE.inputLabel,
     color: COLORS.textSecondary,
-    fontWeight: '600',
     marginBottom: SPACING.sm,
   },
   buyerSection: {
@@ -770,9 +745,8 @@ const styles = StyleSheet.create({
     opacity: 0.75,
   },
   buyerChipText: {
+    ...TYPE.secondaryMedium,
     color: COLORS.textSecondary,
-    fontSize: FONTS.sm,
-    fontWeight: '700',
   },
   buyerChipTextSelected: {
     color: COLORS.accent,
@@ -783,8 +757,7 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
   },
   previewTitle: {
-    fontSize: FONTS.md,
-    fontWeight: '700',
+    ...TYPE.cardTitle,
     color: COLORS.textPrimary,
     marginBottom: SPACING.md,
   },
@@ -800,18 +773,16 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   cashLabel: {
-    fontSize: FONTS.sm,
-    fontWeight: '800',
+    ...TYPE.secondaryMedium,
     color: COLORS.textPrimary,
   },
   cashSub: {
-    fontSize: FONTS.xs,
+    ...TYPE.caption,
     color: COLORS.textMuted,
     marginTop: 2,
   },
   cashValue: {
-    fontSize: FONTS.md,
-    fontWeight: '900',
+    ...TYPE.smallValue,
     color: COLORS.accent,
     marginLeft: SPACING.md,
   },
@@ -822,12 +793,11 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.xs,
   },
   previewLabel: {
-    fontSize: FONTS.sm,
+    ...TYPE.secondary,
     color: COLORS.textSecondary,
   },
   previewValue: {
-    fontSize: FONTS.sm,
-    fontWeight: '600',
+    ...TYPE.smallValue,
     color: COLORS.textPrimary,
   },
   previewTotal: {
@@ -837,13 +807,11 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.md,
   },
   previewTotalLabel: {
-    fontSize: FONTS.md,
-    fontWeight: '700',
+    ...TYPE.cardTitle,
     color: COLORS.textPrimary,
   },
   previewTotalValue: {
-    fontSize: FONTS.lg,
-    fontWeight: '800',
+    ...TYPE.plAmount,
     color: COLORS.accent,
   },
   cashAfterRow: {
@@ -859,21 +827,20 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   shortfallTitle: {
-    fontSize: FONTS.sm,
-    fontWeight: '800',
+    ...TYPE.secondaryMedium,
     color: COLORS.warning,
   },
   shortfallText: {
-    fontSize: FONTS.xs,
+    ...TYPE.caption,
     color: COLORS.textSecondary,
     lineHeight: 17,
     marginTop: 4,
   },
   cashError: {
-    fontSize: FONTS.xs,
+    ...TYPE.caption,
     color: COLORS.loss,
     lineHeight: 17,
     marginTop: SPACING.sm,
     marginBottom: SPACING.sm,
   },
-});
+}));

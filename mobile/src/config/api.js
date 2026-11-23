@@ -29,11 +29,19 @@ const api = axios.create({
   },
 });
 
+// Tokens for the current session, kept in memory. Used when the user did not
+// tick "Remember me", so nothing is written to storage but requests still work.
+const sessionTokens = { access: null, refresh: null };
+export const setSessionTokens = (access, refresh) => {
+  sessionTokens.access = access || null;
+  sessionTokens.refresh = refresh || null;
+};
+
 // ── Request Interceptor: Attach JWT Token ──
 api.interceptors.request.use(
   async (config) => {
     try {
-      const token = await AsyncStorage.getItem('access_token');
+      const token = sessionTokens.access || (await AsyncStorage.getItem('access_token'));
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -60,7 +68,7 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        const refreshToken = await AsyncStorage.getItem('refresh_token');
+        const refreshToken = sessionTokens.refresh || (await AsyncStorage.getItem('refresh_token'));
         if (refreshToken) {
           const response = await axios.post(
             `${getBaseURL()}/auth/token/refresh/`,
@@ -68,13 +76,16 @@ api.interceptors.response.use(
           );
 
           const { access } = response.data;
-          await AsyncStorage.setItem('access_token', access);
+          sessionTokens.access = access;
+          const stored = await AsyncStorage.getItem('access_token');
+          if (stored) await AsyncStorage.setItem('access_token', access);
 
           originalRequest.headers.Authorization = `Bearer ${access}`;
           return api(originalRequest);
         }
       } catch (refreshError) {
         // Refresh failed - clear tokens and force logout
+        setSessionTokens(null, null);
         await AsyncStorage.multiRemove(['access_token', 'refresh_token', 'user']);
         if (logoutCallback) logoutCallback();
         return Promise.reject(refreshError);

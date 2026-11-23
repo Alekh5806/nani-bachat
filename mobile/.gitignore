@@ -8,3 +8,19 @@ node_modules/
 *.orig.*
 web-build/
 dist/
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+
+# Metro caches and logs
+.metro-health-check*
+*.log
+npm-debug.*
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

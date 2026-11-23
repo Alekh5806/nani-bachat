@@ -10,3 +10,22 @@ build/
 staticfiles/
 media/
 .DS_Store
+.env.*
+!.env.example
+
+# Local databases and data dumps (can hold live data)
+*.sqlite3
+*.sql
+poolvest_data.json
+data.json
+
+# Python tooling
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# OS and editor files
+Thumbs.db
+.idea/
+.vscode/

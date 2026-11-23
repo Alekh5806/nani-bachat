@@ -23,7 +23,7 @@ import { PremiumInput } from '../components/PremiumInput';
 import { PremiumButton } from '../components/PremiumButton';
 import { GlassCard } from '../components/GlassCard';
 import { DatePickerField, todayString } from '../components/DatePickerField';
-import { COLORS, SPACING, FONTS, RADIUS } from '../theme/colors';
+import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -199,7 +199,7 @@ export const EditStockScreen = ({ navigation, route }) => {
             </Text>
           </View>
 
-          <Text style={styles.sectionLabel}>📋 PURCHASE DETAILS</Text>
+          <Text style={styles.sectionLabel}>Purchase details</Text>
 
           <View style={styles.row}>
             <PremiumInput
@@ -269,7 +269,7 @@ export const EditStockScreen = ({ navigation, route }) => {
           </View>
 
           <GlassCard style={styles.previewCard}>
-            <Text style={styles.previewTitle}>💰 Cost Change</Text>
+            <Text style={styles.previewTitle}>Cost change</Text>
             <View style={styles.previewRow}>
               <Text style={styles.previewLabel}>Recorded cost</Text>
               <Text style={styles.previewValue}>{formatCurrency(originalTotal)}</Text>
@@ -322,20 +322,20 @@ export const EditStockScreen = ({ navigation, route }) => {
 
 export default EditStockScreen;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: { flex: 1, backgroundColor: COLORS.background },
   scrollView: { flex: 1 },
   scrollContent: { paddingHorizontal: SPACING.xl, paddingBottom: SPACING.huge },
   emptyText: {
+    ...TYPE.cardTitle,
     color: COLORS.textSecondary,
-    fontSize: FONTS.md,
     textAlign: 'center',
     marginTop: SPACING.xxxl,
     paddingHorizontal: SPACING.xl,
   },
   heroCard: { marginBottom: SPACING.md },
-  stockName: { fontSize: FONTS.lg, fontWeight: '700', color: COLORS.textPrimary },
-  stockMeta: { fontSize: FONTS.xs, color: COLORS.textSecondary, marginTop: 4 },
+  stockName: { ...TYPE.cardTitle, color: COLORS.textPrimary },
+  stockMeta: { ...TYPE.caption, color: COLORS.textSecondary, marginTop: 4 },
   warningBox: {
     borderRadius: RADIUS.md,
     borderWidth: 1,
@@ -344,21 +344,18 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     marginBottom: SPACING.lg,
   },
-  warningTitle: { fontSize: FONTS.sm, fontWeight: '800', color: COLORS.warning },
-  warningText: { fontSize: FONTS.xs, color: COLORS.textSecondary, lineHeight: 17, marginTop: 4 },
+  warningTitle: { ...TYPE.secondaryMedium, color: COLORS.warning },
+  warningText: { ...TYPE.caption, color: COLORS.textSecondary, lineHeight: 17, marginTop: 4 },
   sectionLabel: {
+    ...TYPE.captionMedium,
     color: COLORS.textSecondary,
-    fontSize: FONTS.xs,
-    fontWeight: '800',
-    letterSpacing: 1.5,
     marginBottom: SPACING.md,
   },
   row: { flexDirection: 'row', gap: SPACING.md },
   halfInput: { flex: 1 },
   inputLabel: {
-    fontSize: FONTS.sm,
+    ...TYPE.inputLabel,
     color: COLORS.textSecondary,
-    fontWeight: '600',
     marginBottom: SPACING.sm,
   },
   buyerSection: { marginBottom: SPACING.md },
@@ -375,12 +372,11 @@ const styles = StyleSheet.create({
   },
   buyerChipSelected: { borderColor: COLORS.accent, backgroundColor: COLORS.accent + '22' },
   buyerChipPressed: { opacity: 0.75 },
-  buyerChipText: { color: COLORS.textSecondary, fontSize: FONTS.sm, fontWeight: '700' },
+  buyerChipText: { ...TYPE.secondaryMedium, color: COLORS.textSecondary },
   buyerChipTextSelected: { color: COLORS.accent },
   previewCard: { marginTop: SPACING.md },
   previewTitle: {
-    fontSize: FONTS.md,
-    fontWeight: '700',
+    ...TYPE.cardTitle,
     color: COLORS.textPrimary,
     marginBottom: SPACING.md,
   },
@@ -390,18 +386,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: SPACING.xs,
   },
-  previewLabel: { fontSize: FONTS.sm, color: COLORS.textSecondary },
-  previewValue: { fontSize: FONTS.sm, fontWeight: '600', color: COLORS.textPrimary },
+  previewLabel: { ...TYPE.secondary, color: COLORS.textSecondary },
+  previewValue: { ...TYPE.smallValue, color: COLORS.textPrimary },
   previewTotal: {
     borderTopWidth: 1,
     borderTopColor: COLORS.divider,
     marginTop: SPACING.sm,
     paddingTop: SPACING.md,
   },
-  previewTotalLabel: { fontSize: FONTS.md, fontWeight: '700', color: COLORS.textPrimary },
-  previewTotalValue: { fontSize: FONTS.lg, fontWeight: '800' },
+  previewTotalLabel: { ...TYPE.cardTitle, color: COLORS.textPrimary },
+  previewTotalValue: { ...TYPE.plAmount },
   monthMoveNote: {
-    fontSize: FONTS.xs,
+    ...TYPE.caption,
     color: COLORS.warning,
     lineHeight: 17,
     marginTop: SPACING.sm,
@@ -412,5 +408,5 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
     marginTop: SPACING.md,
   },
-  resettleText: { fontSize: FONTS.sm, color: COLORS.textSecondary },
-});
+  resettleText: { ...TYPE.secondary, color: COLORS.textSecondary },
+}));

@@ -9,8 +9,9 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
+  Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { AppIcon } from '../components/Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { Alert } from '../utils/alert';
@@ -18,7 +19,7 @@ import api from '../config/api';
 import { useAuthStore } from '../store/authStore';
 import { usePortfolioStore } from '../store/portfolioStore';
 import { getErrorMessage } from '../utils/errors';
-import { COLORS, SPACING, FONTS, RADIUS } from '../theme/colors';
+import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
 import { GlassCard } from '../components/GlassCard';
 import { ScreenHeader } from '../components/ScreenHeader';
 
@@ -223,7 +224,7 @@ export const ContributionsScreen = ({ route, navigation }) => {
   const handleDeleteMonth = (month) => {
     Alert.alert(
       'Delete Entire Month',
-      'Delete ALL contributions (paid + unpaid) for ' + formatMonth(month) + '? Cannot be undone!',
+      'Delete ALL contributions (paid + unpaid) for ' + formatMonth(month) + '? This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -529,7 +530,7 @@ export const ContributionsScreen = ({ route, navigation }) => {
         {isAdmin && (poolStatus?.unsettled_months?.length > 0) && (
           <View style={styles.unsettledBanner}>
             <View style={styles.unsettledHeader}>
-              <Ionicons name="alert-circle" size={18} color={COLORS.loss} />
+              <AppIcon name="alert-circle" size={18} color={COLORS.loss} />
               <Text style={styles.unsettledTitle}>
                 {poolStatus.unsettled_months.length} month
                 {poolStatus.unsettled_months.length > 1 ? 's need' : ' needs'} settling
@@ -556,7 +557,7 @@ export const ContributionsScreen = ({ route, navigation }) => {
           <GlassCard style={styles.poolCard}>
             <View style={styles.poolHeader}>
               <View style={styles.poolTitleBlock}>
-                <Text style={styles.poolTitle}>Pool Status</Text>
+                <Text style={styles.poolTitle}>Monthly Cash</Text>
                 <Text style={styles.poolMonthText}>{formatMonth(poolMonth)}</Text>
               </View>
               {poolLoading ? (
@@ -676,7 +677,7 @@ export const ContributionsScreen = ({ route, navigation }) => {
                         : ''}
                     </Text>
                   </View>
-                  <Ionicons
+                  <AppIcon
                     name={showHandover ? 'chevron-up' : 'chevron-down'}
                     size={18}
                     color={COLORS.textSecondary}
@@ -755,7 +756,7 @@ export const ContributionsScreen = ({ route, navigation }) => {
                 style={styles.buyerChangeButton}
                 onPress={() => setShowBuyerModal(true)}
               >
-                <Ionicons name="swap-horizontal" size={16} color={COLORS.accent} />
+                <AppIcon name="swap-horizontal" size={16} color={COLORS.accent} />
                 <Text style={styles.buyerChangeText}>
                   {poolStatus?.buying_member ? 'Change' : 'Select'}
                 </Text>
@@ -782,8 +783,8 @@ export const ContributionsScreen = ({ route, navigation }) => {
               disabled={!poolStatus?.buying_member || settling}
             >
               {settling
-                ? <ActivityIndicator size="small" color="#FFF" />
-                : <Ionicons name="checkmark-done" size={18} color="#FFF" />}
+                ? <ActivityIndicator size="small" color={COLORS.onAccent} />
+                : <AppIcon name="checkmark-done" size={18} color={COLORS.onAccent} />}
               <Text style={styles.settleButtonText}>
                 {settling
                   ? 'Settling...'
@@ -796,11 +797,11 @@ export const ContributionsScreen = ({ route, navigation }) => {
         {isAdmin && (
           <View style={styles.adminActions}>
             <TouchableOpacity style={[styles.adminButton, styles.generateButton]} onPress={() => setShowGenerateModal(true)} disabled={generating}>
-              {generating ? <ActivityIndicator size="small" color="#FFF" /> : <Ionicons name="add-circle-outline" size={18} color="#FFF" />}
+              {generating ? <ActivityIndicator size="small" color={COLORS.onAccent} /> : <AppIcon name="add-circle-outline" size={18} color={COLORS.onAccent} />}
               <Text style={styles.adminButtonText}>{generating ? 'Generating...' : 'Generate Month'}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.adminButton, styles.cleanupButton]} onPress={handleCleanupContributions} disabled={cleaning}>
-              {cleaning ? <ActivityIndicator size="small" color="#FFF" /> : <Ionicons name="trash-outline" size={18} color="#FFF" />}
+              {cleaning ? <ActivityIndicator size="small" color={COLORS.onAccent} /> : <AppIcon name="trash-outline" size={18} color={COLORS.onAccent} />}
               <Text style={styles.adminButtonText}>{cleaning ? 'Cleaning...' : 'Cleanup Unpaid'}</Text>
             </TouchableOpacity>
           </View>
@@ -808,7 +809,7 @@ export const ContributionsScreen = ({ route, navigation }) => {
 
         {isAdmin && selectedMonth && (
           <TouchableOpacity style={styles.deleteMonthButton} onPress={() => handleDeleteMonth(selectedMonth)}>
-            <Ionicons name="close-circle-outline" size={18} color={COLORS.loss} />
+            <AppIcon name="close-circle-outline" size={18} color={COLORS.loss} />
             <Text style={styles.deleteMonthText}>Delete all entries for {formatMonth(selectedMonth)}</Text>
           </TouchableOpacity>
         )}
@@ -821,7 +822,7 @@ export const ContributionsScreen = ({ route, navigation }) => {
           >
             {syncing
               ? <ActivityIndicator size="small" color={COLORS.textSecondary} />
-              : <Ionicons name="git-compare-outline" size={16} color={COLORS.textSecondary} />}
+              : <AppIcon name="git-compare-outline" size={16} color={COLORS.textSecondary} />}
             <Text style={styles.syncButtonText}>
               {syncing ? 'Syncing pools...' : 'Rebuild monthly pool totals'}
             </Text>
@@ -830,7 +831,7 @@ export const ContributionsScreen = ({ route, navigation }) => {
 
         {sortedMonths.length === 0 ? (
           <GlassCard style={styles.emptyCard}>
-            <Ionicons name="document-text-outline" size={48} color="#555" />
+            <AppIcon name="document-text-outline" size={48} color="#555" />
             <Text style={styles.emptyText}>No contributions found</Text>
             {isAdmin && <Text style={styles.emptySubtext}>Tap "Generate Month" to create entries</Text>}
           </GlassCard>
@@ -874,14 +875,14 @@ export const ContributionsScreen = ({ route, navigation }) => {
                       {isAdmin && (
                         <View style={styles.actionButtons}>
                           <TouchableOpacity style={styles.iconButton} onPress={() => openEditModal(contrib)}>
-                            <Ionicons
+                            <AppIcon
                               name="pencil-outline"
                               size={18}
                               color={isAdjusted(contrib) ? COLORS.warning : COLORS.accent}
                             />
                           </TouchableOpacity>
                           <TouchableOpacity style={styles.iconButton} onPress={() => contrib.status === 'paid' ? handleMarkUnpaid(contrib.id) : handleMarkPaid(contrib.id)}>
-                            <Ionicons name={contrib.status === 'paid' ? 'close-circle-outline' : 'checkmark-circle-outline'} size={22} color={contrib.status === 'paid' ? COLORS.loss : COLORS.profit} />
+                            <AppIcon name={contrib.status === 'paid' ? 'close-circle-outline' : 'checkmark-circle-outline'} size={22} color={contrib.status === 'paid' ? COLORS.loss : COLORS.profit} />
                           </TouchableOpacity>
                         </View>
                       )}
@@ -903,11 +904,11 @@ export const ContributionsScreen = ({ route, navigation }) => {
             <Text style={styles.modalLabel}>Year</Text>
             <View style={styles.yearSelector}>
               <TouchableOpacity style={styles.yearButton} onPress={() => setGenerateYear(String(parseInt(generateYear) - 1))}>
-                <Ionicons name="chevron-back" size={20} color={COLORS.textPrimary} />
+                <AppIcon name="chevron-back" size={20} color={COLORS.textPrimary} />
               </TouchableOpacity>
               <Text style={styles.yearText}>{generateYear}</Text>
               <TouchableOpacity style={styles.yearButton} onPress={() => setGenerateYear(String(parseInt(generateYear) + 1))}>
-                <Ionicons name="chevron-forward" size={20} color={COLORS.textPrimary} />
+                <AppIcon name="chevron-forward" size={20} color={COLORS.textPrimary} />
               </TouchableOpacity>
             </View>
             <Text style={styles.modalLabel}>Month</Text>
@@ -919,7 +920,7 @@ export const ContributionsScreen = ({ route, navigation }) => {
               ))}
             </View>
             <Text style={styles.modalLabel}>Amount per member (Rs.)</Text>
-            <TextInput style={styles.modalInput} value={generateAmount} onChangeText={setGenerateAmount} keyboardType="numeric" placeholder="1000" placeholderTextColor="#666" />
+            <TextInput style={styles.modalInput} value={generateAmount} onChangeText={setGenerateAmount} keyboardType="numeric" placeholder="1000" placeholderTextColor={COLORS.placeholder} />
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.modalCancel} onPress={() => setShowGenerateModal(false)}>
                 <Text style={styles.modalCancelText}>Cancel</Text>
@@ -941,7 +942,7 @@ export const ContributionsScreen = ({ route, navigation }) => {
             </Text>
             {editingContribution && isAdjusted(editingContribution) && (
               <View style={styles.editWarning}>
-                <Ionicons name="warning-outline" size={16} color={COLORS.warning} />
+                <AppIcon name="warning-outline" size={16} color={COLORS.warning} />
                 <Text style={styles.editWarningText}>
                   This amount was set by the settlement (advance repayment or buyer
                   top-up). Editing it by hand will be overwritten the next time the
@@ -950,7 +951,7 @@ export const ContributionsScreen = ({ route, navigation }) => {
               </View>
             )}
             <Text style={styles.modalLabel}>New Amount (Rs.)</Text>
-            <TextInput style={styles.modalInput} value={editAmount} onChangeText={setEditAmount} keyboardType="numeric" placeholder="1000" placeholderTextColor="#666" autoFocus />
+            <TextInput style={styles.modalInput} value={editAmount} onChangeText={setEditAmount} keyboardType="numeric" placeholder="1000" placeholderTextColor={COLORS.placeholder} autoFocus />
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.modalCancel} onPress={() => { setShowEditModal(false); setEditingContribution(null); }}>
                 <Text style={styles.modalCancelText}>Cancel</Text>
@@ -984,7 +985,7 @@ export const ContributionsScreen = ({ route, navigation }) => {
                       <Text style={[styles.buyerOptionText, active && styles.buyerOptionTextActive]}>
                         {member.name}
                       </Text>
-                      {active && <Ionicons name="checkmark-circle" size={18} color={COLORS.accent} />}
+                      {active && <AppIcon name="checkmark-circle" size={18} color={COLORS.accent} />}
                     </TouchableOpacity>
                   );
                 })}
@@ -1005,144 +1006,144 @@ export const ContributionsScreen = ({ route, navigation }) => {
 
 export default ContributionsScreen;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: { flex: 1, backgroundColor: COLORS.background },
   scrollView: { flex: 1, paddingHorizontal: SPACING.md },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   summaryCard: { marginTop: SPACING.md, padding: SPACING.lg },
-  summaryTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary, marginBottom: SPACING.md, textAlign: 'center' },
+  summaryTitle: { ...TYPE.sectionTitle, color: COLORS.textPrimary, marginBottom: SPACING.md, textAlign: 'center' },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
   summaryItem: { alignItems: 'center', flex: 1 },
-  summaryLabel: { fontSize: 12, color: COLORS.textSecondary, marginBottom: 4 },
-  summaryValue: { fontSize: 20, fontWeight: '700', color: COLORS.textPrimary },
+  summaryLabel: { ...TYPE.secondary, color: COLORS.textSecondary, marginBottom: 4 },
+  summaryValue: { ...TYPE.plAmount, color: COLORS.textPrimary },
   summaryDivider: { width: 1, height: 40, backgroundColor: COLORS.border },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: SPACING.md, paddingTop: SPACING.md, borderTopWidth: 1, borderTopColor: COLORS.border },
-  totalLabel: { fontSize: 13, color: COLORS.textSecondary },
-  totalValue: { fontSize: 18, fontWeight: '700', color: COLORS.accent },
+  totalLabel: { ...TYPE.secondaryMedium, color: COLORS.textSecondary },
+  totalValue: { ...TYPE.plAmount, color: COLORS.accent },
   monthFilterContainer: { marginTop: SPACING.md },
-  filterLabel: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary, marginBottom: SPACING.sm },
+  filterLabel: { ...TYPE.inputLabel, color: COLORS.textSecondary, marginBottom: SPACING.sm },
   monthScroll: { flexDirection: 'row' },
   monthChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: COLORS.cardBg, marginRight: 8, borderWidth: 1, borderColor: COLORS.border, flexDirection: 'row', alignItems: 'center', gap: 6 },
   monthChipActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
-  monthChipText: { fontSize: 13, color: COLORS.textSecondary, fontWeight: '600' },
-  monthChipTextActive: { color: '#FFF' },
+  monthChipText: { ...TYPE.secondaryMedium, color: COLORS.textSecondary },
+  monthChipTextActive: { color: COLORS.onAccent },
   monthChipBadge: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 },
-  monthChipBadgeText: { fontSize: 10, color: '#FFF', fontWeight: '700' },
+  monthChipBadgeText: { ...TYPE.captionMedium, color: COLORS.onAccent },
   adminActions: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.md },
   adminButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: RADIUS.md, gap: 6 },
   generateButton: { backgroundColor: COLORS.accent },
   cleanupButton: { backgroundColor: COLORS.loss },
-  adminButtonText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
+  adminButtonText: { ...TYPE.button, color: COLORS.onAccent },
   deleteMonthButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: SPACING.sm, paddingVertical: 10, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.loss },
-  deleteMonthText: { fontSize: 13, color: COLORS.loss, fontWeight: '600' },
+  deleteMonthText: { ...TYPE.secondaryMedium, color: COLORS.loss },
   monthSection: { marginTop: SPACING.lg },
   monthHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm },
-  monthHeader: { fontSize: 16, fontWeight: '700', color: COLORS.textSecondary, textTransform: 'uppercase', letterSpacing: 1 },
-  monthCount: { fontSize: 12, color: COLORS.textSecondary },
+  monthHeader: { ...TYPE.cardTitle, color: COLORS.textSecondary },
+  monthCount: { ...TYPE.caption, color: COLORS.textSecondary },
   contributionCard: { marginBottom: SPACING.sm, padding: SPACING.md },
   contributionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: SPACING.sm },
   // flex + minWidth keep the name/amount block inside the card. Without them
   // it sizes to its content and shoves the badge and buttons off the screen.
   contributionLeft: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm },
   statusDot: { width: 10, height: 10, borderRadius: 5, marginTop: 6 },
-  memberName: { fontSize: 15, fontWeight: '600', color: COLORS.textPrimary },
-  contributionAmount: { fontSize: 13, color: COLORS.textSecondary, marginTop: 2 },
+  memberName: { ...TYPE.cardTitle, color: COLORS.textPrimary },
+  contributionAmount: { ...TYPE.secondary, color: COLORS.textSecondary, marginTop: 2 },
   // Stacked, and never shrunk: on a narrow phone a badge beside two buttons
   // does not fit next to a member name, and the controls are what get cut.
   contributionRight: { flexShrink: 0, alignItems: 'flex-end', gap: 6 },
-  statusBadge: { fontSize: 11, fontWeight: '800', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, overflow: 'hidden', letterSpacing: 0.5 },
+  statusBadge: { ...TYPE.captionMedium, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, overflow: 'hidden' },
   actionButtons: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   // 40pt so the paid/unpaid toggle is a comfortable tap target, not an icon.
   iconButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: RADIUS.md, backgroundColor: COLORS.surface },
-  paidDate: { fontSize: 11, color: COLORS.textSecondary, marginTop: 6, marginLeft: 22 },
+  paidDate: { ...TYPE.caption, color: COLORS.textSecondary, marginTop: 6, marginLeft: 22 },
   emptyCard: { marginTop: SPACING.xl, padding: SPACING.xl, alignItems: 'center', gap: SPACING.sm },
-  emptyText: { fontSize: 16, color: COLORS.textSecondary, fontWeight: '600' },
-  emptySubtext: { fontSize: 13, color: COLORS.textMuted, textAlign: 'center' },
+  emptyText: { ...TYPE.cardTitle, color: COLORS.textSecondary },
+  emptySubtext: { ...TYPE.secondary, color: COLORS.textMuted, textAlign: 'center' },
   // Pool settlement
   unsettledBanner: { marginTop: SPACING.md, padding: SPACING.md, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.loss, backgroundColor: COLORS.lossBg },
   unsettledHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  unsettledTitle: { fontSize: 14, fontWeight: '800', color: COLORS.loss },
+  unsettledTitle: { ...TYPE.cardTitle, color: COLORS.loss },
   unsettledChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: SPACING.sm },
   unsettledChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: COLORS.loss, backgroundColor: COLORS.cardBg },
-  unsettledChipText: { fontSize: 12, fontWeight: '700', color: COLORS.loss },
-  unsettledHint: { fontSize: 11, color: COLORS.textSecondary, marginTop: SPACING.sm },
+  unsettledChipText: { ...TYPE.captionMedium, color: COLORS.loss },
+  unsettledHint: { ...TYPE.caption, color: COLORS.textSecondary, marginTop: SPACING.sm },
   poolCard: { marginTop: SPACING.md, padding: SPACING.lg },
   poolHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md },
   poolTitleBlock: { flex: 1, minWidth: 0 },
-  poolTitle: { fontSize: 17, fontWeight: '800', color: COLORS.textPrimary },
-  poolMonthText: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
-  settledBadge: { fontSize: 10, fontWeight: '800', letterSpacing: 0.6, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, overflow: 'hidden' },
+  poolTitle: { ...TYPE.cardTitle, color: COLORS.textPrimary },
+  poolMonthText: { ...TYPE.caption, color: COLORS.textSecondary, marginTop: 2 },
+  settledBadge: { ...TYPE.captionMedium, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, overflow: 'hidden' },
   settledBadgePaid: { color: COLORS.profit, backgroundColor: COLORS.profitBg },
   settledBadgeOpen: { color: COLORS.warning, backgroundColor: COLORS.warningBg },
   poolRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
   poolItem: { flex: 1, alignItems: 'center' },
-  poolLabel: { fontSize: 11, color: COLORS.textSecondary, marginBottom: 4 },
-  poolValue: { fontSize: 16, fontWeight: '800', color: COLORS.textPrimary },
+  poolLabel: { ...TYPE.caption, color: COLORS.textSecondary, marginBottom: 4 },
+  poolValue: { ...TYPE.smallValue, color: COLORS.textPrimary },
   ledger: { gap: 2 },
   ledgerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: SPACING.sm, paddingVertical: 4 },
-  ledgerLabel: { flex: 1, minWidth: 0, fontSize: 13, color: COLORS.textSecondary },
-  ledgerValue: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary },
+  ledgerLabel: { ...TYPE.secondary, flex: 1, minWidth: 0, color: COLORS.textSecondary },
+  ledgerValue: { ...TYPE.smallValue, color: COLORS.textPrimary },
   ledgerTotalRow: { marginTop: 4, paddingTop: 8, borderTopWidth: 1, borderTopColor: COLORS.divider },
-  ledgerTotalLabel: { flex: 1, minWidth: 0, fontSize: 13, fontWeight: '700', color: COLORS.textPrimary },
-  ledgerTotalValue: { fontSize: 16, fontWeight: '800', color: COLORS.accent },
+  ledgerTotalLabel: { ...TYPE.secondaryMedium, flex: 1, minWidth: 0, color: COLORS.textPrimary },
+  ledgerTotalValue: { ...TYPE.plAmount, color: COLORS.accent },
   handover: { marginTop: SPACING.md, paddingTop: SPACING.md, borderTopWidth: 1, borderTopColor: COLORS.divider },
   handoverHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: SPACING.sm },
   handoverTitleBlock: { flex: 1, minWidth: 0 },
-  handoverTitle: { fontSize: 14, fontWeight: '800', color: COLORS.textPrimary },
-  handoverSubtitle: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2, lineHeight: 17 },
+  handoverTitle: { ...TYPE.cardTitle, color: COLORS.textPrimary },
+  handoverSubtitle: { ...TYPE.caption, color: COLORS.textSecondary, marginTop: 2, lineHeight: 17 },
   handoverList: { marginTop: SPACING.sm, gap: 2 },
   handoverRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: SPACING.sm, paddingVertical: 6 },
   handoverWho: { flex: 1, minWidth: 0 },
-  handoverName: { fontSize: 13, fontWeight: '600', color: COLORS.textPrimary },
-  handoverBreakdown: { fontSize: 11, color: COLORS.textSecondary, marginTop: 2, lineHeight: 15 },
-  handoverUnpaid: { fontSize: 11, fontWeight: '700', color: COLORS.loss, marginTop: 2 },
-  handoverAmount: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary },
-  handoverNote: { fontSize: 11, color: COLORS.textMuted, marginTop: SPACING.sm, lineHeight: 16 },
+  handoverName: { ...TYPE.secondaryMedium, color: COLORS.textPrimary },
+  handoverBreakdown: { ...TYPE.caption, color: COLORS.textSecondary, marginTop: 2, lineHeight: 15 },
+  handoverUnpaid: { ...TYPE.captionMedium, color: COLORS.loss, marginTop: 2 },
+  handoverAmount: { ...TYPE.smallValue, color: COLORS.textPrimary },
+  handoverNote: { ...TYPE.caption, color: COLORS.textMuted, marginTop: SPACING.sm, lineHeight: 16 },
   poolNote: { marginTop: SPACING.md, padding: SPACING.md, borderRadius: RADIUS.md, borderWidth: 1 },
   poolNoteWarn: { borderColor: COLORS.warning + '55', backgroundColor: COLORS.warningBg },
-  poolNoteInfo: { borderColor: COLORS.accent + '55', backgroundColor: 'rgba(0, 208, 156, 0.10)' },
-  poolNoteText: { fontSize: 13, fontWeight: '700', color: COLORS.textPrimary, lineHeight: 19 },
-  poolNoteSub: { fontSize: 12, color: COLORS.textSecondary, marginTop: 4, lineHeight: 17 },
+  poolNoteInfo: { borderColor: COLORS.accent + '55', backgroundColor: COLORS.accent + '1A' },
+  poolNoteText: { ...TYPE.secondaryMedium, color: COLORS.textPrimary, lineHeight: 19 },
+  poolNoteSub: { ...TYPE.caption, color: COLORS.textSecondary, marginTop: 4, lineHeight: 17 },
   buyerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: SPACING.md, paddingTop: SPACING.md, borderTopWidth: 1, borderTopColor: COLORS.divider },
   buyerTextBlock: { flex: 1, minWidth: 0 },
-  buyerName: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
+  buyerName: { ...TYPE.cardTitle, color: COLORS.textPrimary },
   buyerChangeButton: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 8, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.accent },
-  buyerChangeText: { fontSize: 12, fontWeight: '700', color: COLORS.accent },
-  poolWarning: { fontSize: 12, color: COLORS.warning, marginTop: SPACING.sm, fontWeight: '600' },
+  buyerChangeText: { ...TYPE.captionMedium, color: COLORS.accent },
+  poolWarning: { ...TYPE.captionMedium, color: COLORS.warning, marginTop: SPACING.sm },
   settleButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: SPACING.md, paddingVertical: 13, borderRadius: RADIUS.md, backgroundColor: COLORS.accent },
   settleButtonDisabled: { backgroundColor: COLORS.buttonDisabled },
-  settleButtonText: { color: '#FFF', fontSize: 14, fontWeight: '800' },
+  settleButtonText: { ...TYPE.button, color: COLORS.onAccent },
   syncButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: SPACING.sm, paddingVertical: 10, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.border },
-  syncButtonText: { fontSize: 12, color: COLORS.textSecondary, fontWeight: '600' },
+  syncButtonText: { ...TYPE.button, color: COLORS.textSecondary },
   contributionTextBlock: { flex: 1, minWidth: 0 },
-  adjustmentNote: { fontSize: 11, color: COLORS.accent, marginTop: 2, lineHeight: 15 },
+  adjustmentNote: { ...TYPE.caption, color: COLORS.accent, marginTop: 2, lineHeight: 15 },
   buyerTag: { alignSelf: 'flex-start', marginTop: 4, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: COLORS.warningBg },
-  buyerTagText: { fontSize: 9, fontWeight: '800', letterSpacing: 0.5, color: COLORS.warning },
+  buyerTagText: { ...TYPE.captionMedium, color: COLORS.warning },
   editWarning: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', padding: SPACING.md, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.warning + '55', backgroundColor: COLORS.warningBg, marginTop: SPACING.md },
-  editWarningText: { flex: 1, fontSize: 11, color: COLORS.textSecondary, lineHeight: 16 },
+  editWarningText: { ...TYPE.caption, flex: 1, color: COLORS.textSecondary, lineHeight: 16 },
   buyerPickerList: { maxHeight: 280, marginTop: SPACING.sm },
   buyerOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: SPACING.md, borderRadius: RADIUS.md, backgroundColor: COLORS.surface, marginBottom: SPACING.sm, borderWidth: 1, borderColor: COLORS.borderLight },
   buyerOptionActive: { borderColor: COLORS.accent, backgroundColor: COLORS.accent + '18' },
-  buyerOptionText: { fontSize: 15, fontWeight: '600', color: COLORS.textPrimary },
-  buyerOptionTextActive: { color: COLORS.accent, fontWeight: '800' },
+  buyerOptionText: { ...TYPE.button, color: COLORS.textPrimary },
+  buyerOptionTextActive: { color: COLORS.accent, fontWeight: '600' },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: SPACING.lg },
   modalContent: { backgroundColor: COLORS.cardBg, borderRadius: RADIUS.lg, padding: SPACING.lg, width: '100%', maxWidth: 400, borderWidth: 1, borderColor: COLORS.border },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary, textAlign: 'center' },
-  modalSubtitle: { fontSize: 13, color: COLORS.textSecondary, textAlign: 'center', marginTop: 4, marginBottom: SPACING.md },
-  modalLabel: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary, marginTop: SPACING.md, marginBottom: SPACING.sm },
-  modalInput: { backgroundColor: COLORS.surface, borderRadius: RADIUS.md, padding: 12, color: COLORS.textPrimary, fontSize: 16, fontWeight: '700', borderWidth: 1, borderColor: COLORS.borderLight, textAlign: 'center' },
+  modalTitle: { ...TYPE.sectionTitle, color: COLORS.textPrimary, textAlign: 'center' },
+  modalSubtitle: { ...TYPE.secondary, color: COLORS.textSecondary, textAlign: 'center', marginTop: 4, marginBottom: SPACING.md },
+  modalLabel: { ...TYPE.inputLabel, color: COLORS.textSecondary, marginTop: SPACING.md, marginBottom: SPACING.sm },
+  modalInput: { ...TYPE.inputText, ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : null), backgroundColor: COLORS.surface, borderRadius: RADIUS.md, padding: 12, color: COLORS.textPrimary, borderWidth: 1, borderColor: COLORS.borderLight, textAlign: 'center' },
   yearSelector: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.lg },
   yearButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.surface, justifyContent: 'center', alignItems: 'center' },
-  yearText: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary },
+  yearText: { ...TYPE.sectionTitle, color: COLORS.textPrimary },
   monthGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   monthGridItem: { width: '23%', paddingVertical: 10, borderRadius: RADIUS.md, backgroundColor: COLORS.surface, alignItems: 'center', borderWidth: 1, borderColor: COLORS.borderLight },
   monthGridItemActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
-  monthGridText: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
-  monthGridTextActive: { color: '#FFF', fontWeight: '800' },
+  monthGridText: { ...TYPE.secondaryMedium, color: COLORS.textSecondary },
+  monthGridTextActive: { color: COLORS.onAccent, fontWeight: '600' },
   modalActions: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.lg },
   modalCancel: { flex: 1, paddingVertical: 14, borderRadius: RADIUS.md, backgroundColor: COLORS.surface, alignItems: 'center' },
-  modalCancelText: { color: COLORS.textSecondary, fontSize: 15, fontWeight: '700' },
+  modalCancelText: { ...TYPE.button, color: COLORS.textSecondary },
   modalConfirm: { flex: 1, paddingVertical: 14, borderRadius: RADIUS.md, backgroundColor: COLORS.accent, alignItems: 'center' },
-  modalConfirmText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
-});
+  modalConfirmText: { ...TYPE.button, color: COLORS.onAccent },
+}));

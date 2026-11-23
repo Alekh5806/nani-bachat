@@ -12,11 +12,10 @@ import { Alert } from '../utils/alert';
 import { usePortfolioStore } from '../store/portfolioStore';
 import { useAuthStore } from '../store/authStore';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { StatCard } from '../components/StatCard';
 import { StockRow } from '../components/StockRow';
-import { SectionHeader } from '../components/SectionHeader';
 import { GlassCard } from '../components/GlassCard';
-import { COLORS, SPACING, FONTS } from '../theme/colors';
+import { CompanyLogo } from '../components/CompanyLogo';
+import { COLORS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
 
 const PRICE_REFRESH_INTERVAL_MS = 60000;
 
@@ -27,27 +26,23 @@ export const InvestmentsScreen = ({ navigation }) => {
     stocks, fetchStocks,
     soldStocks, fetchSoldStocks,
     dashboard, fetchDashboard,
-    deleteStock, refreshPrices,
+    refreshPrices,
   } = usePortfolioStore();
   const [refreshing, setRefreshing] = useState(false);
-  const [showSold, setShowSold] = useState(false);
+  const [tab, setTab] = useState('holdings');
 
+  // Each tab loads only what it shows, so the screen stays light.
   useFocusEffect(
     useCallback(() => {
-      const loadPrices = () => {
-        fetchStockSummary();
+      fetchStockSummary();
+      if (tab === 'history') {
         fetchStocks();
-      };
-
-      loadPrices();
-      // Sold lots never change price, so they are fetched once per focus
-      // rather than on the polling interval.
-      fetchSoldStocks();
-      fetchDashboard();
-      const intervalId = setInterval(loadPrices, PRICE_REFRESH_INTERVAL_MS);
-
+        fetchSoldStocks();
+        fetchDashboard();
+      }
+      const intervalId = setInterval(fetchStockSummary, PRICE_REFRESH_INTERVAL_MS);
       return () => clearInterval(intervalId);
-    }, [fetchStockSummary, fetchStocks, fetchSoldStocks, fetchDashboard])
+    }, [tab, fetchStockSummary, fetchStocks, fetchSoldStocks, fetchDashboard])
   );
 
   const onRefresh = useCallback(async () => {
@@ -63,23 +58,6 @@ export const InvestmentsScreen = ({ navigation }) => {
 
   const isAdmin = user?.role === 'admin';
 
-  const handleDeleteStock = (stock) => {
-    Alert.alert(
-      'Delete Stock',
-      `Are you sure you want to delete ${stock.name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            await deleteStock(stock.id);
-          },
-        },
-      ]
-    );
-  };
-
   const handleRefreshPrices = async () => {
     const result = await refreshPrices();
     if (result.success) {
@@ -89,21 +67,9 @@ export const InvestmentsScreen = ({ navigation }) => {
     }
   };
 
-  const handleSellStock = (stock) => {
-    navigation.navigate('SellStock', { stock });
-  };
-
-  const handleEditStock = (stock) => {
-    navigation.navigate('EditStock', { stock });
-  };
-
-  const formatCurrency = (val) => {
-    const num = Number(val) || 0;
-    if (num >= 100000) return `₹${(num / 100000).toFixed(2)}L`;
-    return `₹${num.toLocaleString('en-IN')}`;
-  };
-
   const summary = stockSummary || {};
+  const totalPL = Number(summary.total_profit_loss) || 0;
+  const totalPct = summary.total_invested > 0 ? (totalPL / summary.total_invested) * 100 : 0;
 
   // Realized figures come from the portfolio service, which is the same source
   // the dashboard uses — so the two screens can never disagree.
@@ -122,24 +88,17 @@ export const InvestmentsScreen = ({ navigation }) => {
     return parsed.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
-  const holdingDays = (buyDate, sellDate) => {
-    if (!buyDate || !sellDate) return null;
-    const start = new Date(buyDate);
-    const end = new Date(sellDate);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
-    return Math.max(Math.round((end - start) / 86400000), 0);
-  };
-
-  // Newest sale first — this reads as a transaction log.
-  const sortedSold = [...soldStocks].sort((a, b) =>
-    String(b.sell_date || '').localeCompare(String(a.sell_date || ''))
-  );
+  const sortedSold = soldStocks;
+  const history = [
+    ...stocks.map((item) => ({ type: 'buy', item, date: item.buy_date })),
+    ...soldStocks.map((item) => ({ type: 'sell', item, date: item.sell_date })),
+  ].sort((x, y) => String(y.date || '').localeCompare(String(x.date || '')));
 
   return (
     <View style={styles.container}>
       <ScreenHeader
         title="Investments"
-        subtitle={`${summary.total_stocks || 0} stocks`}
+        subtitle={`${summary.total_stocks || 0} holdings`}
         rightAction={isAdmin ? () => navigation.navigate('AddStock') : undefined}
         rightIcon={isAdmin ? '➕' : undefined}
         rightLabel={isAdmin ? 'Add' : undefined}
@@ -153,41 +112,30 @@ export const InvestmentsScreen = ({ navigation }) => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} />
         }
       >
-        {/* ── Summary Cards ── */}
-        <View style={styles.statsRow}>
-          <StatCard
-            label="Total Invested"
-            value={formatCurrency(summary.total_invested)}
-            icon="💰"
-            compact
-            style={styles.halfCard}
-          />
-          <StatCard
-            label="Current Value"
-            value={formatCurrency(summary.total_current_value)}
-            icon="💎"
-            compact
-            style={styles.halfCard}
-          />
-        </View>
+        {/* ── Summary ── */}
+        <GlassCard style={styles.summaryCard}>
+          <Text style={styles.summaryLabel}>Current Value</Text>
+          <Text style={styles.summaryBig}>{formatMoney(summary.total_current_value)}</Text>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryRowLabel}>Total returns</Text>
+            <Text style={[styles.summaryRowValue, { color: totalPL === 0 ? COLORS.neutral : totalPL > 0 ? COLORS.profit : COLORS.loss }]}>
+              {totalPL >= 0 ? '+' : ''}{formatMoney(totalPL)} ({totalPL >= 0 ? '+' : ''}{totalPct.toFixed(2)}%)
+            </Text>
+          </View>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryRowLabel}>Invested</Text>
+            <Text style={styles.summaryRowValue}>{formatMoney(summary.total_invested)}</Text>
+          </View>
+        </GlassCard>
 
-        <StatCard
-          label="Total P/L"
-          value={formatCurrency(summary.total_profit_loss)}
-          change={
-            summary.total_invested > 0
-              ? ((summary.total_profit_loss / summary.total_invested) * 100)
-              : 0
-          }
-          icon={summary.total_profit_loss >= 0 ? '📈' : '📉'}
-          gradient={summary.total_profit_loss >= 0}
-          gradientColors={
-            summary.total_profit_loss >= 0
-              ? [COLORS.profit, COLORS.tealDark]
-              : [COLORS.loss, '#DC2626']
-          }
-          style={{ marginBottom: SPACING.lg }}
-        />
+        {/* ── Tabs: only the active one is rendered ── */}
+        <View style={styles.tabs}>
+          {[['holdings', 'Holdings'], ['history', 'History']].map(([key, label]) => (
+            <Pressable key={key} onPress={() => setTab(key)} style={[styles.tab, tab === key && styles.tabActive]}>
+              <Text style={[styles.tabText, tab === key && styles.tabTextActive]}>{label}</Text>
+            </Pressable>
+          ))}
+        </View>
 
         {/* ── Admin Actions ── */}
         {isAdmin && (
@@ -196,215 +144,91 @@ export const InvestmentsScreen = ({ navigation }) => {
               style={styles.adminAction}
               onPress={handleRefreshPrices}
             >
-              🔄 Refresh Stock Prices
+              Refresh stock prices
             </Text>
           </GlassCard>
         )}
 
         {/* ── Stock Holdings ── */}
-        <SectionHeader title="All Holdings" icon="📊" />
-        {(stockSummary?.stocks || []).map((stock, index) => (
+        {tab === 'holdings' && (stockSummary?.stocks || []).map((stock, index) => (
           <StockRow
             key={`${stock.symbol || 'stock'}-${index}`}
             stock={stock}
-            onPress={isAdmin ? () => handleDeleteStock(stock) : undefined}
+            onPress={() => navigation.navigate('HoldingDetail', { holding: stock })}
           />
         ))}
 
-        {/* ── Individual Transactions ── */}
-        {stocks.length > 0 && (
-          <>
-            <SectionHeader title="Purchase History" icon="📋" />
-            {stocks.map((stock, index) => (
-              <GlassCard key={stock.id || index} style={styles.txCard}>
+        {/* ── Investment History (buys and sells, newest first) ── */}
+        {tab === 'history' && sortedSold.length > 0 && (
+          <GlassCard style={styles.realizedCard}>
+            <View style={styles.realizedTotalRow}>
+              <Text style={styles.realizedTotalLabel}>Realized P/L</Text>
+              <Text
+                style={[
+                  styles.realizedTotalValue,
+                  { color: realizedPL >= 0 ? COLORS.profit : COLORS.loss },
+                ]}
+              >
+                {realizedPL >= 0 ? '+' : ''}{formatMoney(realizedPL)}
+                {realizedInvested > 0 ? `  (${realizedPct >= 0 ? '+' : ''}${realizedPct.toFixed(2)}%)` : ''}
+              </Text>
+            </View>
+            <Text style={styles.realizedNote}>
+              Net sale proceeds {formatMoney(realizedProceeds)} on a cost of {formatMoney(realizedInvested)}.
+              Booked profit is already counted in available cash.
+            </Text>
+          </GlassCard>
+        )}
+        {tab === 'history' && history.length === 0 && <Text style={styles.realizedNote}>No transactions yet</Text>}
+        {tab === 'history' && history.map((tx) => {
+          const isBuy = tx.type === 'buy';
+          const pnl = Number(tx.item.profit_loss) || 0;
+          return (
+            <Pressable
+              key={`${tx.type}-${tx.item.id}`}
+              onPress={() => navigation.navigate('HoldingDetail', { holding: { symbol: tx.item.symbol, name: tx.item.name } })}
+              style={({ pressed }) => [pressed && styles.txActionPressed]}
+            >
+              <GlassCard style={styles.txCard}>
                 <View style={styles.txHeader}>
+                  <CompanyLogo symbol={tx.item.symbol} name={tx.item.name} size={36} style={{ marginRight: SPACING.md }} />
                   <View style={styles.txTitleBlock}>
-                    <Text style={styles.txName} numberOfLines={1} adjustsFontSizeToFit>
-                      {stock.name}
-                    </Text>
+                    <Text style={styles.txName} numberOfLines={1}>{tx.item.name}</Text>
                     <Text style={styles.txBuyer} numberOfLines={1}>
-                      Buyer: {stock.buyer_name || 'Not recorded'}
+                      {isBuy ? 'Bought' : 'Sold'} • {tx.item.quantity} × ₹{isBuy ? tx.item.buy_price : tx.item.sell_price}
+                      {' • '}{tx.item.buyer_name || 'Not recorded'}
                     </Text>
                   </View>
-                  <Text style={styles.txDate}>{stock.buy_date}</Text>
+                  <Text style={styles.txDate}>{formatDate(tx.date)}</Text>
                 </View>
-                <View style={styles.txDetails}>
-                  <Text style={styles.txDetail}>
-                    {stock.quantity} × ₹{stock.buy_price}
+                <View style={styles.saleDetailRow}>
+                  <Text style={styles.saleDetailLabel}>
+                    {isBuy ? `Amount (incl. brokerage ${formatMoney(tx.item.brokerage)})` : `Net proceeds (brokerage ${formatMoney(tx.item.sell_brokerage)})`}
                   </Text>
-                  <Text style={styles.txDetail}>
-                    Brokerage: ₹{stock.brokerage}
-                  </Text>
-                  <Text style={[styles.txTotal, { color: COLORS.accent }]}>
-                    Total: ₹{Number(stock.total_invested).toFixed(2)}
+                  <Text style={styles.saleDetailValue}>
+                    {formatMoney(isBuy ? tx.item.total_invested : tx.item.current_value)}
                   </Text>
                 </View>
-                {isAdmin && (
-                  <View style={styles.txActions}>
-                    <Pressable
-                      onPress={() => handleEditStock(stock)}
-                      style={({ pressed }) => [styles.txActionButton, pressed && styles.txActionPressed]}
-                    >
-                      <Text style={styles.txActionText}>Edit</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => handleSellStock(stock)}
-                      style={({ pressed }) => [styles.txActionButton, pressed && styles.txActionPressed]}
-                    >
-                      <Text style={styles.txActionText}>Sell</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => handleDeleteStock(stock)}
-                      style={({ pressed }) => [styles.txActionButton, styles.txDeleteButton, pressed && styles.txActionPressed]}
-                    >
-                      <Text style={[styles.txActionText, styles.txDeleteText]}>Delete</Text>
-                    </Pressable>
+                {!isBuy && (
+                  <View style={styles.saleDetailRow}>
+                    <Text style={styles.saleDetailLabel}>Realized P/L (bought {formatDate(tx.item.buy_date)})</Text>
+                    <Text style={[styles.saleDetailValue, { color: pnl >= 0 ? COLORS.profit : COLORS.loss }]}>
+                      {pnl >= 0 ? '+' : ''}{formatMoney(pnl)}
+                    </Text>
                   </View>
                 )}
               </GlassCard>
-            ))}
-          </>
-        )}
-
-        {/* ── Sold Holdings ── */}
-        {sortedSold.length > 0 && (
-          <>
-            <SectionHeader title="Sold Holdings" icon="💸" />
-
-            <GlassCard style={styles.realizedCard}>
-              <View style={styles.realizedRow}>
-                <View style={styles.realizedItem}>
-                  <Text style={styles.realizedLabel}>Net Sale Proceeds</Text>
-                  <Text style={styles.realizedValue}>{formatMoney(realizedProceeds)}</Text>
-                </View>
-                <View style={styles.realizedDivider} />
-                <View style={styles.realizedItem}>
-                  <Text style={styles.realizedLabel}>Cost of Sold</Text>
-                  <Text style={styles.realizedValue}>{formatMoney(realizedInvested)}</Text>
-                </View>
-              </View>
-              <View style={styles.realizedTotalRow}>
-                <Text style={styles.realizedTotalLabel}>Realized P/L</Text>
-                <Text
-                  style={[
-                    styles.realizedTotalValue,
-                    { color: realizedPL >= 0 ? COLORS.profit : COLORS.loss },
-                  ]}
-                >
-                  {realizedPL >= 0 ? '+' : ''}{formatMoney(realizedPL)}
-                  {realizedInvested > 0 ? `  (${realizedPct >= 0 ? '+' : ''}${realizedPct.toFixed(2)}%)` : ''}
-                </Text>
-              </View>
-              <Text style={styles.realizedNote}>
-                Booked profit is already counted in pool cash and is available to reinvest.
-              </Text>
-            </GlassCard>
-
-            <Pressable
-              onPress={() => setShowSold((prev) => !prev)}
-              style={({ pressed }) => [styles.toggleButton, pressed && styles.txActionPressed]}
-            >
-              <Text style={styles.toggleText}>
-                {showSold
-                  ? 'Hide sale details'
-                  : `Show all ${sortedSold.length} sale${sortedSold.length > 1 ? 's' : ''}`}
-              </Text>
             </Pressable>
+          );
+        })}
 
-            {showSold && sortedSold.map((sale, index) => {
-              const invested = Number(sale.total_invested);
-              const proceeds = Number(sale.current_value);
-              const pnl = Number(sale.profit_loss);
-              const pnlPct = Number(sale.profit_loss_percentage);
-              const isProfit = pnl >= 0;
-              const days = holdingDays(sale.buy_date, sale.sell_date);
-
-              return (
-                <GlassCard key={sale.id || index} style={styles.saleCard}>
-                  <View style={styles.saleHeader}>
-                    <View style={styles.saleTitleBlock}>
-                      <Text style={styles.saleName} numberOfLines={1}>{sale.name}</Text>
-                      <Text style={styles.saleSymbol}>
-                        {sale.symbol} • {sale.quantity} share{sale.quantity > 1 ? 's' : ''}
-                      </Text>
-                    </View>
-                    <View style={[styles.salePnlBadge, { backgroundColor: isProfit ? COLORS.profitBg : COLORS.lossBg }]}>
-                      <Text style={[styles.salePnlText, { color: isProfit ? COLORS.profit : COLORS.loss }]}>
-                        {isProfit ? '▲' : '▼'} {Math.abs(pnlPct).toFixed(2)}%
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Bought → sold, so the whole round trip reads in one line. */}
-                  <View style={styles.tradeStrip}>
-                    <View style={styles.tradeLeg}>
-                      <Text style={styles.tradeLegLabel}>BOUGHT</Text>
-                      <Text style={styles.tradeLegPrice}>₹{sale.buy_price}</Text>
-                      <Text style={styles.tradeLegDate}>{formatDate(sale.buy_date)}</Text>
-                    </View>
-                    <Text style={styles.tradeArrow}>→</Text>
-                    <View style={styles.tradeLeg}>
-                      <Text style={styles.tradeLegLabel}>SOLD</Text>
-                      <Text style={styles.tradeLegPrice}>₹{sale.sell_price}</Text>
-                      <Text style={styles.tradeLegDate}>{formatDate(sale.sell_date)}</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.saleDetailRow}>
-                    <Text style={styles.saleDetailLabel}>Cost basis (incl. buy brokerage {formatMoney(sale.brokerage)})</Text>
-                    <Text style={styles.saleDetailValue}>{formatMoney(invested)}</Text>
-                  </View>
-                  <View style={styles.saleDetailRow}>
-                    <Text style={styles.saleDetailLabel}>Sale brokerage</Text>
-                    <Text style={styles.saleDetailValue}>{formatMoney(sale.sell_brokerage)}</Text>
-                  </View>
-                  <View style={styles.saleDetailRow}>
-                    <Text style={styles.saleDetailLabel}>Net proceeds</Text>
-                    <Text style={styles.saleDetailValue}>{formatMoney(proceeds)}</Text>
-                  </View>
-                  <View style={[styles.saleDetailRow, styles.salePnlRow]}>
-                    <Text style={styles.salePnlLabel}>Realized P/L</Text>
-                    <Text style={[styles.salePnlValue, { color: isProfit ? COLORS.profit : COLORS.loss }]}>
-                      {isProfit ? '+' : ''}{formatMoney(pnl)}
-                    </Text>
-                  </View>
-
-                  <View style={styles.saleFooter}>
-                    <Text style={styles.saleFooterText}>
-                      👤 Held by {sale.buyer_name || 'Not recorded'}
-                    </Text>
-                    {days != null && (
-                      <Text style={styles.saleFooterText}>
-                        ⏱ {days} day{days === 1 ? '' : 's'}
-                      </Text>
-                    )}
-                  </View>
-                  {!!sale.notes && <Text style={styles.saleNote}>{sale.notes}</Text>}
-                  {isAdmin && (
-                    <View style={styles.txActions}>
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`Edit sale of ${sale.name} on ${sale.sell_date}`}
-                        onPress={() => handleSellStock(sale)}
-                        style={({ pressed }) => [styles.txActionButton, pressed && styles.txActionPressed]}
-                      >
-                        <Text style={styles.txActionText}>Edit sale</Text>
-                      </Pressable>
-                    </View>
-                  )}
-                </GlassCard>
-              );
-            })}
-          </>
-        )}
-
-        <View style={{ height: 100 }} />
+        <View style={{ height: 110 }} />
       </ScrollView>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -414,6 +238,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingBottom: SPACING.huge,
   },
+  summaryCard: { marginBottom: SPACING.md },
+  summaryLabel: { ...TYPE.secondary, color: COLORS.textSecondary },
+  summaryBig: { ...TYPE.portfolioValue, color: COLORS.textPrimary, marginVertical: SPACING.sm },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
+  summaryRowLabel: { ...TYPE.secondary, color: COLORS.textSecondary },
+  summaryRowValue: { ...TYPE.smallValue, color: COLORS.textPrimary },
+  tabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: COLORS.divider, marginBottom: SPACING.md },
+  tab: { paddingVertical: SPACING.md, marginRight: SPACING.xl, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  tabActive: { borderBottomColor: COLORS.textPrimary },
+  tabText: { ...TYPE.body, color: COLORS.textMuted },
+  tabTextActive: { color: COLORS.textPrimary },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -430,9 +265,8 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   adminAction: {
+    ...TYPE.button,
     color: COLORS.accent,
-    fontSize: FONTS.md,
-    fontWeight: '600',
     padding: SPACING.sm,
   },
   txCard: {
@@ -457,13 +291,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.border,
   },
   realizedLabel: {
-    fontSize: FONTS.xs,
+    ...TYPE.caption,
     color: COLORS.textSecondary,
     marginBottom: 4,
   },
   realizedValue: {
-    fontSize: FONTS.md,
-    fontWeight: '800',
+    ...TYPE.smallValue,
     color: COLORS.textPrimary,
   },
   realizedTotalRow: {
@@ -476,16 +309,14 @@ const styles = StyleSheet.create({
     borderTopColor: COLORS.divider,
   },
   realizedTotalLabel: {
-    fontSize: FONTS.sm,
+    ...TYPE.secondaryMedium,
     color: COLORS.textSecondary,
-    fontWeight: '600',
   },
   realizedTotalValue: {
-    fontSize: FONTS.lg,
-    fontWeight: '800',
+    ...TYPE.plAmount,
   },
   realizedNote: {
-    fontSize: FONTS.xs,
+    ...TYPE.caption,
     color: COLORS.textMuted,
     marginTop: SPACING.sm,
     lineHeight: 16,
@@ -499,8 +330,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
   },
   toggleText: {
-    fontSize: FONTS.sm,
-    fontWeight: '700',
+    ...TYPE.button,
     color: COLORS.accent,
   },
   saleCard: {
@@ -518,12 +348,11 @@ const styles = StyleSheet.create({
     marginRight: SPACING.md,
   },
   saleName: {
-    fontSize: FONTS.md,
-    fontWeight: '700',
+    ...TYPE.cardTitle,
     color: COLORS.textPrimary,
   },
   saleSymbol: {
-    fontSize: FONTS.xs,
+    ...TYPE.caption,
     color: COLORS.textMuted,
     marginTop: 2,
   },
@@ -534,8 +363,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   salePnlText: {
-    fontSize: FONTS.xs,
-    fontWeight: '800',
+    ...TYPE.plPercent,
   },
   tradeStrip: {
     flexDirection: 'row',
@@ -552,19 +380,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tradeLegLabel: {
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.8,
+    ...TYPE.captionMedium,
     color: COLORS.textMuted,
   },
   tradeLegPrice: {
-    fontSize: FONTS.md,
-    fontWeight: '800',
+    ...TYPE.smallValue,
     color: COLORS.textPrimary,
     marginTop: 3,
   },
   tradeLegDate: {
-    fontSize: FONTS.xs,
+    ...TYPE.caption,
     color: COLORS.textSecondary,
     marginTop: 2,
   },
@@ -580,14 +405,13 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   saleDetailLabel: {
+    ...TYPE.caption,
     flex: 1,
-    fontSize: FONTS.xs,
     color: COLORS.textSecondary,
     marginRight: SPACING.sm,
   },
   saleDetailValue: {
-    fontSize: FONTS.sm,
-    fontWeight: '600',
+    ...TYPE.smallValue,
     color: COLORS.textPrimary,
   },
   salePnlRow: {
@@ -597,15 +421,13 @@ const styles = StyleSheet.create({
     borderTopColor: COLORS.divider,
   },
   salePnlLabel: {
-    fontSize: FONTS.sm,
-    fontWeight: '700',
+    ...TYPE.secondaryMedium,
     color: COLORS.textPrimary,
   },
   salePnlValue: {
-    fontSize: FONTS.md,
-    fontWeight: '800',
+    ...TYPE.plAmount,
   },
-  saleNote: { color: COLORS.textSecondary, fontSize: FONTS.sm, marginTop: SPACING.sm },
+  saleNote: { ...TYPE.secondary, color: COLORS.textSecondary, marginTop: SPACING.sm },
   saleFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -617,7 +439,7 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   saleFooterText: {
-    fontSize: FONTS.xs,
+    ...TYPE.caption,
     color: COLORS.textMuted,
   },
   txHeader: {
@@ -632,17 +454,16 @@ const styles = StyleSheet.create({
     marginRight: SPACING.md,
   },
   txName: {
-    fontSize: FONTS.md,
-    fontWeight: '700',
+    ...TYPE.cardTitle,
     color: COLORS.textPrimary,
   },
   txBuyer: {
-    fontSize: FONTS.xs,
+    ...TYPE.caption,
     color: COLORS.textMuted,
     marginTop: 2,
   },
   txDate: {
-    fontSize: FONTS.xs,
+    ...TYPE.caption,
     color: COLORS.textMuted,
     flexShrink: 0,
   },
@@ -650,12 +471,11 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   txDetail: {
-    fontSize: FONTS.sm,
+    ...TYPE.secondary,
     color: COLORS.textSecondary,
   },
   txTotal: {
-    fontSize: FONTS.sm,
-    fontWeight: '700',
+    ...TYPE.smallValue,
     marginTop: SPACING.xs,
   },
   txActions: {
@@ -678,11 +498,10 @@ const styles = StyleSheet.create({
     opacity: 0.75,
   },
   txActionText: {
+    ...TYPE.button,
     color: COLORS.accent,
-    fontSize: FONTS.sm,
-    fontWeight: '700',
   },
   txDeleteText: {
     color: COLORS.loss,
   },
-});
+}));

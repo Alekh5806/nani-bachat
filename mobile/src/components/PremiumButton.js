@@ -1,11 +1,11 @@
 /**
  * Premium Button Component
- * Gradient or glass styled button with press animations
+ * Solid button. Primary is the accent with dark text, no gradient
  */
 import React from 'react';
-import { Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, RADIUS, SPACING, FONTS } from '../theme/colors';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { Icon } from './Icon';
+import { COLORS, RADIUS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
 
 export const PremiumButton = ({
   title,
@@ -15,20 +15,21 @@ export const PremiumButton = ({
   variant = 'primary', // primary, secondary, danger, outline
   icon,
   style,
+  buttonStyle,
   textStyle,
   fullWidth = true,
 }) => {
   const isDisabled = disabled || loading;
 
-  const getGradientColors = () => {
+  const getBackground = () => {
     switch (variant) {
-      case 'primary': return [COLORS.gradientStart, COLORS.gradientEnd];
-      case 'danger': return [COLORS.loss, '#DC2626'];
-      case 'secondary': return [COLORS.surface, COLORS.surfaceLight];
-      case 'outline': return ['transparent', 'transparent'];
-      default: return [COLORS.gradientStart, COLORS.gradientEnd];
+      case 'danger': return COLORS.loss;
+      case 'secondary': return COLORS.surface;
+      case 'outline': return 'transparent';
+      default: return COLORS.accent;
     }
   };
+  const onSolid = variant === 'primary' || variant === 'danger';
 
   return (
     <Pressable
@@ -40,23 +41,30 @@ export const PremiumButton = ({
         style,
       ]}
     >
-      <LinearGradient
-        colors={isDisabled ? [COLORS.buttonDisabled, COLORS.buttonDisabled] : getGradientColors()}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
+      <View
         style={[
           styles.button,
+          { backgroundColor: isDisabled ? COLORS.buttonDisabled : getBackground() },
           variant === 'outline' && styles.outlineButton,
+          buttonStyle,
         ]}
       >
         {loading ? (
-          <ActivityIndicator color="#FFFFFF" size="small" />
+          <ActivityIndicator color={onSolid ? COLORS.onAccent : COLORS.textPrimary} size="small" />
         ) : (
           <>
-            {icon && <Text style={styles.icon}>{icon}</Text>}
+            {icon && (
+              <Icon
+                name={icon}
+                size={18}
+                color={isDisabled ? COLORS.textMuted : onSolid ? COLORS.onAccent : COLORS.textPrimary}
+                style={styles.icon}
+              />
+            )}
             <Text
               style={[
                 styles.text,
+                !onSolid && styles.textOnDark,
                 variant === 'outline' && styles.outlineText,
                 isDisabled && styles.disabledText,
                 textStyle,
@@ -66,12 +74,12 @@ export const PremiumButton = ({
             </Text>
           </>
         )}
-      </LinearGradient>
+      </View>
     </Pressable>
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   fullWidth: {
     width: '100%',
   },
@@ -85,7 +93,7 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
   outlineButton: {
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: COLORS.accent,
   },
   pressed: {
@@ -93,14 +101,14 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.98 }],
   },
   icon: {
-    fontSize: 18,
     marginRight: SPACING.sm,
   },
   text: {
-    color: '#FFFFFF',
-    fontSize: FONTS.md,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    color: COLORS.onAccent,
+    ...TYPE.button,
+  },
+  textOnDark: {
+    color: COLORS.textPrimary,
   },
   outlineText: {
     color: COLORS.accent,
@@ -108,4 +116,4 @@ const styles = StyleSheet.create({
   disabledText: {
     color: COLORS.textMuted,
   },
-});
+}));

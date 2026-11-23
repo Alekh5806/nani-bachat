@@ -14,7 +14,8 @@ import { PremiumInput } from '../components/PremiumInput';
 import { PremiumButton } from '../components/PremiumButton';
 import { GlassCard } from '../components/GlassCard';
 import { DatePickerField, todayString, parseDateString } from '../components/DatePickerField';
-import { COLORS, SPACING, FONTS } from '../theme/colors';
+import { CompanyLogo } from '../components/CompanyLogo';
+import { COLORS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
 
 export const SellStockScreen = ({ navigation, route }) => {
   const stock = route.params?.stock;
@@ -90,7 +91,7 @@ export const SellStockScreen = ({ navigation, route }) => {
       : await sellStock(stock.id, values);
     setLoading(false);
     if (result.success) {
-      Toast.show({ type: 'success', text1: editing ? 'Sale updated' : 'Stock sold', text2: stock.name });
+      Toast.show({ type: 'success', text1: editing ? 'Sale updated' : 'Investment sold', text2: stock.name });
       navigation.goBack();
     } else {
       Toast.show({ type: 'error', text1: editing ? 'Could not update sale' : 'Could not sell', text2: result.error });
@@ -117,7 +118,7 @@ export const SellStockScreen = ({ navigation, route }) => {
   return (
     <View style={styles.container}>
       <ScreenHeader
-        title={editing ? 'Edit Sale' : 'Sell Stock'}
+        title={editing ? 'Edit Sale' : 'Sell Investment'}
         subtitle={editing ? undefined : 'Record sale transaction'}
         showBack
         onBack={() => navigation.goBack()}
@@ -133,11 +134,9 @@ export const SellStockScreen = ({ navigation, route }) => {
           keyboardShouldPersistTaps="handled"
         >
           {stock && (
-            <GlassCard gradient gradientColors={[COLORS.surface, COLORS.cardBg]} style={styles.heroCard}>
+            <GlassCard style={styles.heroCard}>
               <View style={styles.heroHeader}>
-                <View style={styles.symbolBadge}>
-                  <Text style={styles.symbolBadgeText}>{stock.symbol?.replace('.NS', '').substring(0, 4)}</Text>
-                </View>
+                <CompanyLogo symbol={stock.symbol} name={stock.name} size={44} style={{ marginRight: SPACING.md }} />
                 <View style={styles.heroTitleBlock}>
                   <Text style={styles.stockName} numberOfLines={1} adjustsFontSizeToFit>{stock.name}</Text>
                   <Text style={styles.stockMeta}>{stock.symbol} • Bought {stock.buy_date}</Text>
@@ -170,7 +169,7 @@ export const SellStockScreen = ({ navigation, route }) => {
 
           {!editing && (
             <>
-              <Text style={styles.sectionLabel}>SALE QUANTITY</Text>
+              <Text style={styles.sectionLabel}>Sale quantity</Text>
               <GlassCard style={styles.formCard}>
                 <PremiumInput
                   label="Quantity To Sell"
@@ -211,7 +210,7 @@ export const SellStockScreen = ({ navigation, route }) => {
             </>
           )}
 
-          <Text style={styles.sectionLabel}>SALE DETAILS</Text>
+          <Text style={styles.sectionLabel}>Sale details</Text>
           <GlassCard style={styles.formCard}>
             <PremiumInput
               label="Sell Price Per Share"
@@ -250,7 +249,7 @@ export const SellStockScreen = ({ navigation, route }) => {
             />
           </GlassCard>
 
-          <Text style={styles.sectionLabel}>SALE PREVIEW</Text>
+          <Text style={styles.sectionLabel}>Sale preview</Text>
           <GlassCard borderGlow style={styles.previewCard}>
             <View style={styles.summaryGrid}>
               <View style={styles.summaryItem}>
@@ -300,7 +299,7 @@ export const SellStockScreen = ({ navigation, route }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -328,9 +327,9 @@ const styles = StyleSheet.create({
     marginRight: SPACING.md,
   },
   symbolBadgeText: {
-    color: COLORS.textInverse,
+    color: COLORS.onAccent,
     fontSize: FONTS.sm,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   heroTitleBlock: {
     flex: 1,
@@ -338,12 +337,11 @@ const styles = StyleSheet.create({
     marginRight: SPACING.sm,
   },
   stockName: {
-    fontSize: FONTS.lg,
-    fontWeight: '800',
+    ...TYPE.cardTitle,
     color: COLORS.textPrimary,
   },
   stockMeta: {
-    fontSize: FONTS.sm,
+    ...TYPE.caption,
     color: COLORS.textMuted,
     marginTop: SPACING.xs,
   },
@@ -362,8 +360,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.loss,
   },
   modeBadgeText: {
-    fontSize: FONTS.xs,
-    fontWeight: '800',
+    ...TYPE.captionMedium,
   },
   partialBadgeText: {
     color: COLORS.warning,
@@ -383,14 +380,13 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   holdingLabel: {
-    fontSize: FONTS.xs,
+    ...TYPE.caption,
     color: COLORS.textMuted,
     marginBottom: SPACING.xs,
   },
   holdingValue: {
-    fontSize: FONTS.sm,
+    ...TYPE.smallValue,
     color: COLORS.textPrimary,
-    fontWeight: '800',
   },
   holdingDivider: {
     width: 1,
@@ -422,7 +418,7 @@ const styles = StyleSheet.create({
   },
   presetButtonActive: {
     borderColor: COLORS.accent,
-    backgroundColor: 'rgba(0, 208, 156, 0.12)',
+    backgroundColor: COLORS.accent + '22',
   },
   presetButtonDisabled: {
     opacity: 0.45,
@@ -431,9 +427,8 @@ const styles = StyleSheet.create({
     opacity: 0.78,
   },
   presetText: {
+    ...TYPE.button,
     color: COLORS.textSecondary,
-    fontSize: FONTS.sm,
-    fontWeight: '700',
   },
   presetTextActive: {
     color: COLORS.accent,
@@ -453,13 +448,12 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
   },
   summaryLabel: {
-    fontSize: FONTS.xs,
+    ...TYPE.secondary,
     color: COLORS.textMuted,
     marginBottom: SPACING.xs,
   },
   summaryValue: {
-    fontSize: FONTS.sm,
-    fontWeight: '700',
+    ...TYPE.smallValue,
     color: COLORS.textPrimary,
   },
   previewCard: {
@@ -474,28 +468,24 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
   },
   pnlLabel: {
-    fontSize: FONTS.xs,
+    ...TYPE.caption,
     color: COLORS.textMuted,
     marginBottom: SPACING.xs,
   },
   pnlValue: {
-    fontSize: FONTS.xl,
-    fontWeight: '900',
+    ...TYPE.plAmount,
   },
   pnlPercent: {
-    fontSize: FONTS.md,
-    fontWeight: '900',
+    ...TYPE.plPercent,
   },
   remainingText: {
-    fontSize: FONTS.sm,
+    ...TYPE.secondary,
     color: COLORS.textSecondary,
     marginTop: SPACING.md,
   },
   sectionLabel: {
-    fontSize: FONTS.sm,
-    fontWeight: '700',
+    ...TYPE.captionMedium,
     color: COLORS.textSecondary,
     marginBottom: SPACING.md,
-    letterSpacing: 0.5,
   },
-});
+}));

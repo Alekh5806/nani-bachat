@@ -6,35 +6,38 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { AppIcon } from '../components/Icon';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { usePortfolioStore } from '../store/portfolioStore';
 import { useAuthStore } from '../store/authStore';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { MemberRow } from '../components/MemberRow';
+import { OwnershipCard } from '../components/OwnershipCard';
 import { StatCard } from '../components/StatCard';
 import { SectionHeader } from '../components/SectionHeader';
-import { COLORS, SPACING, FONTS } from '../theme/colors';
+import { COLORS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
 
 export const MembersScreen = ({ navigation }) => {
   const { user } = useAuthStore();
-  const { members, fetchMembers } = usePortfolioStore();
+  const { members, fetchMembers, dashboard, fetchDashboard } = usePortfolioStore();
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchMembers();
+    fetchDashboard();
   }, []);
 
   useFocusEffect(
     useCallback(() => {
       fetchMembers();
-    }, [fetchMembers])
+      fetchDashboard();
+    }, [fetchMembers, fetchDashboard])
   );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchMembers();
+    await Promise.all([fetchMembers(), fetchDashboard()]);
     setRefreshing(false);
   }, []);
 
@@ -50,7 +53,7 @@ export const MembersScreen = ({ navigation }) => {
         subtitle={`${members.length} active members`}
         rightAction={() => navigation.navigate('Contributions')}
         rightIcon="💰"
-        rightLabel="Payments"
+        rightLabel="Contributions"
       />
 
       <ScrollView
@@ -61,6 +64,9 @@ export const MembersScreen = ({ navigation }) => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} />
         }
       >
+        {/* ── Ownership ── */}
+        <OwnershipCard my={dashboard?.my_portfolio} members={dashboard?.active_members || members.length} />
+
         {/* ── Summary ── */}
         <View style={styles.statsRow}>
           <StatCard
@@ -85,15 +91,15 @@ export const MembersScreen = ({ navigation }) => {
               style={[styles.adminButton, styles.addButton]}
               onPress={() => navigation.navigate('AddMember')}
             >
-              <Ionicons name="person-add-outline" size={18} color="#FFF" />
+              <AppIcon name="person-add-outline" size={18} color={COLORS.onAccent} />
               <Text style={styles.adminButtonText}>Add Member</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.adminButton, styles.paymentsButton]}
               onPress={() => navigation.navigate('Contributions')}
             >
-              <Ionicons name="cash-outline" size={18} color={COLORS.accent} />
-              <Text style={[styles.adminButtonText, styles.paymentsButtonText]}>Payments</Text>
+              <AppIcon name="cash-outline" size={18} color={COLORS.accent} />
+              <Text style={[styles.adminButtonText, styles.paymentsButtonText]}>Contributions</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -101,16 +107,16 @@ export const MembersScreen = ({ navigation }) => {
         {/* ── Member List ── */}
         <SectionHeader title="All Members" icon="👥" />
         {members.map((member, index) => (
-          <MemberRow key={member.id || index} member={member} />
+          <MemberRow key={member.id || index} member={member} onPress={() => navigation.navigate('MemberDetail', { member })} />
         ))}
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: 110 }} />
       </ScrollView>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -153,11 +159,10 @@ const styles = StyleSheet.create({
     borderColor: COLORS.accent + '50',
   },
   adminButtonText: {
-    color: '#FFF',
-    fontSize: FONTS.sm,
-    fontWeight: '800',
+    ...TYPE.button,
+    color: COLORS.onAccent,
   },
   paymentsButtonText: {
     color: COLORS.accent,
   },
-});
+}));

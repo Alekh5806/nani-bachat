@@ -10,6 +10,7 @@ from django.contrib.auth import get_user_model
 
 from .models import PortfolioSnapshot
 from .serializers import PortfolioSnapshotSerializer
+from .logos import get_logo_urls, MAX_SYMBOLS
 from .services import PortfolioService, StockPriceService
 from .tasks import update_all_stock_prices
 from accounts.permissions import IsAdmin
@@ -25,7 +26,7 @@ class DashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        StockPriceService.refresh_active_stock_prices()
+        StockPriceService.refresh_in_background()
 
         # Portfolio summary
         portfolio = PortfolioService.get_portfolio_summary()
@@ -323,3 +324,13 @@ class StockSearchView(APIView):
             'results': results,
             'count': len(results),
         })
+
+
+class CompanyLogosView(APIView):
+    """Logo URLs for a batch of symbols: GET /logos/?symbols=TCS.NS,BEL.NS"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        raw = request.query_params.get('symbols', '')
+        symbols = [s for s in raw.split(',') if s.strip()][:MAX_SYMBOLS]
+        return Response({'logos': get_logo_urls(symbols)})

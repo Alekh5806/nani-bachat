@@ -13,5 +13,6 @@ urlpatterns = [
     path('growth/', views.PortfolioGrowthView.as_view(), name='portfolio-growth'),
     path('allocation/', views.AllocationView.as_view(), name='allocation'),
     path('refresh-prices/', views.RefreshPricesView.as_view(), name='refresh-prices'),
+    path('logos/', views.CompanyLogosView.as_view(), name='company-logos'),
     path('search-stocks/', views.StockSearchView.as_view(), name='stock-search'),
 ]
