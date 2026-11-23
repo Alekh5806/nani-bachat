@@ -4,7 +4,7 @@
  */
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, RefreshControl, Pressable
+  View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Platform
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -16,6 +16,7 @@ import { StatCard } from '../components/StatCard';
 import { StockRow } from '../components/StockRow';
 import { SectionHeader } from '../components/SectionHeader';
 import { GlassCard } from '../components/GlassCard';
+import { NseQuotePreview } from '../components/NseQuotePreview';
 import { COLORS, SPACING, FONTS } from '../theme/colors';
 
 const PRICE_REFRESH_INTERVAL_MS = 60000;
@@ -203,6 +204,9 @@ export const InvestmentsScreen = ({ navigation }) => {
 
         {/* ── Stock Holdings ── */}
         <SectionHeader title="All Holdings" icon="📊" />
+        {(Platform.OS === 'ios' || Platform.OS === 'android') && (
+          <NseQuotePreview holdings={stockSummary?.stocks || []} />
+        )}
         {(stockSummary?.stocks || []).map((stock, index) => (
           <StockRow
             key={`${stock.symbol || 'stock'}-${index}`}
