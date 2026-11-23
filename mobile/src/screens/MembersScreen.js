@@ -17,6 +17,7 @@ import { OwnershipCard } from '../components/OwnershipCard';
 import { StatCard } from '../components/StatCard';
 import { SectionHeader } from '../components/SectionHeader';
 import { COLORS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
+import { TabBarSpacer } from '../components/TabBarSpacer';
 
 export const MembersScreen = ({ navigation }) => {
   const { user } = useAuthStore();
@@ -110,7 +111,7 @@ export const MembersScreen = ({ navigation }) => {
           <MemberRow key={member.id || index} member={member} onPress={() => navigation.navigate('MemberDetail', { member })} />
         ))}
 
-        <View style={{ height: 110 }} />
+        <TabBarSpacer />
       </ScrollView>
     </View>
   );
@@ -124,7 +125,7 @@ const styles = themedStyles(() => ({
   scrollView: { flex: 1 },
   scrollContent: {
     paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.huge,
+    paddingBottom: 0,
   },
   statsRow: {
     flexDirection: 'row',

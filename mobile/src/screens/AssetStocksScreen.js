@@ -12,6 +12,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { CompanyLogo } from '../components/CompanyLogo';
 import { fmtFull } from '../utils/currency';
 import { COLORS, SPACING, RADIUS, themedStyles, TYPE } from '../theme/colors';
+import { TabBarSpacer } from '../components/TabBarSpacer';
 
 export const AssetStocksScreen = ({ navigation }) => {
   const { dashboard, stockSummary, fetchDashboard, fetchStockSummary } = usePortfolioStore();
@@ -92,7 +93,7 @@ export const AssetStocksScreen = ({ navigation }) => {
             </Pressable>
           );
         })}
-        <View style={{ height: 110 }} />
+        <TabBarSpacer />
       </ScrollView>
     </View>
   );
@@ -100,7 +101,7 @@ export const AssetStocksScreen = ({ navigation }) => {
 
 const styles = themedStyles(() => ({
   container: { flex: 1, backgroundColor: COLORS.background },
-  content: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.huge },
+  content: { paddingHorizontal: SPACING.lg, paddingBottom: 0 },
   summary: {
     backgroundColor: COLORS.cardBg,
     borderRadius: RADIUS.xl,
@@ -118,7 +119,7 @@ const styles = themedStyles(() => ({
     marginTop: SPACING.xl,
     marginBottom: SPACING.sm,
   },
-  headText: { ...TYPE.secondary, fontSize: 9, color: COLORS.textMuted },
+  headText: { ...TYPE.infoTitle, color: COLORS.textMuted },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.md },
   rowDivider: { borderBottomWidth: 1, borderBottomColor: COLORS.divider },
   rowMain: { flex: 1, minWidth: 0, marginHorizontal: SPACING.md },

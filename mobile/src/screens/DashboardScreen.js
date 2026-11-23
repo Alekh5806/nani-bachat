@@ -19,6 +19,7 @@ import { GrowthChart, formatChartPoint } from '../components/GrowthChart';
 import { DashboardSkeleton } from '../components/LoadingSkeleton';
 import { CompanyLogo } from '../components/CompanyLogo';
 import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
+import { TabBarSpacer } from '../components/TabBarSpacer';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const PRICE_REFRESH_INTERVAL_MS = 60000;
@@ -307,7 +308,7 @@ export const DashboardScreen = () => {
           </View>}
         </Pressable>
 
-        <View style={{ height: 110 }} />
+        <TabBarSpacer />
       </ScrollView>
     </View>
   );
@@ -466,8 +467,7 @@ const styles = themedStyles(() => ({
     marginBottom: SPACING.sm,
   },
   legendHeaderText: {
-    ...TYPE.secondary,
-    fontSize: 9,
+    ...TYPE.infoTitle,
     color: COLORS.textMuted,
   },
   divTotal: { ...TYPE.sectionTitle, fontSize: 28, color: COLORS.textPrimary },

@@ -19,6 +19,7 @@ import { PremiumButton } from '../components/PremiumButton';
 import { SectionHeader } from '../components/SectionHeader';
 import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
 import api from '../config/api';
+import { TabBarSpacer } from '../components/TabBarSpacer';
 
 export const ProfileScreen = ({ navigation }) => {
   const { user, logout, fetchProfile } = useAuthStore();
@@ -174,7 +175,7 @@ export const ProfileScreen = ({ navigation }) => {
           <Text style={styles.version}>Version 1.0.0</Text>
         </GlassCard>
 
-        <View style={{ height: 110 }} />
+        <TabBarSpacer />
       </ScrollView>
     </View>
   );
@@ -188,7 +189,7 @@ const styles = themedStyles(() => ({
   scrollView: { flex: 1 },
   scrollContent: {
     paddingHorizontal: SPACING.xl,
-    paddingBottom: SPACING.huge,
+    paddingBottom: 0,
   },
   profileCard: {
     alignItems: 'center',

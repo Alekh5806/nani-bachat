@@ -14,6 +14,7 @@ import { GlassCard } from '../components/GlassCard';
 import { SectionHeader } from '../components/SectionHeader';
 import { CompanyLogo } from '../components/CompanyLogo';
 import { COLORS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
+import { TabBarSpacer } from '../components/TabBarSpacer';
 
 const money = (v) =>
   `₹${(Number(v) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -140,7 +141,7 @@ export const HoldingDetailScreen = ({ route, navigation }) => {
             </GlassCard>
           );
         })}
-        <View style={{ height: 110 }} />
+        <TabBarSpacer />
       </ScrollView>
     </View>
   );
@@ -148,7 +149,7 @@ export const HoldingDetailScreen = ({ route, navigation }) => {
 
 const styles = themedStyles(() => ({
   container: { flex: 1, backgroundColor: COLORS.background },
-  content: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.huge },
+  content: { paddingHorizontal: SPACING.lg, paddingBottom: 0 },
   card: { marginBottom: SPACING.md },
   heroLogo: { marginBottom: SPACING.md },
   row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },

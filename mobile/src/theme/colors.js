@@ -228,6 +228,8 @@ export const TYPE = {
   body: { fontSize: 14, fontWeight: '500' },           // default primary text
   secondary: { fontSize: 13, fontWeight: '400' },      // supporting text
   secondaryMedium: { fontSize: 13, fontWeight: '500' },
+  // Rule: column / info titles above a list (for example "Stocks (10)" and "Current (Invested)") use infoTitle.
+  infoTitle: { fontSize: 9, fontWeight: '400' },
   caption: { fontSize: 12, fontWeight: '400' },        // metadata: phone, date, symbol
   captionMedium: { fontSize: 12, fontWeight: '500' },  // badges, small links
   button: { fontSize: 14, fontWeight: '600' },

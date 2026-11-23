@@ -4,7 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, Text, StyleSheet, Platform, Animated, PanResponder } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
-import { Home2, Chart2, People, Wallet3, Profile } from 'iconsax-react-native';
+import { Home2, Chart1, Chart21, Profile2User, Wallet3, Profile } from 'iconsax-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, TYPE, themedStyles } from '../theme/colors';
 
@@ -22,34 +22,40 @@ import { ContributionsScreen } from '../screens/ContributionsScreen';
 import { DividendsScreen } from '../screens/DividendsScreen';
 import { AddDividendScreen } from '../screens/AddDividendScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { TAB_BAR_HEIGHT } from '../components/TabBarSpacer';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 const TAB_LABELS = {
   Dashboard: 'Home',
-  Investments: 'Investments',
-  Members: 'Members',
-  Dividends: 'Dividends',
+  Investments: 'Invest',
+  Members: 'Member',
+  Dividends: 'Dividend',
   Profile: 'Profile',
 };
 
 // Iconsax icons: Linear when inactive, Bold (filled) when active.
 const TAB_ICONS = {
   Dashboard: Home2,
-  Investments: Chart2,
-  Members: People,
+  Investments: Chart1,
+  Members: Profile2User,
   Dividends: Wallet3,
   Profile: Profile,
 };
 
 // True on iOS 26+ builds: the bar uses the system Liquid Glass material.
 // Everywhere else (Android, web, older iOS) it falls back to a blur.
+// Chart1's Bold is a different shape, so Invest uses Chart21's Bold (filled bars) when active.
+const ACTIVE_ICONS = {
+  Investments: Chart21,
+};
+
 const HAS_LIQUID_GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
 
 // Sizes follow Apple's tab bar: 22pt icons, 10pt labels
-const BAR_HEIGHT = 64;
-const BAR_PADDING = 4;
+const BAR_HEIGHT = TAB_BAR_HEIGHT;
+const BAR_PADDING = 5;
 
 /**
  * Floating capsule tab bar. The highlight is one capsule behind the active
@@ -187,7 +193,7 @@ const FloatingTabBar = ({ state, navigation }) => {
         )}
         {routes.map((route, index) => {
           const focused = activeIndex === index;
-          const Glyph = TAB_ICONS[route.name];
+          const Glyph = (focused && ACTIVE_ICONS[route.name]) || TAB_ICONS[route.name];
           const color = focused ? COLORS.accent : COLORS.textPrimary;
           return (
             <View
@@ -313,6 +319,7 @@ const styles = themedStyles(() => ({
   },
   label: {
     ...TYPE.tab,
+    fontSize: 10,
     lineHeight: 16,
     // Wider than a tab on purpose: the text is centred under its icon and may
     // extend into the quiet space beside it, so it is never cut with an ellipsis.

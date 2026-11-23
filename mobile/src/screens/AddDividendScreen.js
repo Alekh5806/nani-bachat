@@ -16,6 +16,7 @@ import { GlassCard } from '../components/GlassCard';
 import { DatePickerField, todayString, formatDateDisplay } from '../components/DatePickerField';
 import { CompanyLogo } from '../components/CompanyLogo';
 import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
+import { TabBarSpacer } from '../components/TabBarSpacer';
 
 export const AddDividendScreen = ({ navigation }) => {
   const { createDividend, stocks, fetchStocks, members, fetchMembers } = usePortfolioStore();
@@ -214,7 +215,7 @@ export const AddDividendScreen = ({ navigation }) => {
             style={{ marginTop: SPACING.lg }}
           />
 
-          <View style={{ height: 110 }} />
+          <TabBarSpacer />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -229,7 +230,7 @@ const styles = themedStyles(() => ({
   scrollView: { flex: 1 },
   scrollContent: {
     paddingHorizontal: SPACING.xl,
-    paddingBottom: SPACING.huge,
+    paddingBottom: 0,
   },
   sectionLabel: {
     ...TYPE.captionMedium,

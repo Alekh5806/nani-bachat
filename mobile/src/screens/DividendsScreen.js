@@ -14,6 +14,7 @@ import { GlassCard } from '../components/GlassCard';
 import { Icon } from '../components/Icon';
 import { CompanyLogo } from '../components/CompanyLogo';
 import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
+import { TabBarSpacer } from '../components/TabBarSpacer';
 
 export const DividendsScreen = ({ navigation }) => {
   const { user } = useAuthStore();
@@ -84,7 +85,7 @@ export const DividendsScreen = ({ navigation }) => {
         </GlassCard>
 
         <View style={styles.listHeader}>
-          <Text style={styles.listHeaderText}>Dividends ({dividends.length})</Text>
+          <Text style={styles.listHeaderText}>Dividends</Text>
           <Text style={styles.listHeaderText}>Total amount (Shares)</Text>
         </View>
 
@@ -124,7 +125,7 @@ export const DividendsScreen = ({ navigation }) => {
           </GlassCard>
         )}
 
-        <View style={{ height: 110 }} />
+        <TabBarSpacer />
       </ScrollView>
     </View>
   );
@@ -138,13 +139,13 @@ const styles = themedStyles(() => ({
   scrollView: { flex: 1 },
   scrollContent: {
     paddingHorizontal: SPACING.xl,
-    paddingBottom: SPACING.huge,
+    paddingBottom: 0,
   },
   summaryCard: { marginBottom: SPACING.lg },
   summaryValue: { ...TYPE.portfolioValue, color: COLORS.textPrimary },
   summaryLabel: { ...TYPE.secondary, color: COLORS.textSecondary, marginTop: SPACING.xs },
   listHeader: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: SPACING.md },
-  listHeaderText: { ...TYPE.secondary, color: COLORS.textSecondary },
+  listHeaderText: { ...TYPE.infoTitle, color: COLORS.textSecondary },
   band: {
     flexDirection: 'row', justifyContent: 'space-between',
     backgroundColor: COLORS.surface, paddingVertical: SPACING.md,
