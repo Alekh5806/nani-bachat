@@ -228,7 +228,7 @@ def cleanup_old_contributions(request):
     deleted_count = old_unpaid.count()
     deleted_months = list(old_unpaid.values_list('month', flat=True).distinct().order_by('month'))
     month_names = [month_name(m) for m in deleted_months]
-    old_unpaid.delete()
+    old_unpaid.update(deleted_at=timezone.now())  # soft delete: rows are kept
 
     return Response({
         'message': 'Removed {} unpaid contributions'.format(deleted_count),
@@ -260,7 +260,7 @@ def delete_month_contributions(request):
 
     contributions = Contribution.objects.filter(month=target_month)
     deleted_count = contributions.count()
-    contributions.delete()
+    contributions.update(deleted_at=timezone.now())  # soft delete: rows are kept
 
     display = month_name(target_month)
     return Response({

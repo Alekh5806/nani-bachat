@@ -333,3 +333,61 @@ class StockCreateSerializerCashValidationTests(TestCase):
 
         self.assertFalse(serializer.is_valid())
         self.assertIn('non_field_errors', serializer.errors)
+
+
+class StockSoftDeleteTests(TestCase):
+    """Deleting a purchase hides it everywhere but keeps the row."""
+
+    def setUp(self):
+        # The summary view starts a background live-price refresh; keep it out of the tests.
+        refresh = patch('portfolio.services.StockPriceService.refresh_in_background')
+        refresh.start()
+        self.addCleanup(refresh.stop)
+        self.admin = get_user_model().objects.create_user(phone='9000000011', name='Admin', role='admin')
+        self.client = APIClient()
+        self.client.force_authenticate(self.admin)
+        self.keep = Stock.objects.create(
+            symbol='TCS.NS', name='TCS', quantity=2, buy_price=Decimal('100.00'),
+            buyer=self.admin, buy_date=date(2026, 1, 1),
+        )
+        self.gone = Stock.objects.create(
+            symbol='INFY.NS', name='Infosys', quantity=3, buy_price=Decimal('50.00'),
+            buyer=self.admin, buy_date=date(2026, 1, 2),
+        )
+        self.dividend = Dividend.objects.create(
+            stock=self.gone, dividend_per_share=Decimal('2.00'), ex_date=date(2026, 2, 1),
+        )
+
+    def delete_gone(self):
+        return self.client.delete(reverse('investments:stock-delete', args=[self.gone.pk]))
+
+    def test_delete_keeps_the_row_and_marks_it_deleted(self):
+        self.assertEqual(self.delete_gone().status_code, 204)
+        row = Stock.all_objects.get(pk=self.gone.pk)
+        self.assertIsNotNone(row.deleted_at)
+        self.assertFalse(Stock.objects.filter(pk=self.gone.pk).exists())
+
+    def test_deleted_purchase_is_hidden_from_lists_and_summary(self):
+        self.delete_gone()
+        listed = self.client.get(reverse('investments:stock-list')).data
+        rows = listed['results'] if isinstance(listed, dict) and 'results' in listed else listed
+        self.assertEqual([r['symbol'] for r in rows], ['TCS.NS'])
+        summary = self.client.get(reverse('investments:stock-summary')).data
+        self.assertEqual([s['symbol'] for s in summary['stocks']], ['TCS.NS'])
+        self.assertEqual(self.client.get(reverse('investments:stock-detail', args=[self.gone.pk])).status_code, 404)
+
+    def test_dividends_of_a_deleted_purchase_are_hidden_too(self):
+        self.assertEqual(Dividend.objects.count(), 1)
+        self.delete_gone()
+        self.assertEqual(Dividend.objects.count(), 0)
+        self.assertEqual(Dividend.all_objects.count(), 1)
+
+    def test_deleting_twice_returns_404(self):
+        self.delete_gone()
+        self.assertEqual(self.delete_gone().status_code, 404)
+
+    def test_only_admin_can_delete(self):
+        member = get_user_model().objects.create_user(phone='9000000012', name='Member')
+        self.client.force_authenticate(member)
+        self.assertEqual(self.delete_gone().status_code, 403)
+        self.assertTrue(Stock.objects.filter(pk=self.gone.pk).exists())

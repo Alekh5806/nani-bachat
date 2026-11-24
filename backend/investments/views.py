@@ -7,6 +7,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
+from django.utils import timezone
 from django.db.models import Sum, F, DecimalField
 from django.db.models.functions import Coalesce
 
@@ -104,9 +105,13 @@ class SaleEditView(generics.UpdateAPIView):
 
 
 class StockDeleteView(generics.DestroyAPIView):
-    """Delete a stock entry (admin only)."""
+    """Delete a stock entry (admin only). Soft delete: the row is kept, hidden everywhere."""
     queryset = Stock.objects.all()
     permission_classes = [IsAdmin]
+
+    def perform_destroy(self, instance):
+        instance.deleted_at = timezone.now()
+        instance.save(update_fields=['deleted_at', 'updated_at'])
 
 
 class StockSummaryView(generics.GenericAPIView):

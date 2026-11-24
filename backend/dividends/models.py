@@ -7,11 +7,27 @@ from investments.models import Stock
 from decimal import Decimal
 
 
+class ActiveDividendManager(models.Manager):
+    """
+    Default manager: hides deleted dividends, and the dividends of a deleted
+    purchase (they go with it).
+    """
+
+    def get_queryset(self):
+        return super().get_queryset().filter(
+            deleted_at__isnull=True, stock__deleted_at__isnull=True,
+        )
+
+
 class Dividend(models.Model):
     """
     Dividend received from a stock holding.
     Total dividend = dividend_per_share × stock.quantity
     Per member share = total_dividend × member_ownership_percentage
+
+    Deleting is a soft delete: deleted_at is set and the row stays in the
+    database. Dividend.objects never returns deleted rows; use
+    Dividend.all_objects to see them (for example to restore one).
     """
     stock = models.ForeignKey(
         Stock,
@@ -34,8 +50,15 @@ class Dividend(models.Model):
         help_text='Date dividend was paid'
     )
     notes = models.TextField(blank=True, default='')
+    deleted_at = models.DateTimeField(
+        null=True, blank=True, db_index=True,
+        help_text='Set when the dividend is deleted; the row is kept so it can be restored.',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = ActiveDividendManager()
+    all_objects = models.Manager()
 
     class Meta:
         ordering = ['-ex_date']

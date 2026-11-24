@@ -9,10 +9,21 @@ from django.core.exceptions import ValidationError
 from decimal import Decimal
 
 
+class ActiveStockManager(models.Manager):
+    """Default manager: hides soft-deleted purchases from every normal query."""
+
+    def get_queryset(self):
+        return super().get_queryset().filter(deleted_at__isnull=True)
+
+
 class Stock(models.Model):
     """
     Represents a stock holding in the pool's portfolio.
     Each entry is a purchase transaction.
+
+    Deleting a purchase is a soft delete: deleted_at is set and the row stays in
+    the database. Stock.objects never returns deleted rows; use
+    Stock.all_objects to see them (for example to restore one).
     """
     symbol = models.CharField(
         max_length=20,
@@ -66,8 +77,15 @@ class Stock(models.Model):
         help_text='Total brokerage paid on this sale'
     )
     sell_date = models.DateField(null=True, blank=True)
+    deleted_at = models.DateTimeField(
+        null=True, blank=True, db_index=True,
+        help_text='Set when the purchase is deleted; the row is kept so it can be restored.',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = ActiveStockManager()
+    all_objects = models.Manager()
 
     class Meta:
         ordering = ['-buy_date', 'symbol']

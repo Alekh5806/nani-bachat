@@ -12,9 +12,11 @@ from decimal import Decimal
 from io import StringIO
 from unittest.mock import patch
 
+from django.contrib.auth import get_user_model
 from django.core.management import call_command
 
 from django.test import TestCase
+from rest_framework.test import APIClient
 
 from accounts.models import Member
 from contributions.models import Contribution, MonthlyPool
@@ -496,3 +498,41 @@ class CashCustodyTests(TestCase):
         # Expected includes what is still owed; available counts only real cash.
         self.assertGreater(plan['expected_to_buyer'], plan['available_cash'])
         self.assertEqual(plan['available_cash'], status['available_cash'])
+
+
+class ContributionSoftDeleteTests(TestCase):
+    """Deleting contributions hides them but keeps the rows; the month can be regenerated."""
+
+    def setUp(self):
+        self.admin = get_user_model().objects.create_user(phone='9000000031', name='Admin', role='admin')
+        self.friend = get_user_model().objects.create_user(phone='9000000032', name='Friend')
+        self.client = APIClient()
+        self.client.force_authenticate(self.admin)
+        self.paid = Contribution.objects.create(member=self.admin, month='2026-05', amount=1000, status='paid')
+        self.unpaid = Contribution.objects.create(member=self.friend, month='2026-05', amount=1000, status='unpaid')
+
+    def test_delete_month_keeps_rows_and_hides_them(self):
+        response = self.client.post('/api/contributions/delete-month/', {'month': '2026-05'}, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['deleted_count'], 2)
+        self.assertEqual(Contribution.objects.filter(month='2026-05').count(), 0)
+        self.assertEqual(Contribution.all_objects.filter(month='2026-05', deleted_at__isnull=False).count(), 2)
+
+    def test_cleanup_only_removes_unpaid_and_keeps_the_rows(self):
+        response = self.client.post('/api/contributions/cleanup/', {'month': '2026-05'}, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['deleted_count'], 1)
+        self.assertEqual(list(Contribution.objects.values_list('pk', flat=True)), [self.paid.pk])
+        self.assertIsNotNone(Contribution.all_objects.get(pk=self.unpaid.pk).deleted_at)
+
+    def test_month_can_be_generated_again_after_a_delete(self):
+        self.client.post('/api/contributions/delete-month/', {'month': '2026-05'}, format='json')
+        response = self.client.post('/api/contributions/generate/', {'month': '2026-05', 'amount': 1000}, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(Contribution.objects.filter(month='2026-05').count(), 2)
+        self.assertEqual(Contribution.all_objects.filter(month='2026-05').count(), 4)
+
+    def test_one_live_row_per_member_and_month_is_still_enforced(self):
+        from django.db import IntegrityError, transaction
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Contribution.objects.create(member=self.admin, month='2026-05', amount=500)

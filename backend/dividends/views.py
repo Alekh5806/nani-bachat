@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Sum
+from django.utils import timezone
 from django.contrib.auth import get_user_model
 
 from .models import Dividend
@@ -51,9 +52,13 @@ class DividendUpdateView(generics.UpdateAPIView):
 
 
 class DividendDeleteView(generics.DestroyAPIView):
-    """Delete a dividend (admin only)."""
+    """Delete a dividend (admin only). Soft delete: the row is kept, hidden everywhere."""
     queryset = Dividend.objects.all()
     permission_classes = [IsAdmin]
+
+    def perform_destroy(self, instance):
+        instance.deleted_at = timezone.now()
+        instance.save(update_fields=['deleted_at', 'updated_at'])
 
 
 class DividendSummaryView(APIView):

@@ -8,10 +8,23 @@ from django.core.validators import MinValueValidator
 from decimal import Decimal
 
 
+class ActiveContributionManager(models.Manager):
+    """Default manager: hides soft-deleted contributions from every normal query."""
+
+    def get_queryset(self):
+        return super().get_queryset().filter(deleted_at__isnull=True)
+
+
 class Contribution(models.Model):
     """
     Monthly contribution record for each member.
     Default amount is ₹1000 per month.
+
+    Deleting is a soft delete: deleted_at is set and the row stays in the
+    database. Contribution.objects never returns deleted rows; use
+    Contribution.all_objects to see them (for example to restore one). A member
+    can have only one live row per month, but deleted rows do not count, so the
+    month can be generated again after a delete.
     """
     STATUS_CHOICES = [
         ('paid', 'Paid'),
@@ -82,11 +95,24 @@ class Contribution(models.Model):
     )
     paid_date = models.DateField(null=True, blank=True)
     notes = models.TextField(blank=True, default='')
+    deleted_at = models.DateTimeField(
+        null=True, blank=True, db_index=True,
+        help_text='Set when the contribution is deleted; the row is kept so it can be restored.',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    objects = ActiveContributionManager()
+    all_objects = models.Manager()
+
     class Meta:
-        unique_together = ['member', 'month']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['member', 'month'],
+                condition=models.Q(deleted_at__isnull=True),
+                name='unique_live_contribution_per_member_month',
+            ),
+        ]
         ordering = ['-month', 'member__name']
         verbose_name = 'Contribution'
         verbose_name_plural = 'Contributions'
