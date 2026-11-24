@@ -1,0 +1,46 @@
+{
+  "$comment": "Platform-neutral design tokens for Nani Bachat. Source of truth in code: mobile/src/theme/colors.js. Keep both in sync.",
+  "font": { "family": "Inter", "weights": [400, 500, 600, 700], "note": "Numbers: use tabular figures only if a screen needs aligned columns. Nothing else uses another family." },
+  "spacing": { "xs": 4, "sm": 8, "md": 12, "lg": 16, "xl": 20, "xxl": 24, "xxxl": 32, "huge": 48, "grid": 4, "nudge": 2 },
+  "radius": { "sm": 6, "md": 10, "lg": 14, "xl": 18, "xxl": 22, "full": 9999, "card": 18, "control": 10, "avatarLogo": 8 },
+  "typography": {
+    "screenTitle": { "size": 24, "weight": 700 },
+    "sectionTitle": { "size": 18, "weight": 700 },
+    "cardTitle": { "size": 16, "weight": 600, "use": "card titles and names" },
+    "body": { "size": 14, "weight": 500 },
+    "secondary": { "size": 13, "weight": 400 },
+    "caption": { "size": 12, "weight": 400 },
+    "infoTitle": { "size": 9, "weight": 400, "use": "column / info titles above a list" },
+    "button": { "size": 14, "weight": 600 },
+    "input": { "size": 14, "weight": 500 },
+    "portfolioValue": { "size": 28, "weight": 700 },
+    "listRow": { "title": 14, "value": 12, "grey": 10 },
+    "summaryRow": { "label": 12, "value": 12 },
+    "tabLabel": { "size": 10, "weight": 600 }
+  },
+  "color": {
+    "dark": {
+      "background": "#0B0F19", "card": "#111827", "surface": "#172033", "surfaceLight": "#263244",
+      "accent": "#4D6BFF", "onAccent": "#FFFFFF",
+      "textPrimary": "#F9FAFB", "textSecondary": "#9CA3AF", "textMuted": "#6B7280",
+      "profit": "#22C55E", "profitBg": "#12351F", "loss": "#F87171", "lossBg": "#3A171B",
+      "warning": "#F59E0B", "neutral": "#9CA3AF",
+      "border": "#263244", "divider": "rgba(255,255,255,0.06)"
+    },
+    "light": {
+      "background": "#F5F6F8", "card": "#FFFFFF", "surface": "#F3F4F6", "surfaceLight": "#E5E7EB",
+      "accent": "#1E41DB", "onAccent": "#FFFFFF",
+      "textPrimary": "#111827", "textSecondary": "#6B7280", "textMuted": "#9CA3AF",
+      "profit": "#16A34A", "profitBg": "#DCFCE7", "loss": "#DC2626", "lossBg": "#FEE2E2",
+      "warning": "#D97706", "neutral": "#6B7280",
+      "border": "#E5E7EB", "divider": "rgba(0,0,0,0.07)"
+    },
+    "chartCategories": ["#4D6BFF", "#8B5CF6", "#06B6D4", "#F59E0B", "#EC4899", "#10B981", "#F97316", "#84CC16", "#14B8A6", "#64748B"],
+    "avatarBackground": "#FFF7DA"
+  },
+  "sizes": {
+    "logo": 40, "logoDetail": 56, "avatarList": 44, "avatarHeader": 36, "avatarProfile": 64, "avatarPicker": 48,
+    "tabBarHeight": 64, "tabBarPadding": 5, "roundButton": 40, "iconDefault": 18, "chartHeight": 120, "donut": 180, "donutThickness": 26
+  },
+  "motion": { "pressScale": 0.97, "pressOpacity": 0.85, "screenTransition": "slide from right, slide out on back", "toast": "spring in from top" }
+}
