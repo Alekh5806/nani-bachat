@@ -79,7 +79,7 @@ export const DividendsScreen = ({ navigation }) => {
                 </Text>
                 <View style={styles.dpsBadge}>
                   <Text style={styles.dpsText}>
-                    ₹{div.dividend_per_share}/share
+                    ₹{Number(div.dividend_per_share).toLocaleString('en-IN', { maximumFractionDigits: 6 })}/share
                   </Text>
                 </View>
               </View>

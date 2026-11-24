@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../theme/colors';
 
 import { DashboardScreen } from '../screens/DashboardScreen';
+import { StockNewsScreen } from '../screens/StockNewsScreen';
 import { InvestmentsScreen } from '../screens/InvestmentsScreen';
 import { AddStockScreen } from '../screens/AddStockScreen';
 import { SellStockScreen } from '../screens/SellStockScreen';
@@ -63,6 +64,7 @@ const DashboardStack = () => (
 const InvestmentsStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="InvestmentsHome" component={InvestmentsScreen} />
+    <Stack.Screen name="StockNews" component={StockNewsScreen} />
     <Stack.Screen name="AddStock" component={AddStockScreen} />
     <Stack.Screen name="SellStock" component={SellStockScreen} />
     <Stack.Screen name="EditStock" component={EditStockScreen} />

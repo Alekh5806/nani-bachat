@@ -4,7 +4,7 @@ Tracks dividends received from stock holdings.
 """
 from django.db import models
 from investments.models import Stock
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 
 class Dividend(models.Model):
@@ -19,9 +19,11 @@ class Dividend(models.Model):
         related_name='dividends'
     )
     dividend_per_share = models.DecimalField(
-        max_digits=10, decimal_places=2,
+        max_digits=14, decimal_places=6,
         help_text='Dividend amount per share'
     )
+    submission_key = models.CharField(max_length=64, null=True, unique=True, editable=False)
+    received_quantity = models.PositiveIntegerField(editable=False, null=True)
     total_dividend = models.DecimalField(
         max_digits=12, decimal_places=2,
         editable=False,
@@ -47,7 +49,10 @@ class Dividend(models.Model):
 
     def save(self, *args, **kwargs):
         """Auto-calculate total dividend before saving."""
-        self.total_dividend = self.dividend_per_share * self.stock.quantity
+        if self.received_quantity is None:
+            self.received_quantity = self.stock.quantity
+        self.total_dividend = (self.dividend_per_share * self.received_quantity).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP)
         super().save(*args, **kwargs)
 
     @property

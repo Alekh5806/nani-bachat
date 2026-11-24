@@ -29,6 +29,8 @@ class DividendCreateView(generics.CreateAPIView):
         import logging
         logger = logging.getLogger(__name__)
         dividend = serializer.save()
+        if not serializer.created:
+            return
         try:
             from accounts.notifications import notify_dividend_recorded
             notify_dividend_recorded(dividend)

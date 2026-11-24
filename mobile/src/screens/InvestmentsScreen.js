@@ -203,7 +203,8 @@ export const InvestmentsScreen = ({ navigation }) => {
         )}
 
         {/* ── Stock Holdings ── */}
-        <SectionHeader title="All Holdings" icon="📊" />
+        <SectionHeader title="All Holdings" icon="📊" actionLabel="Group stock news"
+          onAction={() => navigation.navigate('StockNews')} />
         {(Platform.OS === 'ios' || Platform.OS === 'android') && (
           <NseQuotePreview holdings={stockSummary?.stocks || []} />
         )}
