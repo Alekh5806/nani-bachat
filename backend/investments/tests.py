@@ -3,6 +3,7 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -15,6 +16,26 @@ from portfolio.services import PortfolioService
 from dividends.models import Dividend
 from .models import Stock
 from .serializers import StockCreateSerializer, StockSellSerializer
+
+
+class StockSummaryTests(TestCase):
+    def test_multiple_purchase_dates_are_one_holding_when_quote_is_unavailable(self):
+        member = get_user_model().objects.create_user(phone='9000000001', name='Member')
+        for day in (1, 2):
+            Stock.objects.create(symbol='POOL.NS', name='Pool', buy_date=date(2026, 1, day),
+                                 quantity=2, buy_price=100, current_price=120)
+        cache.delete('stock_price_POOL.NS')
+        client = APIClient()
+        client.force_authenticate(member)
+        with patch('investments.views.StockPriceService.refresh_in_background') as refresh, \
+                patch('investments.views.StockPriceService.get_stock_price') as fetch:
+            summary = client.get(reverse('investments:stock-summary')).json()
+        refresh.assert_called_once_with(['POOL.NS'])
+        fetch.assert_not_called()
+        self.assertEqual(summary['total_stocks'], 1)
+        self.assertEqual(summary['total_current_value'], 480)
+        allocation = PortfolioService.get_allocation_data()
+        self.assertEqual([row['quantity'] for row in allocation if row['symbol'] == 'POOL.NS'], [4])
 
 
 class StockSellSerializerTests(TestCase):

@@ -6,6 +6,7 @@ from rest_framework import generics, serializers, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
 from django.db.models import Sum, F, DecimalField, Q
@@ -124,7 +125,7 @@ class StockSummaryView(generics.GenericAPIView):
     def get(self, request):
         """Return consolidated view of all stocks grouped by symbol."""
         active_stocks = Stock.objects.filter(is_sold=False)
-        symbols = active_stocks.values_list('symbol', flat=True).distinct()
+        symbols = active_stocks.order_by('symbol').values_list('symbol', flat=True).distinct()
         StockPriceService.refresh_in_background(list(symbols))
 
         summary = []
@@ -136,31 +137,16 @@ class StockSummaryView(generics.GenericAPIView):
 
             avg_price = total_invested / total_qty if total_qty > 0 else 0
             current_price = float(first_stock.current_price) if first_stock else 0
+            # Refreshes run in the background. A slow quote provider must never
+            # prevent members from seeing the holdings already in the database.
+            quote = cache.get(f'stock_price_{symbol}') or {}
+            if quote.get('current_price', 0) > 0:
+                current_price = quote['current_price']
             current_value = total_qty * current_price
             pnl = current_value - total_invested
             pnl_pct = (pnl / total_invested * 100) if total_invested > 0 else 0
-
-            # Get live day change from price service
-            day_change = 0
-            day_change_pct = 0
-            try:
-                price_data = StockPriceService.get_stock_price(symbol)
-                if price_data:
-                    day_change = price_data.get('day_change', 0)
-                    day_change_pct = (
-                        price_data.get('day_change_percentage')
-                        or price_data.get('day_change_pct')
-                        or 0
-                    )
-                    # Use live price if available
-                    if price_data.get('current_price', 0) > 0:
-                        current_price = price_data['current_price']
-                        current_value = total_qty * current_price
-                        pnl = current_value - total_invested
-                        pnl_pct = (pnl / total_invested * 100) if total_invested > 0 else 0
-            except Exception:
-                pass
-
+            day_change = quote.get('day_change', 0)
+            day_change_pct = quote.get('day_change_percentage') or quote.get('day_change_pct') or 0
             day_change_value = day_change * total_qty
 
             summary.append({

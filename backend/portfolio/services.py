@@ -199,7 +199,7 @@ class StockPriceService:
 
         active_stocks = Stock.objects.filter(is_sold=False)
         if symbols is None:
-            symbols = list(active_stocks.values_list('symbol', flat=True).distinct())
+            symbols = list(active_stocks.order_by('symbol').values_list('symbol', flat=True).distinct())
 
         updated = 0
         for symbol in symbols:
@@ -270,7 +270,7 @@ class PortfolioService:
         realized_sale_value = Decimal('0.00')
 
         # Get unique symbols and fetch live prices
-        symbols = active_stocks.values_list('symbol', flat=True).distinct()
+        symbols = active_stocks.order_by('symbol').values_list('symbol', flat=True).distinct()
         live_prices = {}
         for symbol in symbols:
             # Cached quotes only: no network call inside a request.
@@ -375,7 +375,7 @@ class PortfolioService:
         from investments.models import Stock
 
         active_stocks = Stock.objects.filter(is_sold=False)
-        symbols = active_stocks.values_list('symbol', flat=True).distinct()
+        symbols = active_stocks.order_by('symbol').values_list('symbol', flat=True).distinct()
 
         allocation = []
         total_value = 0
