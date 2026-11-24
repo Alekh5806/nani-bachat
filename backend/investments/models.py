@@ -112,6 +112,11 @@ class Stock(models.Model):
             if errors:
                 raise ValidationError(errors)
 
+    def qualifies_on_ex_date(self, ex_date):
+        return self.buy_date < ex_date and (
+            not self.is_sold or (self.sell_date is not None and self.sell_date >= ex_date)
+        )
+
     @property
     def total_invested(self):
         """Total cost including brokerage."""

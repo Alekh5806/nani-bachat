@@ -2,13 +2,17 @@
 Views for the investments app.
 Admin can add/edit/delete stock purchases. Members can view.
 """
-from rest_framework import generics, status
+from rest_framework import generics, serializers, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
+<<<<<<< HEAD
 from django.utils import timezone
 from django.db.models import Sum, F, DecimalField
+=======
+from django.db.models import Sum, F, DecimalField, Q
+>>>>>>> experiment/live-market-quotes
 from django.db.models.functions import Coalesce
 
 from .models import Stock, StockPriceHistory
@@ -27,6 +31,9 @@ class StockListView(generics.ListAPIView):
 
     def get_queryset(self):
         queryset = Stock.objects.all()
+        if 'dividend_ex_date' in self.request.query_params:
+            day = serializers.DateField().run_validation(self.request.query_params['dividend_ex_date'])
+            queryset = queryset.filter(buy_date__lt=day).filter(Q(is_sold=False) | Q(sell_date__gte=day))
         # Filter by active/sold
         is_sold = self.request.query_params.get('is_sold')
         if is_sold is not None:

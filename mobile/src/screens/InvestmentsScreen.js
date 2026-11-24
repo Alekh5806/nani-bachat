@@ -4,7 +4,7 @@
  */
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, RefreshControl, Pressable
+  View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Platform
 } from 'react-native';
 import { Refresh2, Add } from 'iconsax-react-native';
 import { fmtFull } from '../utils/currency';
@@ -16,11 +16,18 @@ import { usePortfolioStore } from '../store/portfolioStore';
 import { useAuthStore } from '../store/authStore';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { StockRow } from '../components/StockRow';
+<<<<<<< HEAD
 import { shortName } from '../utils/names';
 import { CompanyLogo } from '../components/CompanyLogo';
 import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
 import { usePersistedState } from '../utils/usePersistedState';
 import { TabBarSpacer } from '../components/TabBarSpacer';
+=======
+import { SectionHeader } from '../components/SectionHeader';
+import { GlassCard } from '../components/GlassCard';
+import { NseQuotePreview } from '../components/NseQuotePreview';
+import { COLORS, SPACING, FONTS } from '../theme/colors';
+>>>>>>> experiment/live-market-quotes
 
 const PRICE_REFRESH_INTERVAL_MS = 60000;
 
@@ -170,7 +177,16 @@ export const InvestmentsScreen = ({ navigation }) => {
 
 
         {/* ── Stock Holdings ── */}
+<<<<<<< HEAD
         {tab === 'holdings' && (stockSummary?.stocks || []).map((stock, index) => (
+=======
+        <SectionHeader title="All Holdings" icon="📊" actionLabel="Group stock news"
+          onAction={() => navigation.navigate('StockNews')} />
+        {(Platform.OS === 'ios' || Platform.OS === 'android') && (
+          <NseQuotePreview holdings={stockSummary?.stocks || []} />
+        )}
+        {(stockSummary?.stocks || []).map((stock, index) => (
+>>>>>>> experiment/live-market-quotes
           <StockRow
             key={`${stock.symbol || 'stock'}-${index}`}
             stock={stock}
