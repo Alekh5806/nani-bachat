@@ -20,6 +20,8 @@ import { SectionHeader } from '../components/SectionHeader';
 import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
 import api from '../config/api';
 import { TabBarSpacer } from '../components/TabBarSpacer';
+import { UserAvatar } from '../components/UserAvatar';
+import { AvatarPicker } from '../components/AvatarPicker';
 
 export const ProfileScreen = ({ navigation }) => {
   const { user, logout, fetchProfile } = useAuthStore();
@@ -30,6 +32,7 @@ export const ProfileScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // Fetch fresh profile data on mount
   useEffect(() => {
@@ -116,13 +119,16 @@ export const ProfileScreen = ({ navigation }) => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} />
         }
       >
+        <AvatarPicker visible={pickerOpen} onDismiss={() => setPickerOpen(false)} />
+
         {/* ── Profile Card ── */}
         <GlassCard style={styles.profileCard}>
-          <View style={[styles.avatar, { backgroundColor: COLORS.surface }]}>
-            <Text style={styles.avatarText}>
-              {(displayUser?.name || '').charAt(0).toUpperCase()}
-            </Text>
-          </View>
+          <Pressable onPress={() => setPickerOpen(true)} style={styles.avatar}>
+            <UserAvatar person={displayUser} size={64} />
+          </Pressable>
+          <Pressable onPress={() => setPickerOpen(true)} hitSlop={8}>
+            <Text style={styles.changeAvatar}>Change avatar</Text>
+          </Pressable>
           <Text style={styles.name}>{displayUser?.name || 'Member'}</Text>
           <Text style={styles.phone}>{displayUser?.phone || ''}</Text>
           {displayUser?.email && <Text style={styles.email}>{displayUser.email}</Text>}
@@ -196,18 +202,14 @@ const styles = themedStyles(() => ({
     paddingVertical: SPACING.xxxl,
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.sm,
   },
-  avatarText: {
-    fontSize: 32,
-    fontWeight: '600',
-    color: COLORS.onAccent,
-  },
+  changeAvatar: { ...TYPE.secondaryMedium, color: COLORS.accent, marginBottom: SPACING.md },
   name: {
     ...TYPE.sectionTitle,
     color: COLORS.textPrimary,

@@ -4,6 +4,7 @@
  */
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { UserAvatar } from './UserAvatar';
 import { COLORS, RADIUS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
 
 export const MemberRow = ({ member, onPress }) => {
@@ -19,16 +20,7 @@ export const MemberRow = ({ member, onPress }) => {
       ]}
     >
       {/* Avatar */}
-      <View
-        style={[
-          styles.avatar,
-          { backgroundColor: member.avatar_color || COLORS.accent },
-        ]}
-      >
-        <Text style={styles.avatarText}>
-          {(member.name || '').charAt(0).toUpperCase()}
-        </Text>
-      </View>
+      <UserAvatar person={member} size={44} style={styles.avatarGap} />
 
       {/* Member Info */}
       <View style={styles.infoContainer}>
@@ -76,19 +68,7 @@ const styles = themedStyles(() => ({
     opacity: 0.8,
     transform: [{ scale: 0.98 }],
   },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.md,
-  },
-  avatarText: {
-    fontSize: FONTS.lg,
-    fontWeight: '600',
-    color: COLORS.onAccent,
-  },
+  avatarGap: { marginRight: SPACING.md },
   infoContainer: {
     flex: 1,
     minWidth: 0,

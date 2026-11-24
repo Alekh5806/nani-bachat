@@ -3,8 +3,13 @@ Member model for PoolVest.
 Custom user model with phone, role (admin/member), and contribution tracking.
 """
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+import random
+
 from django.db import models
 from django.utils import timezone
+
+# Ready-made avatars shipped in the mobile app (mobile/assets/avatar/avatar-N.png).
+AVATAR_KEYS = [f'avatar-{n}' for n in range(1, 15)]
 
 
 class MemberManager(BaseUserManager):
@@ -44,6 +49,8 @@ class Member(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(blank=True, null=True, unique=True)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='member')
     avatar_color = models.CharField(max_length=7, default='#4F46E5')
+    # Key of a ready-made avatar (see AVATAR_KEYS). A new member gets a random one.
+    avatar = models.CharField(max_length=40, blank=True, default='')
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)
@@ -61,6 +68,17 @@ class Member(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return f'{self.name} ({self.phone})'
+
+    def save(self, *args, **kwargs):
+        if not self.avatar:
+            # Random, but prefer avatars no other member has yet.
+            used = set(type(self).objects.values_list('avatar', flat=True))
+            free = [key for key in AVATAR_KEYS if key not in used]
+            self.avatar = random.choice(free or AVATAR_KEYS)
+            update_fields = kwargs.get('update_fields')
+            if update_fields is not None:
+                kwargs['update_fields'] = {*update_fields, 'avatar'}
+        super().save(*args, **kwargs)
 
     @property
     def is_admin(self):

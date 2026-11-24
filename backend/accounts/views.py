@@ -154,6 +154,15 @@ class ProfileView(APIView):
         serializer = MemberSerializer(request.user)
         return Response(serializer.data)
 
+    def patch(self, request):
+        """Let a member choose their own avatar. Nothing else is editable here."""
+        avatar = str(request.data.get('avatar', '')).strip()
+        if len(avatar) > 40 or not all(ch.isalnum() or ch in '-_' for ch in avatar):
+            return Response({'avatar': 'Invalid avatar'}, status=status.HTTP_400_BAD_REQUEST)
+        request.user.avatar = avatar
+        request.user.save(update_fields=['avatar', 'updated_at'])
+        return Response(MemberSerializer(request.user).data)
+
 
 class ChangePasswordView(APIView):
     """Change password for current user."""

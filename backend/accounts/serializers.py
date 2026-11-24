@@ -21,7 +21,7 @@ class MemberSerializer(serializers.ModelSerializer):
     class Meta:
         model = Member
         fields = [
-            'id', 'name', 'phone', 'email', 'role', 'avatar_color',
+            'id', 'name', 'phone', 'email', 'role', 'avatar_color', 'avatar',
             'is_active', 'date_joined', 'total_contribution',
             'ownership_percentage', 'current_value', 'profit_loss',
             'total_dividend',
@@ -80,7 +80,7 @@ class MemberUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Member
-        fields = ['name', 'phone', 'email', 'avatar_color']
+        fields = ['name', 'phone', 'email', 'avatar_color', 'avatar']
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):

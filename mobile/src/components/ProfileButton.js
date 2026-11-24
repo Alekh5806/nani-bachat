@@ -4,15 +4,15 @@
  * Opens the Profile screen, which is no longer a bottom tab.
  */
 import React from 'react';
-import { Pressable, Text } from 'react-native';
+import { Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
-import { COLORS, TYPE, themedStyles } from '../theme/colors';
+import { UserAvatar } from './UserAvatar';
+import { COLORS, themedStyles } from '../theme/colors';
 
 export const ProfileButton = ({ size = 36 }) => {
   const navigation = useNavigation();
   const user = useAuthStore((state) => state.user);
-  const letter = ((user?.name || 'U').trim()[0] || 'U').toUpperCase();
 
   return (
     <Pressable
@@ -25,7 +25,7 @@ export const ProfileButton = ({ size = 36 }) => {
         pressed && styles.pressed,
       ]}
     >
-      <Text style={styles.letter}>{letter}</Text>
+      <UserAvatar person={user} size={size - 2} />
     </Pressable>
   );
 };
@@ -39,5 +39,4 @@ const styles = themedStyles(() => ({
     justifyContent: 'center',
   },
   pressed: { opacity: 0.75 },
-  letter: { ...TYPE.button, color: COLORS.textPrimary },
 }));
