@@ -457,7 +457,11 @@ export const ContributionsScreen = ({ route, navigation }) => {
   if (loading) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        <ScreenHeader title={memberName ? memberName + "'s Contributions" : 'Contributions'} />
+        <ScreenHeader
+          title={memberName ? memberName + "'s Contributions" : 'Contributions'}
+          showBack
+          onBack={() => navigation.goBack()}
+        />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.accent} />
         </View>
@@ -469,8 +473,8 @@ export const ContributionsScreen = ({ route, navigation }) => {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <ScreenHeader
         title={memberName ? memberName + "'s Contributions" : 'Contributions'}
-        showBack={!!memberName}
-        onBack={memberName ? () => navigation.goBack() : undefined}
+        showBack
+        onBack={() => navigation.goBack()}
       />
       <ScrollView
         style={styles.scrollView}
