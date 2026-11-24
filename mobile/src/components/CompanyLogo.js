@@ -39,7 +39,7 @@ export const CompanyLogo = ({ symbol, name, size = 40, style }) => {
 
 const styles = themedStyles(() => ({
   tile: {
-    backgroundColor: COLORS.logoBg,
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
