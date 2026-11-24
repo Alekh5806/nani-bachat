@@ -103,10 +103,11 @@ class StockPriceService:
             return None
 
     @staticmethod
-    def get_stock_price(symbol: str) -> dict:
+    def get_stock_price(symbol: str, allow_fallback: bool = True) -> dict:
         """
         Fetch current stock price for a given symbol.
-        Results are cached briefly.
+        Results are cached briefly. allow_fallback=False skips the slow yfinance
+        retries (used by search, which would rather drop a symbol than wait).
         """
         cache_key = f'stock_price_{symbol}'
         cached = cache.get(cache_key)
@@ -117,6 +118,8 @@ class StockPriceService:
         if price_data:
             cache.set(cache_key, price_data, PRICE_CACHE_TIMEOUT)
             return price_data
+        if not allow_fallback:
+            return None
 
         try:
             import yfinance as yf

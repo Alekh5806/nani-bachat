@@ -7,6 +7,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
+from concurrent.futures import ThreadPoolExecutor
 
 from .models import PortfolioSnapshot
 from .serializers import PortfolioSnapshotSerializer
@@ -219,6 +221,12 @@ class StockSearchView(APIView):
         query_upper = query.upper()
         query_lower = query.lower()
 
+        # Same search twice within a few minutes needs no new Yahoo calls.
+        cache_key = 'stock_search_' + query_lower
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
         matches = []
 
         def add_match(symbol, name, key=None):
@@ -254,7 +262,7 @@ class StockSearchView(APIView):
                     'enableFuzzyQuery': 'true',
                 },
                 headers={'User-Agent': 'Mozilla/5.0'},
-                timeout=10,
+                timeout=4,
             )
             response.raise_for_status()
 
@@ -283,15 +291,14 @@ class StockSearchView(APIView):
             add_match(test_symbol, query.title(), query_upper)
 
         # Limit quote lookups so Add Stock stays responsive.
-        matches = matches[:12]
+        matches = matches[:8]
 
-        # Fetch live prices for all matches
-        results = []
-        for match in matches:
+        # Fetch live prices for all matches at the same time, not one by one.
+        def fetch_result(match):
             try:
-                price_data = StockPriceService.get_stock_price(match['symbol'])
+                price_data = StockPriceService.get_stock_price(match['symbol'], allow_fallback=False)
                 if not price_data:
-                    continue
+                    return None
 
                 price = float(price_data.get('current_price', 0) or 0)
                 prev_close = float(price_data.get('previous_close', 0) or 0)
@@ -301,29 +308,36 @@ class StockSearchView(APIView):
                     or price_data.get('day_change_pct')
                     or 0
                 )
-
-                if price > 0:
-                    results.append({
-                        'symbol': match['symbol'],
-                        'name': price_data.get('name') or match['name'],
-                        'current_price': round(price, 2),
-                        'previous_close': round(prev_close, 2),
-                        'day_high': round(price, 2),
-                        'day_low': round(price, 2),
-                        'change': round(change, 2),
-                        'change_percentage': round(change_pct, 2),
-                        'market_cap': 0,
-                        'market_cap_label': 'N/A',
-                    })
+                if price <= 0:
+                    return None
+                return {
+                    'symbol': match['symbol'],
+                    'name': price_data.get('name') or match['name'],
+                    'current_price': round(price, 2),
+                    'previous_close': round(prev_close, 2),
+                    'day_high': round(price, 2),
+                    'day_low': round(price, 2),
+                    'change': round(change, 2),
+                    'change_percentage': round(change_pct, 2),
+                    'market_cap': 0,
+                    'market_cap_label': 'N/A',
+                }
             except Exception:
                 # Skip stocks that fail to fetch
-                continue
+                return None
 
-        return Response({
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            fetched = list(pool.map(fetch_result, matches))
+        results = [item for item in fetched if item]
+
+        payload = {
             'query': query,
             'results': results,
             'count': len(results),
-        })
+        }
+        cache.set(cache_key, payload, 300)
+        return Response(payload)
+
 
 
 class CompanyLogosView(APIView):

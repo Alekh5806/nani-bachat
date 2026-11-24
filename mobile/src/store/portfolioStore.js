@@ -16,6 +16,8 @@ const EMPTY_CACHE = {
   members: [], dividends: [], growthData: [],
 };
 
+let searchRequestId = 0;
+
 export const usePortfolioStore = create((set, get) => ({
   // ── State ──
   dashboard: null,
@@ -101,20 +103,22 @@ export const usePortfolioStore = create((set, get) => ({
       set({ searchResults: [], isSearching: false });
       return [];
     }
+    // Only the newest search may write results, so a slow older one cannot overwrite it.
+    const requestId = ++searchRequestId;
     set({ isSearching: true });
     try {
       const response = await api.get(`/portfolio/search-stocks/?q=${encodeURIComponent(query)}`);
       const results = response.data.results || [];
-      set({ searchResults: results, isSearching: false });
+      if (requestId === searchRequestId) set({ searchResults: results, isSearching: false });
       return results;
     } catch (error) {
       console.error('Stock search failed:', error);
-      set({ searchResults: [], isSearching: false });
+      if (requestId === searchRequestId) set({ searchResults: [], isSearching: false });
       return [];
     }
   },
 
-  clearSearch: () => set({ searchResults: [], isSearching: false }),
+  clearSearch: () => { searchRequestId += 1; set({ searchResults: [], isSearching: false }); },
 
   // ── Create Stock (Admin) ──
   createStock: async (stockData) => {
