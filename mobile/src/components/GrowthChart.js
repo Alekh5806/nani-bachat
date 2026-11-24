@@ -4,7 +4,7 @@
  * point. Drawn in the theme's primary colour.
  */
 import React, { useMemo, useRef, useState } from 'react';
-import { View, Text, PanResponder } from 'react-native';
+import { View, Text, PanResponder, Platform } from 'react-native';
 import Svg, { Path, Line, Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { COLORS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
 
@@ -96,7 +96,8 @@ export const GrowthChart = ({ data, height = 160, onScrub }) => {
 
   return (
     <View
-      style={{ height }}
+      // On the web the browser scrolls the page on touch unless told not to.
+      style={[{ height }, Platform.OS === 'web' && { touchAction: 'none', userSelect: 'none' }]}
       onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
       {...responder.panHandlers}
     >

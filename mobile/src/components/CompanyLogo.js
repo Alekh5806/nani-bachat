@@ -26,7 +26,7 @@ export const CompanyLogo = ({ symbol, name, size = 40, style }) => {
       {showImage ? (
         <Image
           source={{ uri: url }}
-          style={{ width: size - 2, height: size - 2 }}
+          style={{ width: size, height: size }}
           resizeMode="cover"
           onError={() => setFailed(true)}
         />
@@ -40,8 +40,6 @@ export const CompanyLogo = ({ symbol, name, size = 40, style }) => {
 const styles = themedStyles(() => ({
   tile: {
     backgroundColor: COLORS.logoBg,
-    borderWidth: 1,
-    borderColor: COLORS.logoBorder,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',

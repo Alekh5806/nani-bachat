@@ -100,7 +100,7 @@ export const DividendsScreen = ({ navigation }) => {
               const shares = div.quantity || (dps > 0 ? Math.round(Number(div.total_dividend) / dps) : 0);
               return (
                 <View key={div.id || i} style={[styles.row, i > 0 && styles.rowDivider]}>
-                  <CompanyLogo symbol={div.stock_symbol} name={div.stock_name} size={44} style={{ marginRight: SPACING.md }} />
+                  <CompanyLogo symbol={div.stock_symbol} name={div.stock_name} size={40} style={{ marginRight: SPACING.md }} />
                   <View style={styles.rowLeft}>
                     <Text style={styles.rowName} numberOfLines={1}>{div.stock_name}</Text>
                     <Text style={styles.rowSub}>{fmtDate(div.ex_date)}  •  ₹{div.dividend_per_share}/share</Text>
@@ -148,18 +148,19 @@ const styles = themedStyles(() => ({
   listHeaderText: { ...TYPE.infoTitle, color: COLORS.textSecondary },
   band: {
     flexDirection: 'row', justifyContent: 'space-between',
-    backgroundColor: COLORS.surface, paddingVertical: SPACING.md,
+    // Light mode needs a darker band to stand out from the page.
+    backgroundColor: COLORS.isDark ? COLORS.surface : COLORS.surfaceLight, paddingVertical: SPACING.md,
     marginHorizontal: -SPACING.xl, paddingHorizontal: SPACING.xl,
   },
   bandTotal: { ...TYPE.caption, color: COLORS.textMuted },
   bandText: { ...TYPE.secondaryMedium, color: COLORS.textSecondary },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: SPACING.lg },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: SPACING.md },
   rowDivider: { borderTopWidth: 1, borderTopColor: COLORS.divider },
   rowLeft: { flex: 1, minWidth: 0, marginRight: SPACING.md },
   rowRight: { alignItems: 'flex-end' },
-  rowName: { ...TYPE.cardTitle, color: COLORS.textPrimary },
-  rowAmount: { ...TYPE.smallValue, color: COLORS.textPrimary },
-  rowSub: { ...TYPE.caption, color: COLORS.textMuted, marginTop: 3 },
+  rowName: { ...TYPE.cardTitle, fontSize: 14, color: COLORS.textPrimary },
+  rowAmount: { ...TYPE.smallValue, fontSize: 12, color: COLORS.textPrimary },
+  rowSub: { ...TYPE.caption, fontSize: 10, color: COLORS.textMuted, marginTop: 4 },
   emptyCard: {
     alignItems: 'center',
     paddingVertical: SPACING.xxxl,

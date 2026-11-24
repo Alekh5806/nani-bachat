@@ -85,12 +85,27 @@ export const DashboardScreen = () => {
 
   const p = dashboard?.portfolio || {};
   const holdings = stockSummary?.stocks || [];
-  const pnl = Number(p.profit_loss) || 0;
-  const isUp = pnl >= 0;
 
 
   const totalVal = holdings.reduce((s, h) => s + (Number(h.current_value) || 0), 0) || 1;
 
+
+  // Summary grid: three columns, signed values coloured for profit and loss.
+  const pl = (v) => {
+    const n = Number(v) || 0;
+    return { value: (n >= 0 ? '+' : '') + fmtShort(n), color: n >= 0 ? COLORS.profit : COLORS.loss };
+  };
+  const summaryStats = [
+    { label: 'Invested', value: fmtShort(p.total_invested) },
+    { label: 'Current value', value: fmtShort(p.current_value) },
+    { label: 'Cash', value: fmtShort(p.cash_balance) },
+    { label: 'Stocks value', value: fmtShort(p.active_stock_value) },
+    { label: 'P&L', ...pl(p.profit_loss) },
+    { label: 'Total returns', ...pl(p.total_returns) },
+    { label: 'Realized P&L', ...pl(p.realized_profit_loss) },
+    { label: 'Unrealized P&L', ...pl(p.unrealized_profit_loss) },
+    { label: 'Dividends', value: fmtShort(p.total_dividends) },
+  ];
 
   // Asset allocation: stocks and club cash.
   const stocksValue = Number(p.active_stock_value) || 0;
@@ -162,6 +177,7 @@ export const DashboardScreen = () => {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        scrollEnabled={!scrub}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh}
             tintColor={COLORS.accent} colors={[COLORS.accent]} />
@@ -185,7 +201,7 @@ export const DashboardScreen = () => {
             )}
           </View>
 
-          <GrowthChart data={chartData} onScrub={setScrub} />
+          <GrowthChart data={chartData} height={120} onScrub={setScrub} />
 
           <View style={styles.rangeRow}>
             {RANGES.map(([key]) => (
@@ -202,19 +218,28 @@ export const DashboardScreen = () => {
 
         {/* SUMMARY */}
         {holdings.length > 0 && (
-          <View style={styles.overviewCard}>
-            <View style={styles.overviewHeader}>
-              <Text style={styles.overviewTitle}>Summary</Text>
+          <View style={[styles.overviewCard, styles.statCard]}>
+            <View style={styles.statGrid}>
+              {summaryStats.map((st, i) => (
+                <View
+                  key={st.label}
+                  style={[
+                    styles.statCell,
+                    i % 3 !== 2 && styles.statCellRight,
+                    i < summaryStats.length - 3 && styles.statCellBottom,
+                  ]}
+                >
+                  <Text style={styles.statLabel} numberOfLines={1}>{st.label}</Text>
+                  <Text
+                    style={[styles.statValue, st.color && { color: st.color }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >
+                    {st.value}
+                  </Text>
+                </View>
+              ))}
             </View>
-            <OverviewRow label="Total invested" value={fmtFull(p.total_invested)} />
-            <OverviewRow label="Current value" value={fmtFull(p.current_value)} />
-            <OverviewRow label="Available cash" value={fmtFull(p.cash_balance)} />
-            <OverviewRow label="Active stock value" value={fmtFull(p.active_stock_value)} />
-            <OverviewRow label="P&L" value={(isUp ? '+' : '') + fmtFull(pnl)} valueColor={isUp ? COLORS.profit : COLORS.loss} />
-            <OverviewRow label="Realized P&L" value={(Number(p.realized_profit_loss) >= 0 ? '+' : '') + fmtFull(p.realized_profit_loss)} valueColor={Number(p.realized_profit_loss) >= 0 ? COLORS.profit : COLORS.loss} />
-            <OverviewRow label="Unrealized P&L" value={(Number(p.unrealized_profit_loss) >= 0 ? '+' : '') + fmtFull(p.unrealized_profit_loss)} valueColor={Number(p.unrealized_profit_loss) >= 0 ? COLORS.profit : COLORS.loss} />
-            <OverviewRow label="Total dividends" value={fmtFull(p.total_dividends)} />
-            <OverviewRow label="Total returns" value={(Number(p.total_returns) >= 0 ? '+' : '') + fmtFull(p.total_returns)} valueColor={Number(p.total_returns) >= 0 ? COLORS.profit : COLORS.loss} isLast />
           </View>
         )}
 
@@ -233,30 +258,20 @@ export const DashboardScreen = () => {
               label="Current value"
               value={fmtShort(p.current_value)}
             />
+            <View style={{ height: SPACING.xl }} />
 
-            <View style={styles.legendHeader}>
-              <Text style={styles.legendHeaderText}>Holding</Text>
-              <Text style={styles.legendHeaderText}>Current (Invested)</Text>
-            </View>
 
-            {slices.map((slice, i) => {
-              const up = slice.pnl >= 0;
-              return (
-                <View key={`${slice.key}-${i}`} style={styles.legendRow}>
-                  <View style={[styles.legendBar, { backgroundColor: slice.color }]} />
-                  <View style={styles.legendMain}>
-                    <Text style={styles.legendName} numberOfLines={1}>{slice.name}</Text>
-                    <Text style={styles.legendSub}>{slice.sub}</Text>
-                  </View>
-                  <View style={styles.legendRight}>
-                    <Text style={[styles.legendValue, { color: up ? COLORS.profit : COLORS.loss }]}>
-                      {fmtFull(slice.value)}
-                    </Text>
-                    <Text style={styles.legendSub}>({fmtFull(slice.invested)})</Text>
-                  </View>
+            {slices.map((slice, i) => (
+              <View key={`${slice.key}-${i}`} style={styles.legendRow}>
+                <View style={[styles.legendBar, styles.legendBarShort, { backgroundColor: slice.color }]} />
+                <View style={styles.legendMain}>
+                  <Text style={styles.legendName} numberOfLines={1}>{slice.name}</Text>
                 </View>
-              );
-            })}
+                <Text style={styles.legendValue}>
+                  {((slice.value / totalVal) * 100).toFixed(1)}%
+                </Text>
+              </View>
+            ))}
 
           </View>
         )}
@@ -315,16 +330,6 @@ export const DashboardScreen = () => {
 };
 
 // Sub-components
-const OverviewRow = ({ label, value, valueColor, isLast }) => (
-  <>
-    <View style={styles.overviewRow}>
-      <Text style={styles.overviewLabel}>{label}</Text>
-      <Text style={[styles.overviewValue, valueColor && { color: valueColor }]}>{value}</Text>
-    </View>
-    {!isLast && <View style={styles.overviewDivider} />}
-  </>
-);
-
 function getMonthLabel() {
   return new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 }
@@ -424,26 +429,13 @@ const styles = themedStyles(() => ({
     padding: SPACING.xl,
     marginBottom: SPACING.xl,
   },
-  overviewRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  overviewLabel: {
-    ...TYPE.secondary,
-    fontSize: 12,
-    color: COLORS.textMuted,
-  },
-  overviewValue: {
-    ...TYPE.smallValue,
-    fontSize: 12,
-    color: COLORS.textPrimary,
-  },
-  overviewDivider: {
-    height: 1,
-    backgroundColor: COLORS.divider,
-  },
+  statCard: { padding: 0, overflow: 'hidden' },
+  statGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  statCell: { width: '33.333%', padding: SPACING.md },
+  statCellRight: { borderRightWidth: 1, borderRightColor: COLORS.border },
+  statCellBottom: { borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  statLabel: { ...TYPE.secondary, fontSize: 12, color: COLORS.textMuted },
+  statValue: { ...TYPE.cardTitle, fontSize: 14, color: COLORS.textPrimary, marginTop: SPACING.xs },
   overviewHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -460,23 +452,14 @@ const styles = themedStyles(() => ({
     fontSize: TYPE.secondaryMedium.fontSize - 2,
     color: COLORS.accent,
   },
-  legendHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: SPACING.xl,
-    marginBottom: SPACING.sm,
-  },
-  legendHeaderText: {
-    ...TYPE.infoTitle,
-    color: COLORS.textMuted,
-  },
   divTotal: { ...TYPE.sectionTitle, fontSize: 28, color: COLORS.textPrimary },
-  divSub: { ...TYPE.secondary, color: COLORS.textMuted, marginTop: SPACING.xs },
+  divSub: { ...TYPE.secondary, fontSize: 12, color: COLORS.textMuted, marginTop: SPACING.xs },
   qRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
   qLabel: { ...TYPE.secondary, fontSize: 12, color: COLORS.textMuted, minWidth: 76 },
   qTrack: { flex: 1, marginHorizontal: SPACING.md },
-  qBar: { height: 12, borderRadius: 4, backgroundColor: COLORS.accent },
+  qBar: { height: 12, borderRadius: 6, backgroundColor: COLORS.accent },
   qAmount: { ...TYPE.smallValue, fontSize: 12, color: COLORS.textPrimary, minWidth: 84, textAlign: 'right' },
+  legendBarShort: { height: 16 },
   legendRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -511,6 +494,7 @@ const styles = themedStyles(() => ({
   legendValue: {
     ...TYPE.smallValue,
     fontSize: TYPE.smallValue.fontSize - 2,
+    color: COLORS.textPrimary,
   },
 
   // Allocation section
