@@ -37,8 +37,12 @@ export const LoginScreen = () => {
     fetchSavedCredentials();
   }, []);
 
+  // Empty fields get a red border until edited.
+  const [errors, setErrors] = useState({});
+
   const handleLogin = async () => {
     if (!phone.trim() || !password.trim()) {
+      setErrors({ phone: !phone.trim() ? 'Required' : undefined, password: !password.trim() ? 'Required' : undefined });
       Toast.show({ type: 'error', text1: 'Missing fields', text2: 'Enter your phone number and password' });
       return;
     }
@@ -77,13 +81,15 @@ export const LoginScreen = () => {
           <View style={styles.form}>
             <PremiumInput
               value={phone}
-              onChangeText={setPhone}
+              error={errors.phone}
+              onChangeText={(v) => { setPhone(v); setErrors((e) => ({ ...e, phone: undefined })); }}
               placeholder="Phone number"
               keyboardType="phone-pad"
             />
             <PremiumInput
               value={password}
-              onChangeText={setPassword}
+              error={errors.password}
+              onChangeText={(v) => { setPassword(v); setErrors((e) => ({ ...e, password: undefined })); }}
               placeholder="Password"
               secureTextEntry
             />

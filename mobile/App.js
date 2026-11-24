@@ -17,6 +17,7 @@ import { useAuthStore } from './src/store/authStore';
 import { AuthNavigator } from './src/navigation/AuthNavigator';
 import { MainNavigator } from './src/navigation/MainNavigator';
 import { toastConfig } from './src/config/toastConfig';
+import { DialogHost } from './src/components/DialogHost';
 import { COLORS, themedStyles } from './src/theme/colors';
 import { useThemeStore } from './src/store/themeStore';
 import { FONT_ASSETS, fontFamilyFor } from './src/theme/fonts';
@@ -149,6 +150,7 @@ export default function App() {
           </NavigationContainer>
           <StatusBar style={themeMode === 'dark' ? 'light' : 'dark'} />
           <Toast config={toastConfig} />
+          <DialogHost />
           </View>
           </PaperProvider>
         </SafeAreaProvider>

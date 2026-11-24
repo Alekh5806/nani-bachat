@@ -5,7 +5,7 @@ Handles member registration, login, and profile data.
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
-from .models import PushToken
+from .models import AVATAR_KEYS, PushToken
 
 Member = get_user_model()
 
@@ -68,7 +68,13 @@ class MemberCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Member
-        fields = ['id', 'name', 'phone', 'email', 'password', 'role', 'avatar_color']
+        fields = ['id', 'name', 'phone', 'email', 'password', 'role', 'avatar_color', 'avatar']
+
+    def validate_avatar(self, value):
+        """Blank means "pick one for me"; otherwise it must be one of the shipped avatars."""
+        if value and value not in AVATAR_KEYS:
+            raise serializers.ValidationError('Unknown avatar.')
+        return value
 
     def create(self, validated_data):
         """Create member with hashed password."""

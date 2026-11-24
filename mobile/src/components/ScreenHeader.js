@@ -46,7 +46,9 @@ export const ScreenHeader = ({
               pressed && styles.actionPressed,
             ]}
           >
-            {rightIcon && <Icon name={rightIcon} size={16} color={COLORS.accent} style={styles.actionIcon} />}
+            {rightIcon && (typeof rightIcon === 'string'
+              ? <Icon name={rightIcon} size={16} color={COLORS.onAccent} style={styles.actionIcon} />
+              : <View style={styles.actionIcon}>{rightIcon}</View>)}
             {rightLabel && <Text style={styles.actionLabel}>{rightLabel}</Text>}
           </Pressable>
         )}
@@ -98,12 +100,10 @@ const styles = themedStyles(() => ({
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.accent + '20',
+    backgroundColor: COLORS.accent,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.sm,
     borderRadius: SPACING.xl,
-    borderWidth: 1,
-    borderColor: COLORS.accent + '40',
     flexShrink: 0,
   },
   actionPressed: {
@@ -114,6 +114,6 @@ const styles = themedStyles(() => ({
   },
   actionLabel: {
     ...TYPE.secondaryMedium,
-    color: COLORS.accent,
+    color: COLORS.onAccent,
   },
 }));

@@ -69,6 +69,35 @@ def _groww_cdn(symbol):
     return None
 
 
+def _groww_search(symbol):
+    """Find the company on Groww by its trading symbol and use the logo Groww shows.
+
+    Groww's newer logo files have random numbers in the name, so the URL cannot
+    be guessed. Its own company data does carry the exact URL, so look it up.
+    """
+    base = _base(symbol)
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    found = requests.get(
+        'https://groww.in/v1/api/search/v1/entity',
+        params={'app': 'false', 'page': 0, 'q': base, 'size': 5},
+        headers=headers, timeout=8,
+    ).json().get('content', [])
+    # Only accept a result whose NSE/BSE code is exactly this symbol.
+    match = next((
+        e for e in found
+        if e.get('entity_type') == 'Stocks'
+        and base.upper() in (str(e.get('nse_scrip_code') or '').upper(), str(e.get('bse_scrip_code') or ''))
+    ), None)
+    if not match:
+        return None
+    company = requests.get(
+        f'https://groww.in/v1/api/stocks_data/v1/company/search_id/{quote(match["search_id"], safe="")}',
+        headers=headers, timeout=8,
+    ).json()
+    url = (company.get('header') or {}).get('logoUrl')
+    return url if url and _image_ok(url) else None
+
+
 def _website_icon(symbol):
     import yfinance as yf
     from PIL import Image
@@ -88,7 +117,7 @@ def _website_icon(symbol):
 
 
 # Tried in this order; a source with no logo passes to the next one.
-PROVIDERS = (_manual, _groww_cdn, _india_api, _website_icon)
+PROVIDERS = (_manual, _groww_cdn, _groww_search, _india_api, _website_icon)
 
 
 def _find_logo(symbol):

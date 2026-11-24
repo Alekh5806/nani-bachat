@@ -30,6 +30,8 @@ ai/                      this guide
 - Money: `fmtFull` (full, with paise) and `fmtShort` (compact) from `utils/currency.js`. Never format money by hand.
 - State: Zustand. Fetch on screen focus with `useFocusEffect`. Keep screens light: a tab loads only what it shows.
 - Icons: Iconsax. Check the export name in `node_modules/iconsax-react-native/dist/esm` (names differ from the website).
+- Company names: always show `shortName(name)` from `utils/names.js` (no "Limited", no ALL CAPS). Never change the stored name, and never use it in editable fields or API payloads.
+- Forms: on a failed submit show the toast AND mark each bad field with the `error` prop (red border + short message). Use `missingFields()` from `utils/formErrors.js`, and clear a field's error when the user edits it. `PremiumInput`, `DatePickerField`, `HoldingSelect` and `BuyerPicker` all accept `error`.
 - Images need static `require`. List new avatars in `utils/avatars.js`.
 - Remove styles and imports your change leaves unused. Do not touch unrelated code.
 - Web and native must both work. Test the web build (`expo start --web`) and Expo Go.

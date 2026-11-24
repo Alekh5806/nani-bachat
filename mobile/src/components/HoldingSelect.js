@@ -4,13 +4,14 @@
  * with the list of holdings to pick from.
  */
 import React, { useState } from 'react';
+import { shortName } from '../utils/names';
 import { View, Text, Pressable, ScrollView, TextInput, Platform } from 'react-native';
 import { Dialog, Portal, Button } from 'react-native-paper';
 import { ArrowDown2, TickCircle, SearchNormal1 } from 'iconsax-react-native';
 import { CompanyLogo } from './CompanyLogo';
 import { COLORS, SPACING, RADIUS, themedStyles, TYPE } from '../theme/colors';
 
-export const HoldingSelect = ({ label, holdings, selected, onSelect, emptyText }) => {
+export const HoldingSelect = ({ label, holdings, selected, onSelect, emptyText, error }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const q = query.trim().toLowerCase();
@@ -23,12 +24,12 @@ export const HoldingSelect = ({ label, holdings, selected, onSelect, emptyText }
     <View style={styles.wrap}>
       {!!label && <Text style={styles.label}>{label}</Text>}
 
-      <Pressable onPress={() => setOpen(true)} style={styles.field}>
+      <Pressable onPress={() => setOpen(true)} style={[styles.field, !!error && styles.fieldError]}>
         {selected ? (
           <>
             <CompanyLogo symbol={selected.symbol} name={selected.name} size={32} style={styles.logo} />
             <View style={styles.fieldText}>
-              <Text style={styles.name} numberOfLines={1}>{selected.name}</Text>
+              <Text style={styles.name} numberOfLines={1}>{shortName(selected.name)}</Text>
               <Text style={styles.sub} numberOfLines={1}>
                 {symbolOf(selected)} · {selected.quantity} shares
               </Text>
@@ -39,6 +40,7 @@ export const HoldingSelect = ({ label, holdings, selected, onSelect, emptyText }
         )}
         <ArrowDown2 size={18} color={COLORS.textSecondary} />
       </Pressable>
+      {!!error && <Text style={styles.error}>{error}</Text>}
 
       <Portal>
         <Dialog visible={open} onDismiss={() => setOpen(false)} style={styles.dialog}>
@@ -90,7 +92,7 @@ const HoldingList = ({ holdings, selected, onPick }) => (
           <CompanyLogo symbol={h.symbol} name={h.name} size={40} style={styles.logo} />
           <View style={styles.rowText}>
             <View style={styles.titleRow}>
-              <Text style={styles.name} numberOfLines={1}>{h.name}</Text>
+              <Text style={styles.name} numberOfLines={1}>{shortName(h.name)}</Text>
               {active && <TickCircle size={18} color={COLORS.accent} variant="Bold" />}
             </View>
             <View style={styles.chips}>
@@ -120,6 +122,8 @@ const styles = themedStyles(() => ({
     paddingVertical: SPACING.md,
     minHeight: 52,
   },
+  fieldError: { borderColor: COLORS.loss },
+  error: { ...TYPE.caption, color: COLORS.loss, marginTop: SPACING.xs, marginLeft: SPACING.xs },
   fieldText: { flex: 1, minWidth: 0 },
   placeholder: { flex: 1, ...TYPE.inputText, color: COLORS.textMuted },
   logo: { marginRight: SPACING.md, marginTop: 2 },

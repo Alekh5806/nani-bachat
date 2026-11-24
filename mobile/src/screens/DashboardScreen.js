@@ -3,6 +3,7 @@
  * Portfolio first. Flat dark surfaces with hairline borders, green and red only for gains and losses.
  */
 import React, { useCallback, useState } from 'react';
+import { shortName } from '../utils/names';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl,
   Dimensions, Platform
@@ -154,7 +155,7 @@ export const DashboardScreen = () => {
   const sorted = [...holdings].sort((a, b) => (Number(b.current_value) || 0) - (Number(a.current_value) || 0));
   const toSlice = (h, i) => ({
     key: h.symbol,
-    name: h.name || (h.symbol || '').replace('.NS', ''),
+    name: shortName(h.name) || (h.symbol || '').replace('.NS', ''),
     value: Number(h.current_value) || 0,
     invested: Number(h.total_invested) || 0,
     pnl: (Number(h.current_value) || 0) - (Number(h.total_invested) || 0),
@@ -321,7 +322,7 @@ export const DashboardScreen = () => {
         )}
 
         {/* DIVIDENDS */}
-        <Card mode="outlined" style={styles.paperCard} onPress={() => navigation.navigate('Dividends')}>
+        <Card mode="outlined" style={[styles.paperCard, { marginBottom: SPACING.md }]} onPress={() => navigation.navigate('Dividends')}>
           <Card.Content style={styles.paperBody}>
           <View style={styles.overviewHeader}>
             <Text style={styles.overviewTitle}>Dividends</Text>

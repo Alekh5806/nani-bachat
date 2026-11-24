@@ -8,21 +8,22 @@
  * month's installments hang off that chain. So a successful save offers to
  * re-settle the edited month and each month after it, in date order.
  */
+import { shortName } from '../utils/names';
+import { missingFields } from '../utils/formErrors';
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-  View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Pressable,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, ActivityIndicator } from 'react-native';
 import Toast from 'react-native-toast-message';
 
 import api from '../config/api';
 import { Alert } from '../utils/alert';
 import { usePortfolioStore } from '../store/portfolioStore';
-import { ScreenHeader } from '../components/ScreenHeader';
+import { FormScreen, FormCard, FormLabel } from '../components/FormScreen';
+import { SelectedStockCard } from '../components/SelectedStockCard';
+import { PreviewCard, PreviewRow, PreviewTotal } from '../components/PreviewCard';
+import { BuyerPicker } from '../components/BuyerPicker';
 import { PremiumInput } from '../components/PremiumInput';
 import { PremiumButton } from '../components/PremiumButton';
-import { GlassCard } from '../components/GlassCard';
-import { DatePickerField, todayString } from '../components/DatePickerField';
+import { DatePickerField, todayString, formatDateDisplay } from '../components/DatePickerField';
 import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
 
 const MONTH_NAMES = [
@@ -53,7 +54,12 @@ export const EditStockScreen = ({ navigation, route }) => {
 
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
 
-  const updateForm = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
+  // Fields that failed the last submit; each shows a red border until edited.
+  const [errors, setErrors] = useState({});
+  const updateForm = (key, value) => {
+    setForm(prev => ({ ...prev, [key]: value }));
+    setErrors(prev => (prev[key] ? { ...prev, [key]: undefined } : prev));
+  };
 
   const formatCurrency = (value) =>
     `₹${(Number(value) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
@@ -121,10 +127,13 @@ export const EditStockScreen = ({ navigation, route }) => {
       Toast.show({ type: 'error', text1: 'Missing Stock', text2: 'Open this screen from a purchase' });
       return;
     }
-    if (!form.quantity || !form.buy_price || !form.buy_date || !form.buyer) {
+    const missing = missingFields(form, ['quantity', 'buy_price', 'buy_date', 'buyer']);
+    if (Object.keys(missing).length) {
+      setErrors(missing);
       Toast.show({ type: 'error', text1: 'Missing Fields', text2: 'Quantity, price, date and buyer are required' });
       return;
     }
+    setErrors({});
 
     setLoading(true);
     const result = await updateStock(stock.id, {
@@ -141,7 +150,7 @@ export const EditStockScreen = ({ navigation, route }) => {
       return;
     }
 
-    Toast.show({ type: 'success', text1: 'Purchase Updated', text2: `${stock.name} saved` });
+    Toast.show({ type: 'success', text1: 'Purchase Updated', text2: `${shortName(stock.name)} saved` });
 
     // A move across months invalidates both the old and the new one, so start
     // the re-settle from whichever is earlier.
@@ -159,173 +168,114 @@ export const EditStockScreen = ({ navigation, route }) => {
 
   if (!stock) {
     return (
-      <View style={styles.container}>
-        <ScreenHeader title="Edit Purchase" showBack onBack={() => navigation.goBack()} />
+      <FormScreen title="Edit Purchase" onBack={() => navigation.goBack()}>
         <Text style={styles.emptyText}>Open this screen from a purchase in Investments.</Text>
-      </View>
+      </FormScreen>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <ScreenHeader
-        title="Edit Purchase"
-        subtitle={stock.symbol}
-        showBack
-        onBack={() => navigation.goBack()}
+    <FormScreen title="Edit Purchase" subtitle={stock.symbol} onBack={() => navigation.goBack()}>
+      <SelectedStockCard
+        symbol={stock.symbol}
+        name={stock.name}
+        style={styles.stockCard}
+        rows={[
+          { label: 'Quantity', value: `${stock.quantity} shares` },
+          { label: 'Buy price', value: `₹${stock.buy_price}` },
+          { label: 'Bought on', value: formatDateDisplay(stock.buy_date) },
+        ]}
       />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-      >
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
-          <GlassCard style={styles.heroCard}>
-            <Text style={styles.stockName}>{stock.name}</Text>
-            <Text style={styles.stockMeta}>
-              {stock.symbol} • originally {stock.quantity} × ₹{stock.buy_price} on {stock.buy_date}
-            </Text>
-          </GlassCard>
+      <View style={styles.warningBox}>
+        <Text style={styles.warningTitle}>Editing rewrites the settlement</Text>
+        <Text style={styles.warningText}>
+          Price, quantity and brokerage all change what {formatMonth(originalMonth)} spent.
+          You will be asked to re-settle that month and the ones after it.
+        </Text>
+      </View>
 
-          <View style={styles.warningBox}>
-            <Text style={styles.warningTitle}>Editing rewrites the settlement</Text>
-            <Text style={styles.warningText}>
-              Price, quantity and brokerage all change what {formatMonth(originalMonth)} spent.
-              You will be asked to re-settle that month and the ones after it.
-            </Text>
-          </View>
+      <FormLabel>Purchase details</FormLabel>
+      <FormCard style={styles.detailsCard}>
+        <PremiumInput
+          label="Quantity"
+          error={errors.quantity}
+          value={form.quantity}
+          onChangeText={(v) => updateForm('quantity', v)}
+          placeholder="Shares"
+          keyboardType="numeric"
+          icon="📦"
+        />
+        <PremiumInput
+          label="Buy Price (₹)"
+          error={errors.buy_price}
+          value={form.buy_price}
+          onChangeText={(v) => updateForm('buy_price', v)}
+          placeholder="Per share"
+          keyboardType="decimal-pad"
+          icon="💵"
+        />
 
-          <Text style={styles.sectionLabel}>Purchase details</Text>
+        <PremiumInput
+          label="Brokerage (₹)"
+          value={form.brokerage}
+          onChangeText={(v) => updateForm('brokerage', v)}
+          placeholder="0"
+          keyboardType="decimal-pad"
+          icon="🏦"
+        />
+        <DatePickerField
+          label="Buy Date"
+          error={errors.buy_date}
+          value={form.buy_date}
+          onChange={(v) => updateForm('buy_date', v)}
+          maxDate={todayString()}
+        />
 
-          <View style={styles.row}>
-            <PremiumInput
-              label="Quantity"
-              value={form.quantity}
-              onChangeText={(v) => updateForm('quantity', v)}
-              placeholder="Shares"
-              keyboardType="numeric"
-              icon="📦"
-              style={styles.halfInput}
-            />
-            <PremiumInput
-              label="Buy Price (₹)"
-              value={form.buy_price}
-              onChangeText={(v) => updateForm('buy_price', v)}
-              placeholder="Per share"
-              keyboardType="decimal-pad"
-              icon="💵"
-              style={styles.halfInput}
-            />
-          </View>
+        <BuyerPicker members={members} value={form.buyer} onChange={(id) => updateForm('buyer', id)} error={errors.buyer} />
+      </FormCard>
 
-          <View style={styles.row}>
-            <PremiumInput
-              label="Brokerage (₹)"
-              value={form.brokerage}
-              onChangeText={(v) => updateForm('brokerage', v)}
-              placeholder="0"
-              keyboardType="decimal-pad"
-              icon="🏦"
-              style={styles.halfInput}
-            />
-            <DatePickerField
-              label="Buy Date"
-              value={form.buy_date}
-              onChange={(v) => updateForm('buy_date', v)}
-              maxDate={todayString()}
-              style={styles.halfInput}
-            />
-          </View>
-
-          <View style={styles.buyerSection}>
-            <Text style={styles.inputLabel}>Buyer</Text>
-            <View style={styles.buyerList}>
-              {members.map((member) => {
-                const selected = String(member.id) === String(form.buyer);
-                return (
-                  <Pressable
-                    key={member.id}
-                    onPress={() => updateForm('buyer', String(member.id))}
-                    style={({ pressed }) => [
-                      styles.buyerChip,
-                      selected && styles.buyerChipSelected,
-                      pressed && styles.buyerChipPressed,
-                    ]}
-                  >
-                    <Text
-                      style={[styles.buyerChipText, selected && styles.buyerChipTextSelected]}
-                      numberOfLines={1}
-                    >
-                      {member.name}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-
-          <GlassCard style={styles.previewCard}>
-            <Text style={styles.previewTitle}>Cost change</Text>
-            <View style={styles.previewRow}>
-              <Text style={styles.previewLabel}>Recorded cost</Text>
-              <Text style={styles.previewValue}>{formatCurrency(originalTotal)}</Text>
-            </View>
-            <View style={styles.previewRow}>
-              <Text style={styles.previewLabel}>New cost</Text>
-              <Text style={styles.previewValue}>{formatCurrency(newTotal)}</Text>
-            </View>
-            <View style={[styles.previewRow, styles.previewTotal]}>
-              <Text style={styles.previewTotalLabel}>Difference</Text>
-              <Text
-                style={[
-                  styles.previewTotalValue,
-                  { color: totalDelta === 0 ? COLORS.textSecondary : totalDelta > 0 ? COLORS.loss : COLORS.profit },
-                ]}
-              >
-                {totalDelta > 0 ? '+' : ''}{formatCurrency(totalDelta)}
-              </Text>
-            </View>
-            {originalMonth !== newMonth && (
-              <Text style={styles.monthMoveNote}>
-                Moving this purchase from {formatMonth(originalMonth)} to {formatMonth(newMonth)}
-                {' '}re-settles both months.
-              </Text>
-            )}
-          </GlassCard>
-
-          {resettling && (
-            <View style={styles.resettleRow}>
-              <ActivityIndicator size="small" color={COLORS.accent} />
-              <Text style={styles.resettleText}>Re-settling affected months...</Text>
-            </View>
-          )}
-
-          <PremiumButton
-            title="Save Changes"
-            onPress={handleSubmit}
-            loading={loading}
-            disabled={resettling}
-            icon="💾"
-            style={{ marginTop: SPACING.lg }}
+      <PreviewCard title="Cost change" style={styles.previewCard}>
+        <PreviewRow label="Recorded cost" value={formatCurrency(originalTotal)} />
+        <PreviewRow label="New cost" value={formatCurrency(newTotal)} />
+        <PreviewTotal>
+          <PreviewRow
+            label="Difference"
+            value={`${totalDelta > 0 ? '+' : ''}${formatCurrency(totalDelta)}`}
+            color={totalDelta === 0 ? COLORS.textSecondary : totalDelta > 0 ? COLORS.loss : COLORS.profit}
+            strong
           />
+        </PreviewTotal>
+        {originalMonth !== newMonth && (
+          <Text style={styles.monthMoveNote}>
+            Moving this purchase from {formatMonth(originalMonth)} to {formatMonth(newMonth)}
+            {' '}re-settles both months.
+          </Text>
+        )}
+      </PreviewCard>
 
-          <View style={{ height: 120 }} />
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
+      {resettling && (
+        <View style={styles.resettleRow}>
+          <ActivityIndicator size="small" color={COLORS.accent} />
+          <Text style={styles.resettleText}>Re-settling affected months...</Text>
+        </View>
+      )}
+
+      <PremiumButton
+        title="Save Changes"
+        onPress={handleSubmit}
+        loading={loading}
+        disabled={resettling}
+        icon="💾"
+        style={{ marginTop: SPACING.lg }}
+      />
+    </FormScreen>
   );
 };
 
 export default EditStockScreen;
 
 const styles = themedStyles(() => ({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  scrollView: { flex: 1 },
-  scrollContent: { paddingHorizontal: SPACING.xl, paddingBottom: SPACING.huge },
   emptyText: {
     ...TYPE.cardTitle,
     color: COLORS.textSecondary,
@@ -333,69 +283,18 @@ const styles = themedStyles(() => ({
     marginTop: SPACING.xxxl,
     paddingHorizontal: SPACING.xl,
   },
-  heroCard: { marginBottom: SPACING.md },
-  stockName: { ...TYPE.cardTitle, color: COLORS.textPrimary },
-  stockMeta: { ...TYPE.caption, color: COLORS.textSecondary, marginTop: 4 },
+  stockCard: { marginBottom: SPACING.md },
+  // The last field already has its own bottom margin, so no extra card padding.
+  detailsCard: { marginBottom: SPACING.xl, paddingBottom: 0 },
   warningBox: {
     borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.warning + '55',
-    backgroundColor: COLORS.warningBg,
+    backgroundColor: COLORS.warning + '14',
     padding: SPACING.md,
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.xl,
   },
-  warningTitle: { ...TYPE.secondaryMedium, color: COLORS.warning },
-  warningText: { ...TYPE.caption, color: COLORS.textSecondary, lineHeight: 17, marginTop: 4 },
-  sectionLabel: {
-    ...TYPE.captionMedium,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.md,
-  },
-  row: { flexDirection: 'row', gap: SPACING.md },
-  halfInput: { flex: 1 },
-  inputLabel: {
-    ...TYPE.inputLabel,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.sm,
-  },
-  buyerSection: { marginBottom: SPACING.md },
-  buyerList: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
-  buyerChip: {
-    maxWidth: '48%',
-    minHeight: 38,
-    justifyContent: 'center',
-    paddingHorizontal: SPACING.md,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.inputBorder,
-    backgroundColor: COLORS.inputBg,
-  },
-  buyerChipSelected: { borderColor: COLORS.accent, backgroundColor: COLORS.accent + '22' },
-  buyerChipPressed: { opacity: 0.75 },
-  buyerChipText: { ...TYPE.secondaryMedium, color: COLORS.textSecondary },
-  buyerChipTextSelected: { color: COLORS.accent },
-  previewCard: { marginTop: SPACING.md },
-  previewTitle: {
-    ...TYPE.cardTitle,
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.md,
-  },
-  previewRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: SPACING.xs,
-  },
-  previewLabel: { ...TYPE.secondary, color: COLORS.textSecondary },
-  previewValue: { ...TYPE.smallValue, color: COLORS.textPrimary },
-  previewTotal: {
-    borderTopWidth: 1,
-    borderTopColor: COLORS.divider,
-    marginTop: SPACING.sm,
-    paddingTop: SPACING.md,
-  },
-  previewTotalLabel: { ...TYPE.cardTitle, color: COLORS.textPrimary },
-  previewTotalValue: { ...TYPE.plAmount },
+  warningTitle: { ...TYPE.cardTitle, fontSize: 12, color: COLORS.warning },
+  warningText: { ...TYPE.caption, fontSize: 10, color: COLORS.textSecondary, lineHeight: 16, marginTop: 4 },
+  previewCard: {},
   monthMoveNote: {
     ...TYPE.caption,
     color: COLORS.warning,

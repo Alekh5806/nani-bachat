@@ -20,7 +20,9 @@ import { useAuthStore } from '../store/authStore';
 import { usePortfolioStore } from '../store/portfolioStore';
 import { getErrorMessage } from '../utils/errors';
 import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
-import { GlassCard } from '../components/GlassCard';
+import { FormCard } from '../components/FormScreen';
+import { PreviewRow, PreviewTotal } from '../components/PreviewCard';
+import { TabBarSpacer } from '../components/TabBarSpacer';
 import { ScreenHeader } from '../components/ScreenHeader';
 
 const MONTH_NAMES = [
@@ -478,11 +480,10 @@ export const ContributionsScreen = ({ route, navigation }) => {
       />
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={{ paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} />}
       >
         {summary && (
-          <GlassCard style={styles.summaryCard}>
+          <FormCard style={styles.summaryCard}>
             <Text style={styles.summaryTitle}>{summary.current_month}</Text>
             <View style={styles.summaryRow}>
               <View style={styles.summaryItem}>
@@ -504,7 +505,7 @@ export const ContributionsScreen = ({ route, navigation }) => {
               <Text style={styles.totalLabel}>Total Collected (All Time)</Text>
               <Text style={styles.totalValue}>{formatCurrency(summary.total_collected_all_time)}</Text>
             </View>
-          </GlassCard>
+          </FormCard>
         )}
 
         <View style={styles.monthFilterContainer}>
@@ -558,7 +559,7 @@ export const ContributionsScreen = ({ route, navigation }) => {
         )}
 
         {isAdmin && (
-          <GlassCard style={styles.poolCard}>
+          <FormCard style={styles.poolCard}>
             <View style={styles.poolHeader}>
               <View style={styles.poolTitleBlock}>
                 <Text style={styles.poolTitle}>Monthly Cash</Text>
@@ -581,47 +582,26 @@ export const ContributionsScreen = ({ route, navigation }) => {
             {/* The pool is one pot of money. Showing only "collected vs spent"
                 is what made a buyer look out of pocket for cash the pool
                 already had, so every source is listed. */}
-            <View style={styles.ledger}>
+            <View>
               {Number(poolStatus?.opening_cash) > 0 && (
-                <View style={styles.ledgerRow}>
-                  <Text style={styles.ledgerLabel}>Carried over</Text>
-                  <Text style={styles.ledgerValue}>{formatExact(poolStatus.opening_cash)}</Text>
-                </View>
+                <PreviewRow label="Carried over" value={formatExact(poolStatus.opening_cash)} />
               )}
-              <View style={styles.ledgerRow}>
-                <Text style={styles.ledgerLabel}>Contributions</Text>
-                <Text style={styles.ledgerValue}>{formatExact(poolStatus?.base_collected)}</Text>
-              </View>
+              <PreviewRow label="Contributions" value={formatExact(poolStatus?.base_collected)} />
               {usableSales > 0 && (
-                <View style={styles.ledgerRow}>
-                  <Text style={styles.ledgerLabel}>Share sales</Text>
-                  <Text style={[styles.ledgerValue, { color: COLORS.profit }]}>
-                    {formatExact(usableSales)}
-                  </Text>
-                </View>
+                <PreviewRow label="Share sales" value={formatExact(usableSales)} color={COLORS.profit} />
               )}
-              <View style={[styles.ledgerRow, styles.ledgerTotalRow]}>
-                <Text style={styles.ledgerTotalLabel}>Pool cash available</Text>
-                <Text style={styles.ledgerTotalValue}>{formatExact(poolStatus?.available_cash)}</Text>
-              </View>
-              <View style={styles.ledgerRow}>
-                <Text style={styles.ledgerLabel}>Spent on shares</Text>
-                <Text style={styles.ledgerValue}>-{formatExact(poolStatus?.total_invested)}</Text>
-              </View>
+              <PreviewTotal>
+                <PreviewRow label="Pool cash available" value={formatExact(poolStatus?.available_cash)} strong />
+              </PreviewTotal>
+              <PreviewRow label="Spent on shares" value={`-${formatExact(poolStatus?.total_invested)}`} />
               {/* Below the line on purpose: this money landed after the order
                   was placed, so it could not have paid for it. */}
               {lateSales > 0 && (
-                <View style={styles.ledgerRow}>
-                  <Text style={styles.ledgerLabel}>Share sales, after the buy</Text>
-                  <Text style={[styles.ledgerValue, { color: COLORS.profit }]}>
-                    {formatExact(lateSales)}
-                  </Text>
-                </View>
+                <PreviewRow label="Share sales, after the buy" value={formatExact(lateSales)} color={COLORS.profit} />
               )}
-              <View style={[styles.ledgerRow, styles.ledgerTotalRow]}>
-                <Text style={styles.ledgerTotalLabel}>Left in pool</Text>
-                <Text style={styles.ledgerTotalValue}>{formatExact(poolStatus?.closing_cash)}</Text>
-              </View>
+              <PreviewTotal>
+                <PreviewRow label="Left in pool" value={formatExact(poolStatus?.closing_cash)} strong />
+              </PreviewTotal>
             </View>
 
             {/* The gap, said in plain words rather than as a signed number. */}
@@ -795,7 +775,7 @@ export const ContributionsScreen = ({ route, navigation }) => {
                   : poolStatus?.is_settled ? 'Re-settle Month' : 'Settle Month'}
               </Text>
             </TouchableOpacity>
-          </GlassCard>
+          </FormCard>
         )}
 
         {isAdmin && (
@@ -834,11 +814,11 @@ export const ContributionsScreen = ({ route, navigation }) => {
         )}
 
         {sortedMonths.length === 0 ? (
-          <GlassCard style={styles.emptyCard}>
+          <FormCard style={styles.emptyCard}>
             <AppIcon name="document-text-outline" size={48} color="#555" />
             <Text style={styles.emptyText}>No contributions found</Text>
             {isAdmin && <Text style={styles.emptySubtext}>Tap "Generate Month" to create entries</Text>}
-          </GlassCard>
+          </FormCard>
         ) : (
           sortedMonths.map((month) => (
             <View key={month} style={styles.monthSection}>
@@ -849,7 +829,7 @@ export const ContributionsScreen = ({ route, navigation }) => {
                 </Text>
               </View>
               {groupedContributions[month].map((contrib) => (
-                <GlassCard key={contrib.id} style={styles.contributionCard}>
+                <FormCard key={contrib.id} style={styles.contributionCard}>
                   <View style={styles.contributionRow}>
                     <View style={styles.contributionLeft}>
                       <View style={[styles.statusDot, { backgroundColor: contrib.status === 'paid' ? COLORS.profit : COLORS.loss }]} />
@@ -893,11 +873,12 @@ export const ContributionsScreen = ({ route, navigation }) => {
                     </View>
                   </View>
                   {contrib.paid_date && <Text style={styles.paidDate}>Paid on {new Date(contrib.paid_date).toLocaleDateString('en-IN')}</Text>}
-                </GlassCard>
+                </FormCard>
               ))}
             </View>
           ))
         )}
+        <TabBarSpacer />
       </ScrollView>
 
       <Modal visible={showGenerateModal} transparent animationType="fade">
@@ -1083,13 +1064,6 @@ const styles = themedStyles(() => ({
   poolItem: { flex: 1, alignItems: 'center' },
   poolLabel: { ...TYPE.caption, color: COLORS.textSecondary, marginBottom: 4 },
   poolValue: { ...TYPE.smallValue, color: COLORS.textPrimary },
-  ledger: { gap: 2 },
-  ledgerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: SPACING.sm, paddingVertical: 4 },
-  ledgerLabel: { ...TYPE.secondary, flex: 1, minWidth: 0, color: COLORS.textSecondary },
-  ledgerValue: { ...TYPE.smallValue, color: COLORS.textPrimary },
-  ledgerTotalRow: { marginTop: 4, paddingTop: 8, borderTopWidth: 1, borderTopColor: COLORS.divider },
-  ledgerTotalLabel: { ...TYPE.secondaryMedium, flex: 1, minWidth: 0, color: COLORS.textPrimary },
-  ledgerTotalValue: { ...TYPE.plAmount, color: COLORS.accent },
   handover: { marginTop: SPACING.md, paddingTop: SPACING.md, borderTopWidth: 1, borderTopColor: COLORS.divider },
   handoverHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: SPACING.sm },
   handoverTitleBlock: { flex: 1, minWidth: 0 },

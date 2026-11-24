@@ -3,10 +3,12 @@
  * Shows dividend history and admin can add new dividends
  */
 import React, { useEffect, useState, useCallback } from 'react';
+import { shortName } from '../utils/names';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl
 } from 'react-native';
 
+import { Add } from 'iconsax-react-native';
 import { usePortfolioStore } from '../store/portfolioStore';
 import { useAuthStore } from '../store/authStore';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -76,7 +78,7 @@ export const DividendsScreen = ({ navigation }) => {
         title="Dividends"
         subtitle={`${dividends.length} entries`}
         rightAction={isAdmin ? () => navigation.navigate('AddDividend') : undefined}
-        rightIcon={isAdmin ? '➕' : undefined}
+        rightIcon={isAdmin ? <Add size={16} color={COLORS.onAccent} /> : undefined}
         rightLabel={isAdmin ? 'Add' : undefined}
       />
 
@@ -117,7 +119,7 @@ export const DividendsScreen = ({ navigation }) => {
                 <View key={div.id || i} style={[styles.row, i > 0 && styles.rowDivider]}>
                   <CompanyLogo symbol={div.stock_symbol} name={div.stock_name} size={40} style={{ marginRight: SPACING.md }} />
                   <View style={styles.rowLeft}>
-                    <Text style={styles.rowName} numberOfLines={1}>{div.stock_name}</Text>
+                    <Text style={styles.rowName} numberOfLines={1}>{shortName(div.stock_name)}</Text>
                     <Text style={styles.rowSub}>{fmtDate(div.ex_date)}  •  ₹{div.dividend_per_share}/share</Text>
                   </View>
                   <View style={styles.rowRight}>

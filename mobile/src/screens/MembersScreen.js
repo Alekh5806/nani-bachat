@@ -6,6 +6,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity
 } from 'react-native';
+import { Wallet3 } from 'iconsax-react-native';
 import { AppIcon } from '../components/Icon';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -55,7 +56,7 @@ export const MembersScreen = ({ navigation }) => {
         title="Members"
         subtitle={`${members.length} active members`}
         rightAction={() => navigation.navigate('Contributions')}
-        rightIcon="💰"
+        rightIcon={<Wallet3 size={16} color={COLORS.onAccent} />}
         rightLabel="Contributions"
       />
 

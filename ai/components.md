@@ -44,6 +44,20 @@ All shared components live in `mobile/src/components`. Reuse these before writin
 | `LoadingSkeleton` | Loading state | |
 | `StatCard` | Small stat | Older. Prefer `SummaryCard`. |
 
+## Forms (Add / Edit / Sell)
+
+Every form screen uses the shared shell. Do not rebuild it.
+
+| Component | Use |
+|---|---|
+| `FormScreen` | Props: `title`, `subtitle`, `onBack`, `children`. Gives header, keyboard-safe scroll body, side padding 20 and the bottom spacer. |
+| `FormCard` | Bordered card for a group of fields or a preview. Prop: `style`. |
+| `FormLabel` | Small title above a group ("Purchase details"). |
+| `BuyerPicker` | Select field with a member dialog. Props: `members`, `value`, `onChange(id)`, `error`, `readOnly`. |
+| `PreviewCard` / `PreviewRow` / `PreviewTotal` | Preview card of Add Stock and Sell: title with divider, rows (bold label, optional grey `sub`, value in the right half) and a totals block under a divider. |
+
+Rules: every control is full width, one per line, with an Iconsax icon through the `icon` prop (emoji names are mapped in `Icon.js`).
+
 ## React Native Paper
 
 Installed and themed from the app colors (`PaperProvider` in `App.js`). Use for: `Card`, `Chip` (range filter), `Button` (text button such as "View all"), `Divider`, `IconButton`, `ProgressBar` (dividend bars), `Dialog`. Style them with tokens, never with Paper defaults.
@@ -51,7 +65,7 @@ Installed and themed from the app colors (`PaperProvider` in `App.js`). Use for:
 ## Feedback
 
 - **Toast:** `Toast.show({ type: 'success' | 'error' | 'info', text1, text2 })` from `react-native-toast-message`. The look is a dark pill with a colored icon badge (`config/toastConfig.js`). Use toasts for results. Do not use a modal for a plain success message.
-- **Confirm before destructive actions:** `utils/alert.js` (`Alert.alert`) with Cancel and a destructive button.
+- **Popups and confirmations:** call `Alert.alert(title, message, buttons)` from `utils/alert.js` (same call as React Native, buttons with `style: 'cancel' | 'destructive'`). It shows the app's own dialog (`DialogHost` mounted in `App.js`, built on `DialogCard`), so it looks the same on iOS, Android and web and also works on top of other modals. For a confirm that needs a loading state (delete), use `ConfirmDialog` (`visible`, `title`, `message`, `confirmText`, `destructive`, `loading`, `onConfirm`, `onCancel`). Never use `window.confirm` or React Native's own `Alert`.
 
 ## Adding a component
 

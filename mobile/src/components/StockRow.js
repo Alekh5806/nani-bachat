@@ -3,15 +3,19 @@
  * Displays a single stock holding with price and P/L
  */
 import React from 'react';
+import { shortName } from '../utils/names';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { CompanyLogo } from './CompanyLogo';
+import { fmtFull } from '../utils/currency';
 import { COLORS, RADIUS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
 
 export const StockRow = ({ stock, onPress, showDetails = true }) => {
+  const avg = Number(stock.average_buy_price || stock.buy_price) || 0;
+  const current = Number(stock.current_value) || 0;
+  const invested = Number(stock.total_invested) || 0;
   const isProfit = stock.profit_loss >= 0;
   const isFlat = Number(stock.profit_loss) === 0;
   const pnlColor = isFlat ? COLORS.neutral : isProfit ? COLORS.profit : COLORS.loss;
-  const pnlBg = isFlat ? COLORS.neutralBg : isProfit ? COLORS.profitBg : COLORS.lossBg;
 
   return (
     <Pressable
@@ -23,40 +27,26 @@ export const StockRow = ({ stock, onPress, showDetails = true }) => {
     >
       {/* Stock Info */}
       <View style={styles.leftSection}>
-        <CompanyLogo symbol={stock.symbol} name={stock.name} size={44} style={styles.logo} />
+        <CompanyLogo symbol={stock.symbol} name={stock.name} size={40} style={styles.logo} />
         <View style={styles.nameContainer}>
-          <Text style={styles.name} numberOfLines={1} adjustsFontSizeToFit>
-            {stock.name}
+          <Text style={styles.name} numberOfLines={1}>
+            {shortName(stock.name)}
           </Text>
-          <Text style={styles.symbol}>{stock.symbol}</Text>
           {showDetails && (
             <Text style={styles.qty}>
               {stock.total_quantity || stock.quantity} shares
+              {avg > 0 ? `  •  Avg. ₹${avg.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}
             </Text>
           )}
         </View>
       </View>
 
-      {/* Price Info */}
+      {/* Current value (invested) */}
       <View style={styles.rightSection}>
-        <Text style={styles.price} numberOfLines={1} adjustsFontSizeToFit>
-          ₹{(stock.current_price || 0).toLocaleString('en-IN', {
-            minimumFractionDigits: 2,
-          })}
+        <Text style={[styles.price, { color: pnlColor }]} numberOfLines={1}>
+          {fmtFull(current)}
         </Text>
-        <View style={[styles.pnlBadge, { backgroundColor: pnlBg }]}>
-          <Text style={[styles.pnlText, { color: pnlColor }]}>
-            {isProfit ? '+' : '-'}
-            {Math.abs(stock.profit_loss_percentage || 0).toFixed(2)}%
-          </Text>
-        </View>
-        {showDetails && (
-          <Text style={[styles.pnlAmount, { color: pnlColor }]}>
-            {isProfit ? '+' : ''}₹{(stock.profit_loss || 0).toLocaleString('en-IN', {
-              minimumFractionDigits: 2,
-            })}
-          </Text>
-        )}
+        <Text style={styles.invested} numberOfLines={1}>({fmtFull(invested)})</Text>
       </View>
     </Pressable>
   );
@@ -71,7 +61,7 @@ const styles = themedStyles(() => ({
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.glassBorder,
-    padding: SPACING.lg,
+    padding: SPACING.md,
     marginBottom: SPACING.md,
   },
   pressed: {
@@ -102,17 +92,20 @@ const styles = themedStyles(() => ({
   },
   name: {
     ...TYPE.cardTitle,
+    fontSize: 14,
     color: COLORS.textPrimary,
   },
   symbol: {
     ...TYPE.caption,
+    fontSize: 10,
     color: COLORS.textMuted,
-    marginTop: 2,
+    marginTop: 4,
   },
   qty: {
-    ...TYPE.quantity,
-    color: COLORS.textSecondary,
-    marginTop: 2,
+    ...TYPE.caption,
+    fontSize: 10,
+    color: COLORS.textMuted,
+    marginTop: 4,
   },
   rightSection: {
     alignItems: 'flex-end',
@@ -120,20 +113,14 @@ const styles = themedStyles(() => ({
     maxWidth: 132,
   },
   price: {
-    ...TYPE.stockPrice,
+    ...TYPE.smallValue,
+    fontSize: 12,
     color: COLORS.textPrimary,
   },
-  pnlBadge: {
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 2,
-    borderRadius: RADIUS.sm,
+  invested: {
+    ...TYPE.caption,
+    fontSize: 10,
+    color: COLORS.textMuted,
     marginTop: 4,
-  },
-  pnlText: {
-    ...TYPE.plPercent,
-  },
-  pnlAmount: {
-    ...TYPE.smallValue,
-    marginTop: 2,
   },
 }));

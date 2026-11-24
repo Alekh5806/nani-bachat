@@ -19,6 +19,7 @@ export const PremiumInput = ({
   style,
   multiline = false,
   autoCapitalize = 'none',
+  autoCorrect = false,
 }) => {
   const [focused, setFocused] = useState(false);
 
@@ -45,6 +46,7 @@ export const PremiumInput = ({
           secureTextEntry={secureTextEntry}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
+          autoCorrect={autoCorrect}
           multiline={multiline}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}

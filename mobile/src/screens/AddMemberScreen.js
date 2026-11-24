@@ -1,22 +1,15 @@
 import React, { useMemo, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Switch, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 
 import { Alert } from '../utils/alert';
 import api from '../config/api';
-import { GlassCard } from '../components/GlassCard';
+import { FormScreen, FormCard } from '../components/FormScreen';
+import { PreviewCard, PreviewRow, PreviewTotal } from '../components/PreviewCard';
+import { fmtFull } from '../utils/currency';
+import { AvatarSelect } from '../components/AvatarSelect';
 import { PremiumButton } from '../components/PremiumButton';
 import { PremiumInput } from '../components/PremiumInput';
-import { ScreenHeader } from '../components/ScreenHeader';
 import { COLORS, FONTS, RADIUS, SPACING, themedStyles, TYPE } from '../theme/colors';
 
 const AVATAR_COLORS = ['#00D09C', '#4F46E5', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
@@ -38,6 +31,7 @@ export const AddMemberScreen = ({ navigation }) => {
     email: '',
     password: '',
     avatar_color: AVATAR_COLORS[0],
+    avatar: '',
     catchUpMonths: '4',
     monthlyAmount: '1000',
     paymentMonth: getCurrentMonth(),
@@ -51,27 +45,33 @@ export const AddMemberScreen = ({ navigation }) => {
     return months * amount;
   }, [form.catchUpMonths, form.monthlyAmount]);
 
+  // The field that failed the last submit gets a red border until it is edited.
+  const [errors, setErrors] = useState({});
   const updateForm = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+    setErrors((prev) => (prev[key] ? { ...prev, [key]: undefined } : prev));
   };
 
+  // Returns { field, message } for the first problem, or null.
   const validate = () => {
-    if (!form.name.trim()) return 'Name is required';
-    if (!form.phone.trim()) return 'Phone number is required';
-    if (form.password.length < 6) return 'Password must be at least 6 characters';
-    if (recordCatchUp && catchUpAmount <= 0) return 'Catch-up amount must be greater than zero';
+    if (!form.name.trim()) return { field: 'name', message: 'Name is required' };
+    if (!form.phone.trim()) return { field: 'phone', message: 'Phone number is required' };
+    if (form.password.length < 6) return { field: 'password', message: 'Password must be at least 6 characters' };
+    if (recordCatchUp && catchUpAmount <= 0) return { field: 'monthlyAmount', message: 'Catch-up amount must be greater than zero' };
     if (recordCatchUp && !/^\d{4}-\d{2}$/.test(form.paymentMonth.trim())) {
-      return 'Payment month must be in YYYY-MM format';
+      return { field: 'paymentMonth', message: 'Payment month must be in YYYY-MM format' };
     }
     return null;
   };
 
   const handleSubmit = async () => {
-    const validationError = validate();
-    if (validationError) {
-      Toast.show({ type: 'error', text1: validationError });
+    const problem = validate();
+    if (problem) {
+      setErrors({ [problem.field]: problem.message });
+      Toast.show({ type: 'error', text1: problem.message });
       return;
     }
+    setErrors({});
 
     setSubmitting(true);
     let createdMember = null;
@@ -84,6 +84,7 @@ export const AddMemberScreen = ({ navigation }) => {
         password: form.password,
         role: 'member',
         avatar_color: form.avatar_color,
+        avatar: form.avatar,
       });
       createdMember = memberResponse.data;
 
@@ -127,186 +128,127 @@ export const AddMemberScreen = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <ScreenHeader
-        title="Add Member"
-        subtitle="Create account and optional catch-up payment"
-        showBack
-        onBack={() => navigation.goBack()}
-      />
+    <FormScreen
+      title="Add Member"
+      subtitle="Create account and optional catch-up payment"
+      onBack={() => navigation.goBack()}
+    >
+      <FormCard style={styles.card}>
+        <Text style={styles.sectionTitle}>Member Details</Text>
+        <PremiumInput
+          label="Name"
+          error={errors.name}
+          value={form.name}
+          onChangeText={(value) => updateForm('name', value)}
+          placeholder="Friend name"
+          icon="👤"
+          autoCapitalize="words"
+        />
+        <PremiumInput
+          label="Phone"
+          error={errors.phone}
+          value={form.phone}
+          onChangeText={(value) => updateForm('phone', value)}
+          placeholder="9876543210"
+          keyboardType="phone-pad"
+          icon="📱"
+        />
+        <PremiumInput
+          label="Email (Optional)"
+          value={form.email}
+          onChangeText={(value) => updateForm('email', value)}
+          placeholder="friend@example.com"
+          keyboardType="email-address"
+          icon="✉️"
+        />
+        <PremiumInput
+          label="Temporary Password"
+          error={errors.password}
+          value={form.password}
+          onChangeText={(value) => updateForm('password', value)}
+          placeholder="Minimum 6 characters"
+          secureTextEntry
+          icon="🔐"
+        />
 
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <GlassCard style={styles.card}>
-            <Text style={styles.sectionTitle}>Member Details</Text>
-            <PremiumInput
-              label="Name"
-              value={form.name}
-              onChangeText={(value) => updateForm('name', value)}
-              placeholder="Friend name"
-              icon="👤"
-              autoCapitalize="words"
-            />
-            <PremiumInput
-              label="Phone"
-              value={form.phone}
-              onChangeText={(value) => updateForm('phone', value)}
-              placeholder="9876543210"
-              keyboardType="phone-pad"
-              icon="📱"
-            />
-            <PremiumInput
-              label="Email (Optional)"
-              value={form.email}
-              onChangeText={(value) => updateForm('email', value)}
-              placeholder="friend@example.com"
-              keyboardType="email-address"
-              icon="✉️"
-            />
-            <PremiumInput
-              label="Temporary Password"
-              value={form.password}
-              onChangeText={(value) => updateForm('password', value)}
-              placeholder="Minimum 6 characters"
-              secureTextEntry
-              icon="🔐"
-            />
+        <AvatarSelect value={form.avatar} onChange={(key) => updateForm('avatar', key)} />
+      </FormCard>
 
-            <Text style={styles.label}>Avatar Color</Text>
-            <View style={styles.swatchRow}>
-              {AVATAR_COLORS.map((color) => (
-                <TouchableOpacity
-                  key={color}
-                  onPress={() => updateForm('avatar_color', color)}
-                  style={[
-                    styles.swatchButton,
-                    { backgroundColor: color },
-                    form.avatar_color === color && styles.swatchButtonActive,
-                  ]}
-                  activeOpacity={0.8}
-                />
-              ))}
-            </View>
-          </GlassCard>
-
-          <GlassCard style={styles.card}>
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleTextWrap}>
-                <Text style={styles.sectionTitle}>Catch-up Payment</Text>
-                <Text style={styles.helperText}>Use this when a new member pays old months now.</Text>
-              </View>
-              <Switch
-                value={recordCatchUp}
-                onValueChange={setRecordCatchUp}
-                trackColor={{ false: COLORS.surfaceLight, true: COLORS.accent + '80' }}
-                thumbColor={recordCatchUp ? COLORS.accent : COLORS.textMuted}
-              />
-            </View>
-
-            {recordCatchUp && (
-              <>
-                <View style={styles.amountRow}>
-                  <View style={styles.amountInput}>
-                    <PremiumInput
-                      label="Past Months"
-                      value={form.catchUpMonths}
-                      onChangeText={(value) => updateForm('catchUpMonths', value)}
-                      keyboardType="numeric"
-                      placeholder="4"
-                    />
-                  </View>
-                  <View style={styles.amountInput}>
-                    <PremiumInput
-                      label="Monthly Amount"
-                      value={form.monthlyAmount}
-                      onChangeText={(value) => updateForm('monthlyAmount', value)}
-                      keyboardType="numeric"
-                      placeholder="1000"
-                    />
-                  </View>
-                </View>
-                <PremiumInput
-                  label="Payment Month"
-                  value={form.paymentMonth}
-                  onChangeText={(value) => updateForm('paymentMonth', value)}
-                  placeholder="YYYY-MM"
-                  keyboardType="numbers-and-punctuation"
-                />
-                <View style={styles.totalBox}>
-                  <Text style={styles.totalLabel}>Amount to record as paid</Text>
-                  <Text style={styles.totalAmount}>Rs.{catchUpAmount.toLocaleString('en-IN')}</Text>
-                </View>
-              </>
-            )}
-          </GlassCard>
-
-          <PremiumButton
-            title={submitting ? 'Adding Member...' : 'Add Member'}
-            onPress={handleSubmit}
-            loading={submitting}
-            disabled={submitting}
-            icon="➕"
-            style={styles.submitButton}
+      <FormCard style={styles.card}>
+        <View style={styles.toggleRow}>
+          <View style={styles.toggleTextWrap}>
+            <Text style={styles.sectionTitle}>Catch-up Payment</Text>
+            <Text style={styles.helperText}>Use this when a new member pays old months now.</Text>
+          </View>
+          <Switch
+            value={recordCatchUp}
+            onValueChange={setRecordCatchUp}
+            trackColor={{ false: COLORS.surfaceLight, true: COLORS.accent + '80' }}
+            thumbColor={recordCatchUp ? COLORS.accent : COLORS.textMuted}
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
+        </View>
+
+        {recordCatchUp && (
+          <>
+            <PremiumInput
+              label="Past Months"
+              value={form.catchUpMonths}
+              onChangeText={(value) => updateForm('catchUpMonths', value)}
+              keyboardType="numeric"
+              placeholder="4"
+            />
+            <PremiumInput
+              label="Monthly Amount"
+              value={form.monthlyAmount}
+              onChangeText={(value) => updateForm('monthlyAmount', value)}
+              keyboardType="numeric"
+              placeholder="1000"
+            />
+            <PremiumInput
+              label="Payment Month"
+              error={errors.paymentMonth}
+              value={form.paymentMonth}
+              onChangeText={(value) => updateForm('paymentMonth', value)}
+              placeholder="YYYY-MM"
+              keyboardType="numbers-and-punctuation"
+            />
+          </>
+        )}
+      </FormCard>
+
+      {recordCatchUp && (
+        <PreviewCard title="Catch-up preview" style={styles.card}>
+          <PreviewRow label="Past months" value={String(Number(form.catchUpMonths) || 0)} />
+          <PreviewRow label="Monthly amount" value={fmtFull(form.monthlyAmount)} />
+          <PreviewRow label="Payment month" value={form.paymentMonth || '—'} />
+          <PreviewTotal>
+            <PreviewRow label="Amount to record as paid" value={fmtFull(catchUpAmount)} strong />
+          </PreviewTotal>
+        </PreviewCard>
+      )}
+
+      <PremiumButton
+        title={submitting ? 'Adding Member...' : 'Add Member'}
+        onPress={handleSubmit}
+        loading={submitting}
+        disabled={submitting}
+        icon="➕"
+        style={styles.submitButton}
+      />
+    </FormScreen>
   );
 };
 
 export default AddMemberScreen;
 
 const styles = themedStyles(() => ({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: SPACING.xl,
-    paddingBottom: 120,
-  },
   card: {
-    padding: SPACING.lg,
     marginBottom: SPACING.lg,
   },
   sectionTitle: {
     ...TYPE.sectionTitle,
     color: COLORS.textPrimary,
     marginBottom: SPACING.md,
-  },
-  label: {
-    ...TYPE.inputLabel,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.sm,
-  },
-  swatchRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.sm,
-  },
-  swatchButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    overflow: 'hidden',
-  },
-  swatchButtonActive: {
-    borderWidth: 3,
-    borderColor: COLORS.textPrimary,
   },
   toggleRow: {
     flexDirection: 'row',
@@ -322,30 +264,6 @@ const styles = themedStyles(() => ({
     color: COLORS.textSecondary,
     marginTop: -SPACING.sm,
     marginBottom: SPACING.md,
-  },
-  amountRow: {
-    flexDirection: 'row',
-    gap: SPACING.md,
-  },
-  amountInput: {
-    flex: 1,
-  },
-  totalBox: {
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: SPACING.lg,
-    alignItems: 'center',
-  },
-  totalLabel: {
-    ...TYPE.secondaryMedium,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.xs,
-  },
-  totalAmount: {
-    ...TYPE.plAmount,
-    color: COLORS.accent,
   },
   submitButton: {
     marginTop: SPACING.sm,

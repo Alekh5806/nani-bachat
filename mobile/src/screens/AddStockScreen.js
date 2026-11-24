@@ -3,18 +3,19 @@
  * Search stocks like MoneyControl Pro — type to search,
  * see live prices, select, then fill purchase details.
  */
+import { shortName } from '../utils/names';
+import { missingFields } from '../utils/formErrors';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import {
-  View, Text, StyleSheet, ScrollView, KeyboardAvoidingView,
-  Platform, Pressable, ActivityIndicator, TextInput
-} from 'react-native';
+import { View, Text, Platform, Pressable, ActivityIndicator } from 'react-native';
 import Toast from 'react-native-toast-message';
 
 import { usePortfolioStore } from '../store/portfolioStore';
-import { ScreenHeader } from '../components/ScreenHeader';
+import { FormScreen, FormLabel } from '../components/FormScreen';
+import { SelectedStockCard } from '../components/SelectedStockCard';
+import { BuyerPicker } from '../components/BuyerPicker';
+import { PreviewCard, PreviewRow, PreviewTotal } from '../components/PreviewCard';
 import { PremiumInput } from '../components/PremiumInput';
 import { PremiumButton } from '../components/PremiumButton';
-import { GlassCard } from '../components/GlassCard';
 import { DatePickerField, todayString } from '../components/DatePickerField';
 import { CompanyLogo } from '../components/CompanyLogo';
 import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
@@ -45,7 +46,12 @@ export const AddStockScreen = ({ navigation }) => {
     notes: '',
   });
 
-  const updateForm = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
+  // Fields that failed the last submit; each shows a red border until edited.
+  const [errors, setErrors] = useState({});
+  const updateForm = (key, value) => {
+    setForm(prev => ({ ...prev, [key]: value }));
+    setErrors(prev => (prev[key] ? { ...prev, [key]: undefined } : prev));
+  };
 
   const normalizeManualSymbol = (value) => {
     const cleaned = value.trim().toUpperCase().replace(/\s+/g, '');
@@ -109,13 +115,17 @@ export const AddStockScreen = ({ navigation }) => {
   // ── Submit ──
   const handleSubmit = async () => {
     if (!selectedStock) {
+      setErrors({ search: 'Required' });
       Toast.show({ type: 'error', text1: 'No Stock Selected', text2: 'Search and select a stock first' });
       return;
     }
-    if (!form.quantity || !form.buy_price || !form.buy_date || !form.buyer) {
+    const missing = missingFields(form, ['quantity', 'buy_price', 'buy_date', 'buyer']);
+    if (Object.keys(missing).length) {
+      setErrors(missing);
       Toast.show({ type: 'error', text1: 'Missing Fields', text2: 'Fill all required fields' });
       return;
     }
+    setErrors({});
 
     // A shortfall is allowed: the named buyer fronts it and settling the month
     // credits it back to them. Only block when there is nobody to charge.
@@ -143,7 +153,7 @@ export const AddStockScreen = ({ navigation }) => {
     setLoading(false);
 
     if (result.success) {
-      Toast.show({ type: 'success', text1: 'Stock added', text2: `${selectedStock.name} added to portfolio` });
+      Toast.show({ type: 'success', text1: 'Stock added', text2: `${shortName(selectedStock.name)} added to portfolio` });
       navigation.goBack();
     } else {
       Toast.show({ type: 'error', text1: 'Could Not Add Investment', text2: result.error });
@@ -168,398 +178,268 @@ export const AddStockScreen = ({ navigation }) => {
   const selectedBuyerName = members.find((m) => String(m.id) === String(form.buyer))?.name || 'The buyer';
 
   return (
-    <View style={styles.container}>
-      <ScreenHeader
-        title="Add Investment"
-        subtitle="Search & add investment"
-        showBack
-        onBack={() => navigation.goBack()}
+    <FormScreen
+      title="Add Investment"
+      subtitle="Search & add investment"
+      onBack={() => navigation.goBack()}
+    >
+      {/* ── Stock Search ── */}
+      <PremiumInput
+        label="Search stock"
+        error={errors.search}
+        value={searchQuery}
+        onChangeText={handleSearch}
+        placeholder="Company name or symbol"
+        icon="🔍"
+        style={styles.searchInput}
       />
+      {isSearching && (
+        <View style={styles.searching}>
+          <ActivityIndicator size="small" color={COLORS.accent} />
+          <Text style={styles.searchingText}>Searching</Text>
+        </View>
+      )}
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-      >
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
+      {/* ── Search Results Dropdown ── */}
+      {searchResults.length > 0 && !selectedStock && (
+        <View style={styles.resultsContainer}>
+          {searchResults.map((stock, index) => {
+            const isPositive = stock.change >= 0;
+            const changeColor = isPositive ? COLORS.profit : COLORS.loss;
+
+            return (
+              <Pressable
+                key={stock.symbol + index}
+                onPress={() => handleSelectStock(stock)}
+                style={({ pressed }) => [
+                  styles.resultRow,
+                  pressed && styles.resultRowPressed,
+                  index < searchResults.length - 1 && styles.resultBorder,
+                ]}
+              >
+                {/* Left: Symbol badge + name */}
+                <View style={styles.resultLeft}>
+                  <CompanyLogo symbol={stock.symbol} name={stock.name} size={40} style={{ marginRight: SPACING.md }} />
+                  <View style={styles.resultInfo}>
+                    <Text style={styles.resultName} numberOfLines={1}>
+                      {shortName(stock.name)}
+                    </Text>
+                    <Text style={styles.resultSymbol}>
+                      {stock.symbol} • {stock.market_cap_label}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Right: Price + change */}
+                <View style={styles.resultRight}>
+                  <Text style={styles.resultPrice}>
+                    {formatCurrency(stock.current_price)}
+                  </Text>
+                  <Text style={[styles.changeText, { color: changeColor }]}>
+                    {isPositive ? '+' : '-'}{Math.abs(stock.change_percentage).toFixed(2)}%
+                  </Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+
+      {searchQuery.trim().length >= 2 && !selectedStock && !isSearching && (
+        <Pressable
+          onPress={handleManualSelect}
+          style={({ pressed }) => [
+            styles.manualButton,
+            pressed && styles.resultRowPressed,
+          ]}
         >
-          {/* ── Stock Search ── */}
-          <Text style={styles.sectionLabel}>Search stock</Text>
-          <View style={styles.searchContainer}>
-            <TextInput
-              value={searchQuery}
-              onChangeText={handleSearch}
-              placeholder="Type company name or symbol..."
-              placeholderTextColor={COLORS.placeholder}
-              style={styles.searchInput}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {isSearching && (
-              <ActivityIndicator
-                size="small"
-                color={COLORS.accent}
-                style={styles.searchSpinner}
+          <Text style={styles.manualButtonText}>
+            Use {normalizeManualSymbol(searchQuery)} manually
+          </Text>
+        </Pressable>
+      )}
+
+      {/* ── Selected Stock Card ── */}
+      {selectedStock && (
+        <SelectedStockCard
+          symbol={selectedStock.symbol}
+          name={selectedStock.name}
+          style={styles.selectedCard}
+          onChange={() => {
+            setSelectedStock(null);
+            setSearchQuery('');
+          }}
+          rows={[
+            { label: 'Live Price', value: formatCurrency(selectedStock.current_price) },
+            {
+              label: 'Day Change',
+              value: `${selectedStock.change >= 0 ? '+' : ''}${selectedStock.change} (${selectedStock.change_percentage}%)`,
+              color: selectedStock.change >= 0 ? COLORS.profit : COLORS.loss,
+            },
+            { label: 'Day High', value: formatCurrency(selectedStock.day_high) },
+            { label: 'Day Low', value: formatCurrency(selectedStock.day_low) },
+          ]}
+        >
+          {selectedStock.manual && (
+            <View style={styles.manualEditBlock}>
+              <PremiumInput
+                label="Symbol"
+                value={selectedStock.symbol}
+                onChangeText={(value) => setSelectedStock(prev => ({
+                  ...prev,
+                  symbol: normalizeManualSymbol(value),
+                }))}
+                placeholder="Example: NSDL.BO"
               />
-            )}
-          </View>
-
-          {/* ── Search Results Dropdown ── */}
-          {searchResults.length > 0 && !selectedStock && (
-            <View style={styles.resultsContainer}>
-              {searchResults.map((stock, index) => {
-                const isPositive = stock.change >= 0;
-                const changeColor = isPositive ? COLORS.profit : COLORS.loss;
-
-                return (
-                  <Pressable
-                    key={stock.symbol + index}
-                    onPress={() => handleSelectStock(stock)}
-                    style={({ pressed }) => [
-                      styles.resultRow,
-                      pressed && styles.resultRowPressed,
-                      index < searchResults.length - 1 && styles.resultBorder,
-                    ]}
-                  >
-                    {/* Left: Symbol badge + name */}
-                    <View style={styles.resultLeft}>
-                      <CompanyLogo symbol={stock.symbol} name={stock.name} size={44} style={{ marginRight: SPACING.md }} />
-                      <View style={styles.resultInfo}>
-                        <Text style={styles.resultName} numberOfLines={1}>
-                          {stock.name}
-                        </Text>
-                        <Text style={styles.resultSymbol}>
-                          {stock.symbol} • {stock.market_cap_label}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Right: Price + change */}
-                    <View style={styles.resultRight}>
-                      <Text style={styles.resultPrice}>
-                        {formatCurrency(stock.current_price)}
-                      </Text>
-                      <View style={[styles.changeBadge, { backgroundColor: isPositive ? COLORS.profitBg : COLORS.lossBg }]}>
-                        <Text style={[styles.changeText, { color: changeColor }]}>
-                          {isPositive ? '+' : '-'}{Math.abs(stock.change_percentage).toFixed(2)}%
-                        </Text>
-                      </View>
-                    </View>
-                  </Pressable>
-                );
-              })}
+              <PremiumInput
+                label="Company Name"
+                value={selectedStock.name}
+                onChangeText={(value) => setSelectedStock(prev => ({
+                  ...prev,
+                  name: value,
+                }))}
+                placeholder="Company name"
+              />
             </View>
           )}
+        </SelectedStockCard>
+      )}
 
-          {searchQuery.trim().length >= 2 && !selectedStock && !isSearching && (
-            <Pressable
-              onPress={handleManualSelect}
-              style={({ pressed }) => [
-                styles.manualButton,
-                pressed && styles.resultRowPressed,
-              ]}
-            >
-              <Text style={styles.manualButtonText}>
-                Use {normalizeManualSymbol(searchQuery)} manually
-              </Text>
-            </Pressable>
-          )}
+      {/* ── Purchase Details (only after stock selected) ── */}
+      {selectedStock && (
+        <>
+          <FormLabel style={{ marginTop: SPACING.xl }}>Purchase details</FormLabel>
 
-          {/* ── Selected Stock Card ── */}
-          {selectedStock && (
-            <GlassCard borderGlow style={styles.selectedCard}>
-              <View style={styles.selectedHeader}>
-                <CompanyLogo symbol={selectedStock.symbol} name={selectedStock.name} size={48} style={{ marginRight: SPACING.md }} />
-                <View style={styles.selectedInfo}>
-                  <Text style={styles.selectedName}>{selectedStock.name}</Text>
-                  <Text style={styles.selectedSymbol}>{selectedStock.symbol}</Text>
-                </View>
-                <Pressable
-                  onPress={() => {
-                    setSelectedStock(null);
-                    setSearchQuery('');
-                  }}
-                  style={styles.changeBtn}
-                >
-                  <Text style={styles.changeBtnText}>Change</Text>
-                </Pressable>
-              </View>
+            <PremiumInput
+              label="Quantity"
+              error={errors.quantity}
+              value={form.quantity}
+              onChangeText={(v) => updateForm('quantity', v)}
+              placeholder="Shares"
+              keyboardType="numeric"
+              icon="📦"
+            />
+            <PremiumInput
+              label="Buy Price (₹)"
+              error={errors.buy_price}
+              value={form.buy_price}
+              onChangeText={(v) => updateForm('buy_price', v)}
+              placeholder="Per share"
+              keyboardType="decimal-pad"
+              icon="💵"
+            />
 
-              <View style={styles.priceGrid}>
-                {selectedStock.manual && (
-                  <View style={styles.manualEditBlock}>
-                    <PremiumInput
-                      label="Symbol"
-                      value={selectedStock.symbol}
-                      onChangeText={(value) => setSelectedStock(prev => ({
-                        ...prev,
-                        symbol: normalizeManualSymbol(value),
-                      }))}
-                      placeholder="Example: NSDL.BO"
-                    />
-                    <PremiumInput
-                      label="Company Name"
-                      value={selectedStock.name}
-                      onChangeText={(value) => setSelectedStock(prev => ({
-                        ...prev,
-                        name: value,
-                      }))}
-                      placeholder="Company name"
-                    />
-                  </View>
-                )}
-                <View style={styles.priceItem}>
-                  <Text style={styles.priceLabel}>Live Price</Text>
-                  <Text style={styles.priceValue}>
-                    {formatCurrency(selectedStock.current_price)}
-                  </Text>
-                </View>
-                <View style={styles.priceItem}>
-                  <Text style={styles.priceLabel}>Day Change</Text>
-                  <Text style={[
-                    styles.priceValue,
-                    { color: selectedStock.change >= 0 ? COLORS.profit : COLORS.loss }
-                  ]}>
-                    {selectedStock.change >= 0 ? '+' : ''}{selectedStock.change} ({selectedStock.change_percentage}%)
-                  </Text>
-                </View>
-                <View style={styles.priceItem}>
-                  <Text style={styles.priceLabel}>Day High</Text>
-                  <Text style={styles.priceValue}>
-                    {formatCurrency(selectedStock.day_high)}
-                  </Text>
-                </View>
-                <View style={styles.priceItem}>
-                  <Text style={styles.priceLabel}>Day Low</Text>
-                  <Text style={styles.priceValue}>
-                    {formatCurrency(selectedStock.day_low)}
-                  </Text>
-                </View>
-              </View>
-            </GlassCard>
-          )}
+            <PremiumInput
+              label="Brokerage (₹)"
+              value={form.brokerage}
+              onChangeText={(v) => updateForm('brokerage', v)}
+              placeholder="0"
+              keyboardType="decimal-pad"
+              icon="🏦"
+            />
+            <DatePickerField
+              label="Buy Date"
+              error={errors.buy_date}
+              value={form.buy_date}
+              onChange={(v) => updateForm('buy_date', v)}
+              maxDate={todayString()}
+            />
 
-          {/* ── Purchase Details (only after stock selected) ── */}
-          {selectedStock && (
-            <>
-              <Text style={[styles.sectionLabel, { marginTop: SPACING.xl }]}>
-                Purchase details
-              </Text>
+          <BuyerPicker members={members} value={form.buyer} onChange={(id) => updateForm('buyer', id)} error={errors.buyer} />
 
-              <View style={styles.row}>
-                <PremiumInput
-                  label="Quantity"
-                  value={form.quantity}
-                  onChangeText={(v) => updateForm('quantity', v)}
-                  placeholder="Shares"
-                  keyboardType="numeric"
-                  icon="📦"
-                  style={styles.halfInput}
-                />
-                <PremiumInput
-                  label="Buy Price (₹)"
-                  value={form.buy_price}
-                  onChangeText={(v) => updateForm('buy_price', v)}
-                  placeholder="Per share"
-                  keyboardType="decimal-pad"
-                  icon="💵"
-                  style={styles.halfInput}
-                />
-              </View>
+          <PremiumInput
+            label="Notes (Optional)"
+            value={form.notes}
+            onChangeText={(v) => updateForm('notes', v)}
+            placeholder="Any additional notes..."
+            icon="📝"
+            multiline
+          />
 
-              <View style={styles.row}>
-                <PremiumInput
-                  label="Brokerage (₹)"
-                  value={form.brokerage}
-                  onChangeText={(v) => updateForm('brokerage', v)}
-                  placeholder="0"
-                  keyboardType="decimal-pad"
-                  icon="🏦"
-                  style={styles.halfInput}
-                />
-                <DatePickerField
-                  label="Buy Date"
-                  value={form.buy_date}
-                  onChange={(v) => updateForm('buy_date', v)}
-                  maxDate={todayString()}
-                  style={styles.halfInput}
-                />
-              </View>
-
-              <View style={styles.buyerSection}>
-                <Text style={styles.inputLabel}>Buyer</Text>
-                <View style={styles.buyerList}>
-                  {members.map((member) => {
-                    const selected = String(member.id) === String(form.buyer);
-                    return (
-                      <Pressable
-                        key={member.id}
-                        onPress={() => updateForm('buyer', String(member.id))}
-                        style={({ pressed }) => [
-                          styles.buyerChip,
-                          selected && styles.buyerChipSelected,
-                          pressed && styles.buyerChipPressed,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.buyerChipText,
-                            selected && styles.buyerChipTextSelected,
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {member.name}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-
-              <PremiumInput
-                label="Notes (Optional)"
-                value={form.notes}
-                onChangeText={(v) => updateForm('notes', v)}
-                placeholder="Any additional notes..."
-                icon="📝"
-                multiline
+          {/* ── Investment Preview ── */}
+          {form.quantity && form.buy_price && (
+            <PreviewCard title="Investment preview" style={styles.previewCard}>
+              <PreviewRow label="Available cash" sub="Contributions + sale cash" value={formatCurrency(availableCash)} />
+              <PreviewRow
+                label="Cost"
+                sub={`${form.quantity} × ₹${form.buy_price}`}
+                value={formatCurrency(parseInt(form.quantity || 0, 10) * parseFloat(form.buy_price || 0))}
+              />
+              <PreviewRow label="Brokerage" value={formatCurrency(form.brokerage || 0)} />
+              <PreviewRow
+                label="Buyer"
+                value={members.find((m) => String(m.id) === String(form.buyer))?.name || 'Select buyer'}
+              />
+              <PreviewRow
+                label="Current value"
+                value={formatCurrency(parseInt(form.quantity || 0, 10) * (selectedStock.current_price || form.buy_price || 0))}
               />
 
-              {/* ── Investment Preview ── */}
-              {form.quantity && form.buy_price && (
-                <GlassCard style={styles.previewCard}>
-                  <Text style={styles.previewTitle}>Investment preview</Text>
-                  <View style={styles.cashBox}>
-                    <View>
-                      <Text style={styles.cashLabel}>Available Cash</Text>
-                      <Text style={styles.cashSub}>Contributions + sale cash </Text>
-                    </View>
-                    <Text style={styles.cashValue}>{formatCurrency(availableCash)}</Text>
-                  </View>
-                  <View style={styles.previewRow}>
-                    <Text style={styles.previewLabel}>Cost ({form.quantity} × ₹{form.buy_price})</Text>
-                    <Text style={styles.previewValue}>
-                      {formatCurrency(parseInt(form.quantity || 0, 10) * parseFloat(form.buy_price || 0))}
+              <PreviewTotal>
+                <PreviewRow label="Total investment" value={formatCurrency(totalInvestment)} strong />
+                <PreviewRow
+                  label="Cash after purchase"
+                  value={formatCurrency(remainingCash)}
+                  color={hasEnoughCash ? COLORS.profit : COLORS.loss}
+                />
+              </PreviewTotal>
+
+              {!hasEnoughCash && (
+                form.buyer ? (
+                  <View style={styles.shortfallBox}>
+                    <Text style={styles.shortfallTitle}>
+                      Shortfall {formatCurrency(shortfall)}
+                    </Text>
+                    <Text style={styles.shortfallText}>
+                      {selectedBuyerName} covers the shortfall. Settlement for{' '}
+                      {form.buy_date?.slice(0, 7) || 'this month'} credits whole rupees
+                      from the total monthly shortfall toward upcoming installments.
                     </Text>
                   </View>
-                  <View style={styles.previewRow}>
-                    <Text style={styles.previewLabel}>Brokerage</Text>
-                    <Text style={styles.previewValue}>
-                      {formatCurrency(form.brokerage || 0)}
-                    </Text>
-                  </View>
-                  <View style={styles.previewRow}>
-                    <Text style={styles.previewLabel}>Buyer</Text>
-                    <Text style={styles.previewValue} numberOfLines={1}>
-                      {members.find((m) => String(m.id) === String(form.buyer))?.name || 'Select buyer'}
-                    </Text>
-                  </View>
-                  <View style={[styles.previewRow, styles.previewTotal]}>
-                    <Text style={styles.previewTotalLabel}>Total Investment</Text>
-                    <Text style={styles.previewTotalValue}>
-                      {formatCurrency(totalInvestment)}
-                    </Text>
-                  </View>
-                  <View style={[styles.previewRow, styles.cashAfterRow]}>
-                    <Text style={styles.previewLabel}>Cash After Purchase</Text>
-                    <Text style={[styles.previewValue, { color: hasEnoughCash ? COLORS.profit : COLORS.loss }]}> 
-                      {formatCurrency(remainingCash)}
-                    </Text>
-                  </View>
-                  {!hasEnoughCash && (
-                    form.buyer ? (
-                      <View style={styles.shortfallBox}>
-                        <Text style={styles.shortfallTitle}>
-                          Purchase shortfall {formatCurrency(shortfall)}
-                        </Text>
-                        <Text style={styles.shortfallText}>
-                          {selectedBuyerName} covers the shortfall. Settlement for{' '}
-                          {form.buy_date?.slice(0, 7) || 'this month'} credits whole rupees
-                          from the total monthly shortfall toward upcoming installments.
-                        </Text>
-                      </View>
-                    ) : (
-                      <Text style={styles.cashError}>
-                        This purchase is {formatCurrency(shortfall)} over the available pool
-                        cash. Pick the buying member who is covering the shortfall, or reduce
-                        the quantity.
-                      </Text>
-                    )
-                  )}
-                  <View style={styles.previewRow}>
-                    <Text style={styles.previewLabel}>Current Value</Text>
-                    <Text style={styles.previewValue}>
-                      {formatCurrency(parseInt(form.quantity || 0, 10) * (selectedStock.current_price || form.buy_price || 0))}
-                    </Text>
-                  </View>
-                </GlassCard>
+                ) : (
+                  <Text style={styles.cashError}>
+                    This purchase is {formatCurrency(shortfall)} over the available pool
+                    cash. Pick the buying member who is covering the shortfall, or reduce
+                    the quantity.
+                  </Text>
+                )
               )}
-
-              <PremiumButton
-                title="Add Investment"
-                onPress={handleSubmit}
-                loading={loading}
-                icon="✅"
-                disabled={!!(form.quantity && form.buy_price && !hasEnoughCash && !form.buyer)}
-                style={{ marginTop: SPACING.lg }}
-              />
-            </>
+            </PreviewCard>
           )}
 
-          <View style={{ height: 120 }} />
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
+          <PremiumButton
+            title="Add Investment"
+            onPress={handleSubmit}
+            loading={loading}
+            icon="✅"
+            disabled={!!(form.quantity && form.buy_price && !hasEnoughCash && !form.buyer)}
+            style={{ marginTop: SPACING.lg }}
+          />
+        </>
+      )}
+    </FormScreen>
   );
 };
 
 const styles = themedStyles(() => ({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  scrollView: { flex: 1 },
-  scrollContent: {
-    paddingHorizontal: SPACING.xl,
-    paddingBottom: SPACING.huge,
-  },
-  sectionLabel: {
-    ...TYPE.captionMedium,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.md,
-    marginTop: SPACING.sm,
-  },
 
   // Search
-  searchContainer: {
+  searching: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.inputBg,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1.5,
-    borderColor: COLORS.inputBorder,
-    paddingHorizontal: SPACING.lg,
-    marginBottom: SPACING.sm,
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
   },
-  searchInput: {
-    ...TYPE.inputText,
-    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : null),
-    flex: 1,
-    color: COLORS.textPrimary,
-    paddingVertical: Platform.OS === 'ios' ? SPACING.lg : SPACING.md,
-  },
-  searchSpinner: {
-    marginLeft: SPACING.sm,
-  },
+  searchingText: { ...TYPE.caption, fontSize: 10, color: COLORS.textMuted },
+  searchInput: { marginBottom: SPACING.sm },
+
 
   // Results dropdown
   resultsContainer: {
     backgroundColor: COLORS.cardBg,
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.xl,
     borderWidth: 1,
-    borderColor: COLORS.glassBorder,
+    borderColor: COLORS.border,
     overflow: 'hidden',
     marginBottom: SPACING.lg,
   },
@@ -599,12 +479,14 @@ const styles = themedStyles(() => ({
   },
   resultName: {
     ...TYPE.cardTitle,
+    fontSize: 14,
     color: COLORS.textPrimary,
   },
   resultSymbol: {
     ...TYPE.caption,
+    fontSize: 10,
     color: COLORS.textMuted,
-    marginTop: 2,
+    marginTop: 4,
   },
   resultRight: {
     alignItems: 'flex-end',
@@ -612,25 +494,21 @@ const styles = themedStyles(() => ({
   },
   resultPrice: {
     ...TYPE.smallValue,
+    fontSize: 12,
     color: COLORS.textPrimary,
   },
-  changeBadge: {
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 2,
-    borderRadius: RADIUS.sm,
-    marginTop: 4,
-  },
+
   changeText: {
-    ...TYPE.plPercent,
+    ...TYPE.caption,
+    fontSize: 10,
+    marginTop: 4,
   },
   manualButton: {
     minHeight: 44,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.accent,
-    backgroundColor: COLORS.inputBg,
+    backgroundColor: COLORS.accent + '14',
     marginBottom: SPACING.md,
     paddingHorizontal: SPACING.md,
   },
@@ -644,196 +522,32 @@ const styles = themedStyles(() => ({
   selectedCard: {
     marginBottom: SPACING.md,
   },
-  selectedHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.lg,
-  },
-  selectedBadge: {
-    width: 50,
-    height: 50,
-    borderRadius: RADIUS.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.md,
-  },
-  selectedBadgeText: {
-    color: COLORS.onAccent,
-    fontSize: FONTS.sm,
-    fontWeight: '600',
-  },
-  selectedInfo: {
-    flex: 1,
-  },
-  selectedName: {
-    ...TYPE.cardTitle,
-    color: COLORS.textPrimary,
-  },
-  selectedSymbol: {
-    ...TYPE.secondary,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  changeBtn: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: RADIUS.sm,
-    borderWidth: 1,
-    borderColor: COLORS.accent,
-  },
-  changeBtnText: {
-    ...TYPE.captionMedium,
-    color: COLORS.accent,
-  },
-  priceGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
   manualEditBlock: {
     width: '100%',
   },
-  priceItem: {
-    width: '50%',
-    paddingVertical: SPACING.sm,
-  },
-  priceLabel: {
-    ...TYPE.caption,
-    color: COLORS.textMuted,
-    marginBottom: 2,
-  },
-  priceValue: {
-    ...TYPE.smallValue,
-    color: COLORS.textPrimary,
-  },
 
   // Form
-  row: {
-    flexDirection: 'row',
-    gap: SPACING.md,
-  },
-  halfInput: {
-    flex: 1,
-  },
-  inputLabel: {
-    ...TYPE.inputLabel,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.sm,
-  },
-  buyerSection: {
-    marginBottom: SPACING.md,
-  },
-  buyerList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.sm,
-  },
-  buyerChip: {
-    maxWidth: '48%',
-    minHeight: 38,
-    justifyContent: 'center',
-    paddingHorizontal: SPACING.md,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.inputBorder,
-    backgroundColor: COLORS.inputBg,
-  },
-  buyerChipSelected: {
-    borderColor: COLORS.accent,
-    backgroundColor: COLORS.accent + '22',
-  },
-  buyerChipPressed: {
-    opacity: 0.75,
-  },
-  buyerChipText: {
-    ...TYPE.secondaryMedium,
-    color: COLORS.textSecondary,
-  },
-  buyerChipTextSelected: {
-    color: COLORS.accent,
-  },
 
   // Preview
   previewCard: {
     marginTop: SPACING.md,
   },
-  previewTitle: {
-    ...TYPE.cardTitle,
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.md,
-  },
-  cashBox: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: COLORS.cardBgAlt,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.accent + '30',
-    padding: SPACING.md,
-    marginBottom: SPACING.md,
-  },
-  cashLabel: {
-    ...TYPE.secondaryMedium,
-    color: COLORS.textPrimary,
-  },
-  cashSub: {
-    ...TYPE.caption,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  cashValue: {
-    ...TYPE.smallValue,
-    color: COLORS.accent,
-    marginLeft: SPACING.md,
-  },
-  previewRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: SPACING.xs,
-  },
-  previewLabel: {
-    ...TYPE.secondary,
-    color: COLORS.textSecondary,
-  },
-  previewValue: {
-    ...TYPE.smallValue,
-    color: COLORS.textPrimary,
-  },
-  previewTotal: {
-    borderTopWidth: 1,
-    borderTopColor: COLORS.divider,
-    marginTop: SPACING.sm,
-    paddingTop: SPACING.md,
-  },
-  previewTotalLabel: {
-    ...TYPE.cardTitle,
-    color: COLORS.textPrimary,
-  },
-  previewTotalValue: {
-    ...TYPE.plAmount,
-    color: COLORS.accent,
-  },
-  cashAfterRow: {
-    paddingTop: SPACING.md,
-  },
   shortfallBox: {
     borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.warning + '55',
-    backgroundColor: COLORS.warningBg,
+    backgroundColor: COLORS.warning + '14',
     padding: SPACING.md,
     marginTop: SPACING.sm,
-    marginBottom: SPACING.sm,
   },
   shortfallTitle: {
-    ...TYPE.secondaryMedium,
+    ...TYPE.cardTitle,
+    fontSize: 12,
     color: COLORS.warning,
   },
   shortfallText: {
     ...TYPE.caption,
+    fontSize: 10,
     color: COLORS.textSecondary,
-    lineHeight: 17,
+    lineHeight: 16,
     marginTop: 4,
   },
   cashError: {

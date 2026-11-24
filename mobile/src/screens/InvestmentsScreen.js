@@ -6,7 +6,7 @@ import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl, Pressable
 } from 'react-native';
-import { Refresh2 } from 'iconsax-react-native';
+import { Refresh2, Add } from 'iconsax-react-native';
 import { fmtFull } from '../utils/currency';
 import { SummaryCard } from '../components/SummaryCard';
 import { useFocusEffect } from '@react-navigation/native';
@@ -16,9 +16,9 @@ import { usePortfolioStore } from '../store/portfolioStore';
 import { useAuthStore } from '../store/authStore';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { StockRow } from '../components/StockRow';
-import { GlassCard } from '../components/GlassCard';
+import { shortName } from '../utils/names';
 import { CompanyLogo } from '../components/CompanyLogo';
-import { COLORS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
+import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
 import { TabBarSpacer } from '../components/TabBarSpacer';
 
 const PRICE_REFRESH_INTERVAL_MS = 60000;
@@ -110,7 +110,7 @@ export const InvestmentsScreen = ({ navigation }) => {
         title="Investments"
         subtitle={`${summary.total_stocks || 0} holdings`}
         rightAction={isAdmin ? () => navigation.navigate('AddStock') : undefined}
-        rightIcon={isAdmin ? '➕' : undefined}
+        rightIcon={isAdmin ? <Add size={16} color={COLORS.onAccent} /> : undefined}
         rightLabel={isAdmin ? 'Add' : undefined}
       />
 
@@ -122,25 +122,36 @@ export const InvestmentsScreen = ({ navigation }) => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} />
         }
       >
-        {/* ── Summary ── */}
-        <SummaryCard
-          label={`Holdings (${summary.total_stocks || 0})`}
-          value={`₹${currentValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
-          action={isAdmin ? {
-            icon: <Refresh2 size={18} color={COLORS.textPrimary} />,
-            onPress: handleRefreshPrices,
-            loading: pricesLoading,
-            label: 'Refresh stock prices',
-          } : undefined}
-          rows={[
-            { label: '1D returns', value: `${signed(dayChange)}${fmtFull(dayChange)} (${signed(dayPct)}${dayPct.toFixed(2)}%)`, color: plColor(dayChange) },
-            { label: 'Total returns', value: `${signed(totalPL)}${fmtFull(totalPL)} (${signed(totalPL)}${totalPct.toFixed(2)}%)`, color: plColor(totalPL) },
-            { label: 'Invested', value: formatMoney(summary.total_invested) },
-          ]}
-        />
+        {/* ── Tabs: only the active one is rendered ── */}
+        <View style={styles.tabs}>
+          {[['holdings', 'Holdings'], ['history', 'History']].map(([key, label]) => (
+            <Pressable key={key} onPress={() => setTab(key)} style={[styles.tab, tab === key && styles.tabActive]}>
+              <Text style={[styles.tabText, tab === key && styles.tabTextActive]}>{label}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {/* ── Holdings summary (Holdings tab) ── */}
+        {tab === 'holdings' && (
+          <SummaryCard
+            label={`Holdings (${summary.total_stocks || 0})`}
+            value={`₹${currentValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+            action={isAdmin ? {
+              icon: <Refresh2 size={18} color={COLORS.textPrimary} />,
+              onPress: handleRefreshPrices,
+              loading: pricesLoading,
+              label: 'Refresh stock prices',
+            } : undefined}
+            rows={[
+              { label: '1D returns', value: `${signed(dayChange)}${fmtFull(dayChange)} (${signed(dayPct)}${dayPct.toFixed(2)}%)`, color: plColor(dayChange) },
+              { label: 'Total returns', value: `${signed(totalPL)}${fmtFull(totalPL)} (${signed(totalPL)}${totalPct.toFixed(2)}%)`, color: plColor(totalPL) },
+              { label: 'Invested', value: formatMoney(summary.total_invested) },
+            ]}
+          />
+        )}
 
         {/* ── Realized P/L (booked profit from sold holdings) ── */}
-        {sortedSold.length > 0 && (
+        {tab === 'history' && sortedSold.length > 0 && (
           <SummaryCard
             label="Realized P/L"
             value={`${signed(realizedPL)}${fmtFull(realizedPL)}`}
@@ -156,14 +167,6 @@ export const InvestmentsScreen = ({ navigation }) => {
           />
         )}
 
-        {/* ── Tabs: only the active one is rendered ── */}
-        <View style={styles.tabs}>
-          {[['holdings', 'Holdings'], ['history', 'History']].map(([key, label]) => (
-            <Pressable key={key} onPress={() => setTab(key)} style={[styles.tab, tab === key && styles.tabActive]}>
-              <Text style={[styles.tabText, tab === key && styles.tabTextActive]}>{label}</Text>
-            </Pressable>
-          ))}
-        </View>
 
         {/* ── Stock Holdings ── */}
         {tab === 'holdings' && (stockSummary?.stocks || []).map((stock, index) => (
@@ -178,48 +181,35 @@ export const InvestmentsScreen = ({ navigation }) => {
         {tab === 'history' && history.length === 0 && <Text style={styles.realizedNote}>No transactions yet</Text>}
         {tab === 'history' && history.map((tx) => {
           const isBuy = tx.type === 'buy';
-          const pnl = Number(tx.item.profit_loss) || 0;
           return (
             <Pressable
               key={`${tx.type}-${tx.item.id}`}
               onPress={() => navigation.navigate('HoldingDetail', { holding: { symbol: tx.item.symbol, name: tx.item.name } })}
               style={({ pressed }) => [pressed && styles.txActionPressed]}
             >
-              <GlassCard style={styles.txCard}>
-                <View style={styles.txHeader}>
-                  <CompanyLogo symbol={tx.item.symbol} name={tx.item.name} size={36} style={{ marginRight: SPACING.md }} />
-                  <View style={styles.txTitleBlock}>
-                    <Text style={styles.txName} numberOfLines={1}>{tx.item.name}</Text>
-                    <Text style={styles.txBuyer} numberOfLines={1}>
-                      {isBuy ? 'Bought' : 'Sold'} • {tx.item.quantity} × ₹{isBuy ? tx.item.buy_price : tx.item.sell_price}
-                      {' • '}{tx.item.buyer_name || 'Not recorded'}
-                    </Text>
-                  </View>
-                  <Text style={styles.txDate}>{formatDate(tx.date)}</Text>
-                </View>
-                <View style={styles.saleDetailRow}>
-                  <Text style={styles.saleDetailLabel}>
-                    {isBuy ? `Amount (incl. brokerage ${formatMoney(tx.item.brokerage)})` : `Net proceeds (brokerage ${formatMoney(tx.item.sell_brokerage)})`}
+              <View style={styles.txCard}>
+                <CompanyLogo symbol={tx.item.symbol} name={tx.item.name} size={40} />
+                <View style={styles.txMain}>
+                  <Text style={styles.txName} numberOfLines={1}>{shortName(tx.item.name)}</Text>
+                  <Text style={styles.txSub} numberOfLines={1}>
+                    {tx.item.quantity} shares  •  {isBuy ? '' : 'Sold at '}₹{Number(isBuy ? tx.item.buy_price : tx.item.sell_price).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {'  •  '}{tx.item.buyer_name || 'Not recorded'}
                   </Text>
-                  <Text style={styles.saleDetailValue}>
+                </View>
+                <View style={styles.txRight}>
+                  <Text style={styles.txAmount} numberOfLines={1}>
                     {formatMoney(isBuy ? tx.item.total_invested : tx.item.current_value)}
                   </Text>
+                  <Text style={styles.txSub}>{formatDate(tx.date)}</Text>
                 </View>
-                {!isBuy && (
-                  <View style={styles.saleDetailRow}>
-                    <Text style={styles.saleDetailLabel}>Realized P/L (bought {formatDate(tx.item.buy_date)})</Text>
-                    <Text style={[styles.saleDetailValue, { color: pnl >= 0 ? COLORS.profit : COLORS.loss }]}>
-                      {pnl >= 0 ? '+' : ''}{formatMoney(pnl)}
-                    </Text>
-                  </View>
-                )}
-              </GlassCard>
+              </View>
             </Pressable>
           );
         })}
 
         <TabBarSpacer />
       </ScrollView>
+
     </View>
   );
 };
@@ -248,9 +238,6 @@ const styles = themedStyles(() => ({
     flex: 1,
     minWidth: 0,
     marginHorizontal: 4,
-  },
-  txCard: {
-    marginBottom: SPACING.md,
   },
 
   // ── Sold holdings ──
@@ -359,22 +346,6 @@ const styles = themedStyles(() => ({
     color: COLORS.accent,
     paddingHorizontal: SPACING.sm,
   },
-  saleDetailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  saleDetailLabel: {
-    ...TYPE.caption,
-    flex: 1,
-    color: COLORS.textSecondary,
-    marginRight: SPACING.sm,
-  },
-  saleDetailValue: {
-    ...TYPE.smallValue,
-    color: COLORS.textPrimary,
-  },
   salePnlRow: {
     marginTop: SPACING.sm,
     paddingTop: SPACING.sm,
@@ -403,31 +374,6 @@ const styles = themedStyles(() => ({
     ...TYPE.caption,
     color: COLORS.textMuted,
   },
-  txHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: SPACING.sm,
-  },
-  txTitleBlock: {
-    flex: 1,
-    minWidth: 0,
-    marginRight: SPACING.md,
-  },
-  txName: {
-    ...TYPE.cardTitle,
-    color: COLORS.textPrimary,
-  },
-  txBuyer: {
-    ...TYPE.caption,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  txDate: {
-    ...TYPE.caption,
-    color: COLORS.textMuted,
-    flexShrink: 0,
-  },
   txDetails: {
     gap: 4,
   },
@@ -455,6 +401,21 @@ const styles = themedStyles(() => ({
   txDeleteButton: {
     borderColor: COLORS.loss,
   },
+  txCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.glass,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  txMain: { flex: 1, minWidth: 0, marginHorizontal: SPACING.md },
+  txName: { ...TYPE.cardTitle, fontSize: 14, color: COLORS.textPrimary },
+  txSub: { ...TYPE.caption, fontSize: 10, color: COLORS.textMuted, marginTop: 4 },
+  txRight: { alignItems: 'flex-end', flexShrink: 0, maxWidth: 132 },
+  txAmount: { ...TYPE.smallValue, fontSize: 12, color: COLORS.textPrimary },
   txActionPressed: {
     opacity: 0.75,
   },

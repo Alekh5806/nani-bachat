@@ -4,6 +4,7 @@
  * invested amount and share of the stock total.
  */
 import React, { useCallback } from 'react';
+import { shortName } from '../utils/names';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -67,7 +68,7 @@ export const AssetStocksScreen = ({ navigation }) => {
             >
               <CompanyLogo symbol={h.symbol} name={h.name} size={40} />
               <View style={styles.rowMain}>
-                <Text style={styles.name} numberOfLines={1}>{h.name || h.symbol}</Text>
+                <Text style={styles.name} numberOfLines={1}>{shortName(h.name) || h.symbol}</Text>
                 <Text style={styles.sub}>{share.toFixed(2)}%</Text>
               </View>
               <View style={styles.right}>
