@@ -13,9 +13,12 @@ import { FormCard } from './FormScreen';
 import { shortName } from '../utils/names';
 import { COLORS, SPACING, RADIUS, themedStyles, TYPE } from '../theme/colors';
 
-export const SelectedStockCard = ({ symbol, name, rows = [], onChange, right, style, children }) => (
+export const SelectedStockCard = ({ symbol, name, rows = [], onChange, right, style, children }) => {
+  // With no rows or content under it, the header needs no divider.
+  const hasBody = rows.length > 0 || !!children;
+  return (
   <FormCard style={style}>
-    <View style={styles.header}>
+    <View style={[styles.header, !hasBody && styles.headerAlone]}>
       <CompanyLogo symbol={symbol} name={name} size={40} style={styles.logo} />
       <View style={styles.info}>
         <Text style={styles.name}>{shortName(name)}</Text>
@@ -38,7 +41,8 @@ export const SelectedStockCard = ({ symbol, name, rows = [], onChange, right, st
       </View>
     ))}
   </FormCard>
-);
+  );
+};
 
 const styles = themedStyles(() => ({
   header: {
@@ -49,6 +53,7 @@ const styles = themedStyles(() => ({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
   },
+  headerAlone: { paddingBottom: 0, marginBottom: 0, borderBottomWidth: 0 },
   logo: { marginRight: SPACING.md },
   info: { flex: 1, minWidth: 0 },
   name: { ...TYPE.cardTitle, fontSize: 14, color: COLORS.textPrimary },

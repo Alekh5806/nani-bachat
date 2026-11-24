@@ -6,7 +6,7 @@
 import { shortName } from '../utils/names';
 import { missingFields } from '../utils/formErrors';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, Platform, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, Platform, Pressable } from 'react-native';
 import Toast from 'react-native-toast-message';
 
 import { usePortfolioStore } from '../store/portfolioStore';
@@ -191,14 +191,9 @@ export const AddStockScreen = ({ navigation }) => {
         onChangeText={handleSearch}
         placeholder="Company name or symbol"
         icon="🔍"
+        loading={isSearching}
         style={styles.searchInput}
       />
-      {isSearching && (
-        <View style={styles.searching}>
-          <ActivityIndicator size="small" color={COLORS.accent} />
-          <Text style={styles.searchingText}>Searching</Text>
-        </View>
-      )}
 
       {/* ── Search Results Dropdown ── */}
       {searchResults.length > 0 && !selectedStock && (
@@ -269,7 +264,7 @@ export const AddStockScreen = ({ navigation }) => {
             setSelectedStock(null);
             setSearchQuery('');
           }}
-          rows={[
+          rows={selectedStock.manual ? [] : [
             { label: 'Live Price', value: formatCurrency(selectedStock.current_price) },
             {
               label: 'Day Change',
@@ -279,30 +274,37 @@ export const AddStockScreen = ({ navigation }) => {
             { label: 'Day High', value: formatCurrency(selectedStock.day_high) },
             { label: 'Day Low', value: formatCurrency(selectedStock.day_low) },
           ]}
-        >
-          {selectedStock.manual && (
-            <View style={styles.manualEditBlock}>
-              <PremiumInput
-                label="Symbol"
-                value={selectedStock.symbol}
-                onChangeText={(value) => setSelectedStock(prev => ({
-                  ...prev,
-                  symbol: normalizeManualSymbol(value),
-                }))}
-                placeholder="Example: NSDL.BO"
-              />
-              <PremiumInput
-                label="Company Name"
-                value={selectedStock.name}
-                onChangeText={(value) => setSelectedStock(prev => ({
-                  ...prev,
-                  name: value,
-                }))}
-                placeholder="Company name"
-              />
-            </View>
-          )}
-        </SelectedStockCard>
+        />
+      )}
+
+      {/* ── Manual stock: no market data, so the name and symbol are typed here ── */}
+      {selectedStock?.manual && (
+        <>
+          <FormLabel style={{ marginTop: SPACING.xl }}>Stock details</FormLabel>
+          <View style={styles.manualEditBlock}>
+            <PremiumInput
+              label="Symbol"
+              value={selectedStock.symbol}
+              onChangeText={(value) => setSelectedStock(prev => ({
+                ...prev,
+                symbol: normalizeManualSymbol(value),
+              }))}
+              placeholder="Example: NSDL.BO"
+              icon="📝"
+            />
+            <PremiumInput
+              label="Company Name"
+              value={selectedStock.name}
+              onChangeText={(value) => setSelectedStock(prev => ({
+                ...prev,
+                name: value,
+              }))}
+              placeholder="Company name"
+              icon="🏦"
+            />
+            <Text style={styles.manualNote}>Not in the market list, so there is no live price. Enter the price you paid below.</Text>
+          </View>
+        </>
       )}
 
       {/* ── Purchase Details (only after stock selected) ── */}
@@ -424,13 +426,6 @@ export const AddStockScreen = ({ navigation }) => {
 const styles = themedStyles(() => ({
 
   // Search
-  searching: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    marginBottom: SPACING.md,
-  },
-  searchingText: { ...TYPE.caption, fontSize: 10, color: COLORS.textMuted },
   searchInput: { marginBottom: SPACING.sm },
 
 
@@ -525,6 +520,7 @@ const styles = themedStyles(() => ({
   manualEditBlock: {
     width: '100%',
   },
+  manualNote: { ...TYPE.caption, fontSize: 10, color: COLORS.textMuted, marginTop: -SPACING.sm },
 
   // Form
 

@@ -3,7 +3,7 @@
  * Styled text input with floating label effect
  */
 import React, { useState } from 'react';
-import { View, TextInput, Text, StyleSheet, Platform } from 'react-native';
+import { View, TextInput, Text, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { Icon } from './Icon';
 import { COLORS, RADIUS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
 
@@ -21,6 +21,7 @@ export const PremiumInput = ({
   autoCapitalize = 'none',
   autoCorrect = false,
   autoFocus = false,
+  loading = false, // small spinner on the right inside the field (for example while searching)
 }) => {
   const [focused, setFocused] = useState(false);
 
@@ -54,6 +55,7 @@ export const PremiumInput = ({
           onBlur={() => setFocused(false)}
           style={[styles.input, multiline && styles.multiline]}
         />
+        {loading && <ActivityIndicator size="small" color={COLORS.accent} style={styles.spinner} />}
       </View>
       {error && <Text style={styles.error}>{error}</Text>}
     </View>
@@ -81,6 +83,7 @@ const styles = themedStyles(() => ({
     borderColor: COLORS.inputBorder,
     paddingHorizontal: SPACING.lg,
   },
+  spinner: { marginLeft: SPACING.sm },
   inputContainerFocused: {
     borderColor: COLORS.inputFocus,
     backgroundColor: 'transparent',

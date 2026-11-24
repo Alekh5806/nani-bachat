@@ -29,7 +29,7 @@ All shared components live in `mobile/src/components`. Reuse these before writin
 
 | Component | Use it for | Notes |
 |---|---|---|
-| `PremiumInput` | Text and number input | Label above, container shows focus. |
+| `PremiumInput` | Text and number input | Label above, container shows focus. `loading` shows a small spinner on the right inside the field (search). |
 | `PremiumButton` | Primary and secondary buttons | `buttonStyle` prop for size tweaks. |
 | `DatePickerField` | Dates | Exports `todayString`, `formatDateDisplay`. |
 | `HoldingSelect` | Pick one holding (Add Dividend) | Select field plus a dialog with search. Row: name, then a shares chip and the buyer name. |
