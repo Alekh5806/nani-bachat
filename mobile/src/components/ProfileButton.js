@@ -21,20 +21,17 @@ export const ProfileButton = ({ size = 36 }) => {
       onPress={() => navigation.navigate('Profile')}
       style={({ pressed }) => [
         styles.circle,
-        { width: size, height: size, borderRadius: size / 2 },
+        { width: size, height: size },
         pressed && styles.pressed,
       ]}
     >
-      <UserAvatar person={user} size={size - 2} />
+      <UserAvatar person={user} size={size} />
     </Pressable>
   );
 };
 
 const styles = themedStyles(() => ({
   circle: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
   },

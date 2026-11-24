@@ -10,6 +10,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Toast from 'react-native-toast-message';
 import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { useFonts } from 'expo-font';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PaperProvider, MD3DarkTheme, MD3LightTheme } from 'react-native-paper';
 
 import { useAuthStore } from './src/store/authStore';
@@ -44,6 +45,8 @@ const buildPaperTheme = () => {
   };
 };
 
+const NAV_STATE_KEY = 'navigationState';
+
 export default function App() {
   const { token, isLoading, loadToken } = useAuthStore();
   const [appReady, setAppReady] = useState(false);
@@ -55,11 +58,28 @@ export default function App() {
   useEffect(() => {
     const init = async () => {
       await useThemeStore.getState().load();
+      // On the web, reopen the page the user was on after a browser reload.
+      if (Platform.OS === 'web') {
+        try {
+          const saved = await AsyncStorage.getItem(NAV_STATE_KEY);
+          if (saved) navState.current = JSON.parse(saved);
+        } catch (e) {
+          // A broken saved state just means we start at Home.
+        }
+      }
       await Promise.all([loadToken(), loadPortfolioCache()]);
       setAppReady(true);
     };
     init();
   }, []);
+
+  // After logout, forget the saved page so the next login starts at Home.
+  useEffect(() => {
+    if (appReady && !token) {
+      navState.current = undefined;
+      AsyncStorage.removeItem(NAV_STATE_KEY).catch(() => {});
+    }
+  }, [appReady, token]);
 
   useEffect(() => {
     // Push tokens need a VAPID key on the web, so push is native-only.
@@ -101,7 +121,12 @@ export default function App() {
           <View key={themeVersion} style={{ flex: 1 }}>
           <NavigationContainer
             initialState={navState.current}
-            onStateChange={(state) => { navState.current = state; }}
+            onStateChange={(state) => {
+              navState.current = state;
+              if (Platform.OS === 'web') {
+                AsyncStorage.setItem(NAV_STATE_KEY, JSON.stringify(state)).catch(() => {});
+              }
+            }}
             theme={{
               dark: COLORS.isDark,
               colors: {

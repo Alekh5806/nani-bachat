@@ -124,7 +124,7 @@ export const ProfileScreen = ({ navigation }) => {
         {/* ── Profile Card ── */}
         <GlassCard style={styles.profileCard}>
           <Pressable onPress={() => setPickerOpen(true)} style={styles.avatar}>
-            <UserAvatar person={displayUser} size={64} />
+            <UserAvatar person={{ ...displayUser, avatar: user?.avatar ?? displayUser?.avatar }} size={64} />
           </Pressable>
           <Pressable onPress={() => setPickerOpen(true)} hitSlop={8}>
             <Text style={styles.changeAvatar}>Change avatar</Text>
@@ -204,7 +204,6 @@ const styles = themedStyles(() => ({
   avatar: {
     width: 64,
     height: 64,
-    borderRadius: 32,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: SPACING.sm,
