@@ -11,7 +11,7 @@ import { fmtFull } from '../utils/currency';
 import { SummaryCard } from '../components/SummaryCard';
 import { useFocusEffect } from '@react-navigation/native';
 
-import { Alert } from '../utils/alert';
+import Toast from 'react-native-toast-message';
 import { usePortfolioStore } from '../store/portfolioStore';
 import { useAuthStore } from '../store/authStore';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -66,9 +66,9 @@ export const InvestmentsScreen = ({ navigation }) => {
     const result = await refreshPrices();
     setPricesLoading(false);
     if (result.success) {
-      Alert.alert('Prices Updated', result.message || 'All stock prices have been refreshed with latest market data.');
+      Toast.show({ type: 'success', text1: 'Prices Updated', text2: result.message || 'Latest market prices loaded' });
     } else {
-      Alert.alert('Update Failed', result.error || 'Could not refresh prices. Please try again.');
+      Toast.show({ type: 'error', text1: 'Update Failed', text2: result.error || 'Could not refresh prices' });
     }
   };
 
