@@ -19,6 +19,7 @@ import { StockRow } from '../components/StockRow';
 import { shortName } from '../utils/names';
 import { CompanyLogo } from '../components/CompanyLogo';
 import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
+import { usePersistedState } from '../utils/usePersistedState';
 import { TabBarSpacer } from '../components/TabBarSpacer';
 
 const PRICE_REFRESH_INTERVAL_MS = 60000;
@@ -33,7 +34,7 @@ export const InvestmentsScreen = ({ navigation }) => {
     refreshPrices,
   } = usePortfolioStore();
   const [refreshing, setRefreshing] = useState(false);
-  const [tab, setTab] = useState('holdings');
+  const [tab, setTab] = usePersistedState('tab:invest', 'holdings', ['holdings', 'history']);
   const [pricesLoading, setPricesLoading] = useState(false);
 
   // Each tab loads only what it shows, so the screen stays light.

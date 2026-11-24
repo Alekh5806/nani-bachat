@@ -457,15 +457,7 @@ export const ContributionsScreen = ({ route, navigation, embedded = false, view 
     }
   };
 
-  const formatCurrency = (amount) => {
-    const num = parseFloat(amount) || 0;
-    if (num >= 100000) return '₹' + (num / 100000).toFixed(1) + 'L';
-    if (num >= 1000) return '₹' + (num / 1000).toFixed(1) + 'K';
-    return '₹' + num.toFixed(0);
-  };
-
-  // The abbreviated formatter above is for headline totals; settlement figures
-  // are small and must be exact, or "₹0.8K" hides an ₹810 obligation.
+  // Settlement figures are small and must be exact, or "₹0.8K" hides an ₹810 obligation.
   const formatExact = (amount) =>
     '₹' + (parseFloat(amount) || 0).toLocaleString('en-IN', {
       minimumFractionDigits: 2,
@@ -528,11 +520,11 @@ export const ContributionsScreen = ({ route, navigation, embedded = false, view 
         {summary && (
           <SummaryCard
             label={`${summary.current_month} · Collected`}
-            value={formatCurrency(summary.current_month_collected)}
+            value={fmtFull(summary.current_month_collected)}
             rows={[
               { label: 'Paid', value: `${summary.paid_count}/${summary.total_members}`, color: COLORS.profit },
               { label: 'Pending', value: String(summary.unpaid_count), color: Number(summary.unpaid_count) > 0 ? COLORS.loss : undefined },
-              { label: 'Total collected (all time)', value: formatCurrency(summary.total_collected_all_time) },
+              { label: 'Total collected (all time)', value: fmtFull(summary.total_collected_all_time) },
             ]}
           />
         )}

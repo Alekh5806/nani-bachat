@@ -98,3 +98,5 @@ cd backend && DATABASE_URL="sqlite:///$PWD/db.sqlite3" ./venv/bin/python manage.
 - Make the smallest change that does the job. Every changed line should trace to the request.
 - If a request conflicts with a fixed rule here, say so and ask. Do not silently break the rule.
 - When you add or change a shared component or token, update this folder in the same change.
+
+- **Tabs remember the choice:** a screen with tabs keeps the selected tab with `usePersistedState(key, default, allowedValues)` (`utils/usePersistedState.js`), so a reload opens on the tab the user left. Current keys: `tab:members`, `tab:invest`.

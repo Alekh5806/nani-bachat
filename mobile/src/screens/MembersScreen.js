@@ -14,6 +14,7 @@ import { useAuthStore } from '../store/authStore';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { MemberRow } from '../components/MemberRow';
 import { fmtFull } from '../utils/currency';
+import { usePersistedState } from '../utils/usePersistedState';
 import { SummaryCard } from '../components/SummaryCard';
 import { SectionHeader } from '../components/SectionHeader';
 import { ContributionsScreen } from './ContributionsScreen';
@@ -26,7 +27,7 @@ export const MembersScreen = ({ navigation }) => {
   const { user } = useAuthStore();
   const { members, fetchMembers, dashboard, fetchDashboard } = usePortfolioStore();
   const [refreshing, setRefreshing] = useState(false);
-  const [tab, setTab] = useState('members');
+  const [tab, setTab] = usePersistedState('tab:members', 'members', TABS.map(([key]) => key));
   // History tab registers a "load more" function here; we call it near the bottom.
   const endRef = useRef(null);
   // Contribution tab registers its "Generate month" opener here for the header Add button.
