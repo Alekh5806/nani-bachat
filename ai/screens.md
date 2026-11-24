@@ -32,7 +32,7 @@ Header "Portfolio" with the month. Cards in order:
 
 ## Not a tab
 
-- **Profile:** avatar (tap to change), name, phone, role, theme (System, Light, Dark), Download Monthly Report, Logout. Opened from the header avatar. Has a back arrow.
+- **Profile:** blue hero card (avatar, name, phone, email, "Change avatar" button), then settings rows (40px round tinted icon, label 14, pill and/or chevron): Role (pill), Appearance (tap steps System, Light, Dark), Monthly report, then a divider and Log out (red). App version at the bottom. Opened from the header avatar. Has a back arrow.
 - **Stocks (`AssetStocksScreen`):** opened from Asset Allocation. `SummaryCard` (Stocks, current, Total returns, Invested, Allocation) and the list of all stocks. Tap a stock to open its holding detail.
 - **Login:** 3D illustration, phone, password, Sign In. No remember-me box.
 

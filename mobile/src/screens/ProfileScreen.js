@@ -3,10 +3,8 @@
  * User profile, settings, and logout
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View, Text, StyleSheet, ScrollView, RefreshControl,
-  Linking, ActivityIndicator, Pressable,
-} from 'react-native';
+import { View, Text, ScrollView, RefreshControl, ActivityIndicator, Pressable } from 'react-native';
+import { Crown1, Brush2, DocumentDownload, Logout, ArrowRight2, Gallery } from 'iconsax-react-native';
 import Toast from 'react-native-toast-message';
 import { Alert } from '../utils/alert';
 
@@ -14,9 +12,6 @@ import { useAuthStore } from '../store/authStore';
 import { useThemeStore } from '../store/themeStore';
 import { usePortfolioStore } from '../store/portfolioStore';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { GlassCard } from '../components/GlassCard';
-import { PremiumButton } from '../components/PremiumButton';
-import { SectionHeader } from '../components/SectionHeader';
 import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
 import api from '../config/api';
 import { TabBarSpacer } from '../components/TabBarSpacer';
@@ -101,6 +96,14 @@ export const ProfileScreen = ({ navigation }) => {
   // Use fresh profile data if available, fallback to stored user
   const displayUser = profileData || user;
 
+  // Tapping Appearance steps through System, Light and Dark.
+  const THEMES = [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']];
+  const nextTheme = () => {
+    const index = THEMES.findIndex(([value]) => value === themePreference);
+    setThemePreference(THEMES[(index + 1) % THEMES.length][0]);
+  };
+  const themeLabel = THEMES.find(([value]) => value === themePreference)?.[1] || 'System';
+
   return (
     <View style={styles.container}>
       <ScreenHeader
@@ -121,65 +124,45 @@ export const ProfileScreen = ({ navigation }) => {
       >
         <AvatarPicker visible={pickerOpen} onDismiss={() => setPickerOpen(false)} />
 
-        {/* ── Profile Card ── */}
-        <GlassCard style={styles.profileCard}>
-          <Pressable onPress={() => setPickerOpen(true)} style={styles.avatar}>
-            <UserAvatar person={{ ...displayUser, avatar: user?.avatar ?? displayUser?.avatar }} size={64} />
-          </Pressable>
-          <Pressable onPress={() => setPickerOpen(true)} hitSlop={8}>
-            <Text style={styles.changeAvatar}>Change avatar</Text>
-          </Pressable>
-          <Text style={styles.name}>{displayUser?.name || 'Member'}</Text>
-          <Text style={styles.phone}>{displayUser?.phone || ''}</Text>
-          {displayUser?.email && <Text style={styles.email}>{displayUser.email}</Text>}
-          <View style={styles.roleBadge}>
-            <Text style={styles.roleText}>
-              {(displayUser?.role || 'member')}
-            </Text>
-          </View>
-        </GlassCard>
-
-        {/* ── Appearance ── */}
-        <SectionHeader title="Appearance" />
-        <View style={styles.segment}>
-          {[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(([value, label]) => (
-            <Pressable
-              key={value}
-              onPress={() => setThemePreference(value)}
-              style={[styles.segmentItem, themePreference === value && styles.segmentItemActive]}
-            >
-              <Text style={[styles.segmentText, themePreference === value && styles.segmentTextActive]}>
-                {label}
-              </Text>
+        {/* ── Profile hero ── */}
+        <View style={styles.hero}>
+          <View style={styles.heroTop}>
+            <Pressable onPress={() => setPickerOpen(true)}>
+              <UserAvatar person={{ ...displayUser, avatar: user?.avatar ?? displayUser?.avatar }} size={64} />
             </Pressable>
-          ))}
+            <View style={styles.heroText}>
+              <Text style={styles.name} numberOfLines={1}>{displayUser?.name || 'Member'}</Text>
+              <Text style={styles.heroSub} numberOfLines={1}>{displayUser?.phone || ''}</Text>
+              {!!displayUser?.email && <Text style={styles.heroSub} numberOfLines={1}>{displayUser.email}</Text>}
+            </View>
+          </View>
+          <Pressable onPress={() => setPickerOpen(true)} style={styles.heroButton}>
+            <Gallery size={16} color={COLORS.onAccent} />
+            <Text style={styles.heroButtonText}>Change avatar</Text>
+          </Pressable>
         </View>
 
-        {/* ── Actions ── */}
-        <SectionHeader title="Actions" icon="⚙️" />
-        <PremiumButton
-          title="Download Monthly Report"
+        {/* ── Account ── */}
+        <ProfileRow
+          Icon={Crown1}
+          label="Role"
+          pill={(displayUser?.role || 'member').replace(/^./, (c) => c.toUpperCase())}
+        />
+        <View style={styles.divider} />
+
+        <ProfileRow Icon={Brush2} label="Appearance" value={themeLabel} onPress={nextTheme} chevron />
+        <ProfileRow
+          Icon={DocumentDownload}
+          label="Monthly report"
           onPress={handleDownloadReport}
           loading={downloading}
-          icon="📄"
-          variant="secondary"
-          style={{ marginBottom: SPACING.md }}
+          chevron
         />
+        <View style={styles.divider} />
 
-        <PremiumButton
-          title="Logout"
-          onPress={handleLogout}
-          icon="🚪"
-          variant="secondary"
-          textStyle={{ color: COLORS.loss }}
-          style={{ marginBottom: SPACING.lg }}
-        />
+        <ProfileRow Icon={Logout} label="Log out" onPress={handleLogout} danger chevron />
 
-        {/* ── App Info ── */}
-        <GlassCard style={styles.infoCard}>
-          <Text style={styles.appName}>Nani Bachat</Text>
-          <Text style={styles.version}>Version 1.0.0</Text>
-        </GlassCard>
+        <Text style={styles.appInfo}>Nani Bachat · Version 1.0.0</Text>
 
         <TabBarSpacer />
       </ScrollView>
@@ -187,115 +170,79 @@ export const ProfileScreen = ({ navigation }) => {
   );
 };
 
+// One settings row: round icon, label, and on the right a pill and/or a chevron.
+const ProfileRow = ({ Icon, label, pill, value, onPress, chevron, danger, loading }) => (
+  <Pressable
+    onPress={onPress}
+    disabled={!onPress || loading}
+    style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+  >
+    <View style={[styles.rowIcon, danger && styles.rowIconDanger]}>
+      <Icon size={20} color={danger ? COLORS.loss : COLORS.accent} />
+    </View>
+    <Text style={[styles.rowLabel, danger && styles.rowLabelDanger]}>{label}</Text>
+    {!!value && <Text style={styles.valueText}>{value}</Text>}
+    {!!pill && (
+      <View style={styles.pill}>
+        <Text style={styles.pillText}>{pill}</Text>
+      </View>
+    )}
+    {loading ? (
+      <ActivityIndicator size="small" color={COLORS.accent} />
+    ) : (
+      chevron && <ArrowRight2 size={16} color={COLORS.textMuted} />
+    )}
+  </Pressable>
+);
+
 const styles = themedStyles(() => ({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
   scrollView: { flex: 1 },
-  scrollContent: {
-    paddingHorizontal: SPACING.xl,
-    paddingBottom: 0,
+  scrollContent: { paddingHorizontal: SPACING.xl, paddingBottom: 0 },
+  hero: {
+    backgroundColor: COLORS.accent,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.xl,
+    marginBottom: SPACING.xl,
   },
-  profileCard: {
+  heroTop: { flexDirection: 'row', alignItems: 'center' },
+  heroText: { flex: 1, minWidth: 0, marginLeft: SPACING.lg },
+  name: { ...TYPE.sectionTitle, color: COLORS.onAccent },
+  heroSub: { ...TYPE.caption, fontSize: 12, color: 'rgba(255, 255, 255, 0.8)', marginTop: SPACING.xs },
+  heroButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: SPACING.xxxl,
-  },
-  avatar: {
-    width: 64,
-    height: 64,
     justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: SPACING.sm,
-  },
-  changeAvatar: { ...TYPE.secondaryMedium, color: COLORS.accent, marginBottom: SPACING.md },
-  name: {
-    ...TYPE.sectionTitle,
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.xs,
-  },
-  phone: {
-    ...TYPE.caption,
-    color: COLORS.textSecondary,
-  },
-  email: {
-    ...TYPE.secondary,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  roleBadge: {
-    marginTop: SPACING.sm,
-  },
-  roleText: {
-    ...TYPE.secondaryMedium,
-    color: COLORS.textMuted,
-    textTransform: 'capitalize',
-  },
-  segment: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.cardBg,
-    borderRadius: RADIUS.md,
-    padding: SPACING.xs,
-    marginBottom: SPACING.sm,
-  },
-  segmentItem: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: SPACING.md,
-    borderRadius: RADIUS.sm,
-  },
-  segmentItemActive: {
-    backgroundColor: COLORS.background,
-  },
-  segmentText: {
-    ...TYPE.secondaryMedium,
-    color: COLORS.textMuted,
-  },
-  segmentTextActive: {
-    color: COLORS.textPrimary,
-  },
-  statsCard: {
-    padding: 0,
-  },
-  statRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.lg,
-  },
-  statLabel: {
-    ...TYPE.secondary,
-    color: COLORS.textSecondary,
-  },
-  statValue: {
-    ...TYPE.smallValue,
-    color: COLORS.textPrimary,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: COLORS.divider,
-    marginHorizontal: SPACING.lg,
-  },
-  infoCard: {
-    alignItems: 'center',
-    paddingVertical: SPACING.xxl,
+    gap: SPACING.sm,
     marginTop: SPACING.xl,
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
-  appName: {
-    ...TYPE.sectionTitle,
-    color: COLORS.accent,
+  heroButtonText: { ...TYPE.secondaryMedium, color: COLORS.onAccent },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.md },
+  rowPressed: { opacity: 0.7 },
+  rowIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.accent + '14',
+    marginRight: SPACING.lg,
   },
-  version: {
-    ...TYPE.caption,
-    color: COLORS.textMuted,
-    marginTop: 4,
+  rowIconDanger: { backgroundColor: COLORS.loss + '14' },
+  rowLabel: { flex: 1, ...TYPE.cardTitle, fontSize: 14, color: COLORS.textPrimary },
+  rowLabelDanger: { color: COLORS.loss },
+  pill: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.accent + '14',
+    marginRight: SPACING.sm,
   },
-  description: {
-    ...TYPE.secondary,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    marginTop: SPACING.md,
-    lineHeight: 20,
-  },
+  valueText: { ...TYPE.captionMedium, color: COLORS.textMuted, marginRight: SPACING.sm },
+  pillText: { ...TYPE.captionMedium, color: COLORS.accent },
+  divider: { height: 1, backgroundColor: COLORS.divider, marginVertical: SPACING.sm },
+  appInfo: { ...TYPE.caption, fontSize: 10, color: COLORS.textMuted, textAlign: 'center', marginTop: SPACING.xl },
 }));
