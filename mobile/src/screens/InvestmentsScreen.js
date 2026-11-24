@@ -6,6 +6,9 @@ import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl, Pressable
 } from 'react-native';
+import { Refresh2 } from 'iconsax-react-native';
+import { fmtFull } from '../utils/currency';
+import { SummaryCard } from '../components/SummaryCard';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { Alert } from '../utils/alert';
@@ -31,16 +34,15 @@ export const InvestmentsScreen = ({ navigation }) => {
   } = usePortfolioStore();
   const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState('holdings');
+  const [pricesLoading, setPricesLoading] = useState(false);
 
   // Each tab loads only what it shows, so the screen stays light.
   useFocusEffect(
     useCallback(() => {
       fetchStockSummary();
-      if (tab === 'history') {
-        fetchStocks();
-        fetchSoldStocks();
-        fetchDashboard();
-      }
+      fetchSoldStocks();
+      fetchDashboard();
+      if (tab === 'history') fetchStocks();
       const intervalId = setInterval(fetchStockSummary, PRICE_REFRESH_INTERVAL_MS);
       return () => clearInterval(intervalId);
     }, [tab, fetchStockSummary, fetchStocks, fetchSoldStocks, fetchDashboard])
@@ -60,7 +62,9 @@ export const InvestmentsScreen = ({ navigation }) => {
   const isAdmin = user?.role === 'admin';
 
   const handleRefreshPrices = async () => {
+    setPricesLoading(true);
     const result = await refreshPrices();
+    setPricesLoading(false);
     if (result.success) {
       Alert.alert('Prices Updated', result.message || 'All stock prices have been refreshed with latest market data.');
     } else {
@@ -71,6 +75,11 @@ export const InvestmentsScreen = ({ navigation }) => {
   const summary = stockSummary || {};
   const totalPL = Number(summary.total_profit_loss) || 0;
   const totalPct = summary.total_invested > 0 ? (totalPL / summary.total_invested) * 100 : 0;
+  const dayChange = Number(summary.total_day_change) || 0;
+  const currentValue = Number(summary.total_current_value) || 0;
+  const dayPct = currentValue - dayChange > 0 ? (dayChange / (currentValue - dayChange)) * 100 : 0;
+  const plColor = (n) => (n === 0 ? COLORS.neutral : n > 0 ? COLORS.profit : COLORS.loss);
+  const signed = (n) => (n > 0 ? '+' : '');
 
   // Realized figures come from the portfolio service, which is the same source
   // the dashboard uses — so the two screens can never disagree.
@@ -114,20 +123,38 @@ export const InvestmentsScreen = ({ navigation }) => {
         }
       >
         {/* ── Summary ── */}
-        <GlassCard style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Current Value</Text>
-          <Text style={styles.summaryBig}>{formatMoney(summary.total_current_value)}</Text>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryRowLabel}>Total returns</Text>
-            <Text style={[styles.summaryRowValue, { color: totalPL === 0 ? COLORS.neutral : totalPL > 0 ? COLORS.profit : COLORS.loss }]}>
-              {totalPL >= 0 ? '+' : ''}{formatMoney(totalPL)} ({totalPL >= 0 ? '+' : ''}{totalPct.toFixed(2)}%)
-            </Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryRowLabel}>Invested</Text>
-            <Text style={styles.summaryRowValue}>{formatMoney(summary.total_invested)}</Text>
-          </View>
-        </GlassCard>
+        <SummaryCard
+          label={`Holdings (${summary.total_stocks || 0})`}
+          value={`₹${currentValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+          action={isAdmin ? {
+            icon: <Refresh2 size={18} color={COLORS.textPrimary} />,
+            onPress: handleRefreshPrices,
+            loading: pricesLoading,
+            label: 'Refresh stock prices',
+          } : undefined}
+          rows={[
+            { label: '1D returns', value: `${signed(dayChange)}${fmtFull(dayChange)} (${signed(dayPct)}${dayPct.toFixed(2)}%)`, color: plColor(dayChange) },
+            { label: 'Total returns', value: `${signed(totalPL)}${fmtFull(totalPL)} (${signed(totalPL)}${totalPct.toFixed(2)}%)`, color: plColor(totalPL) },
+            { label: 'Invested', value: formatMoney(summary.total_invested) },
+          ]}
+        />
+
+        {/* ── Realized P/L (booked profit from sold holdings) ── */}
+        {sortedSold.length > 0 && (
+          <SummaryCard
+            label="Realized P/L"
+            value={`${signed(realizedPL)}${fmtFull(realizedPL)}`}
+            valueColor={plColor(realizedPL)}
+            rows={[
+              ...(realizedInvested > 0
+                ? [{ label: 'Return', value: `${signed(realizedPct)}${realizedPct.toFixed(2)}%`, color: plColor(realizedPL) }]
+                : []),
+              { label: 'Net sale proceeds', value: fmtFull(realizedProceeds) },
+              { label: 'Cost', value: fmtFull(realizedInvested) },
+            ]}
+            note="Booked profit is already counted in available cash."
+          />
+        )}
 
         {/* ── Tabs: only the active one is rendered ── */}
         <View style={styles.tabs}>
@@ -137,18 +164,6 @@ export const InvestmentsScreen = ({ navigation }) => {
             </Pressable>
           ))}
         </View>
-
-        {/* ── Admin Actions ── */}
-        {isAdmin && (
-          <GlassCard style={styles.adminActions}>
-            <Text
-              style={styles.adminAction}
-              onPress={handleRefreshPrices}
-            >
-              Refresh stock prices
-            </Text>
-          </GlassCard>
-        )}
 
         {/* ── Stock Holdings ── */}
         {tab === 'holdings' && (stockSummary?.stocks || []).map((stock, index) => (
@@ -160,26 +175,6 @@ export const InvestmentsScreen = ({ navigation }) => {
         ))}
 
         {/* ── Investment History (buys and sells, newest first) ── */}
-        {tab === 'history' && sortedSold.length > 0 && (
-          <GlassCard style={styles.realizedCard}>
-            <View style={styles.realizedTotalRow}>
-              <Text style={styles.realizedTotalLabel}>Realized P/L</Text>
-              <Text
-                style={[
-                  styles.realizedTotalValue,
-                  { color: realizedPL >= 0 ? COLORS.profit : COLORS.loss },
-                ]}
-              >
-                {realizedPL >= 0 ? '+' : ''}{formatMoney(realizedPL)}
-                {realizedInvested > 0 ? `  (${realizedPct >= 0 ? '+' : ''}${realizedPct.toFixed(2)}%)` : ''}
-              </Text>
-            </View>
-            <Text style={styles.realizedNote}>
-              Net sale proceeds {formatMoney(realizedProceeds)} on a cost of {formatMoney(realizedInvested)}.
-              Booked profit is already counted in available cash.
-            </Text>
-          </GlassCard>
-        )}
         {tab === 'history' && history.length === 0 && <Text style={styles.realizedNote}>No transactions yet</Text>}
         {tab === 'history' && history.map((tx) => {
           const isBuy = tx.type === 'buy';
@@ -239,12 +234,6 @@ const styles = themedStyles(() => ({
     paddingHorizontal: SPACING.lg,
     paddingBottom: 0,
   },
-  summaryCard: { marginBottom: SPACING.md },
-  summaryLabel: { ...TYPE.secondary, color: COLORS.textSecondary },
-  summaryBig: { ...TYPE.portfolioValue, color: COLORS.textPrimary, marginVertical: SPACING.sm },
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
-  summaryRowLabel: { ...TYPE.secondary, color: COLORS.textSecondary },
-  summaryRowValue: { ...TYPE.smallValue, color: COLORS.textPrimary },
   tabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: COLORS.divider, marginBottom: SPACING.md },
   tab: { paddingVertical: SPACING.md, marginRight: SPACING.xl, borderBottomWidth: 2, borderBottomColor: 'transparent' },
   tabActive: { borderBottomColor: COLORS.textPrimary },
@@ -260,24 +249,11 @@ const styles = themedStyles(() => ({
     minWidth: 0,
     marginHorizontal: 4,
   },
-  adminActions: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: SPACING.md,
-  },
-  adminAction: {
-    ...TYPE.button,
-    color: COLORS.accent,
-    padding: SPACING.sm,
-  },
   txCard: {
     marginBottom: SPACING.md,
   },
 
   // ── Sold holdings ──
-  realizedCard: {
-    marginBottom: SPACING.md,
-  },
   realizedRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -299,22 +275,6 @@ const styles = themedStyles(() => ({
   realizedValue: {
     ...TYPE.smallValue,
     color: COLORS.textPrimary,
-  },
-  realizedTotalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: SPACING.md,
-    paddingTop: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.divider,
-  },
-  realizedTotalLabel: {
-    ...TYPE.secondaryMedium,
-    color: COLORS.textSecondary,
-  },
-  realizedTotalValue: {
-    ...TYPE.plAmount,
   },
   realizedNote: {
     ...TYPE.caption,

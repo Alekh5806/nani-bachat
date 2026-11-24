@@ -14,7 +14,7 @@ import { useAuthStore } from '../store/authStore';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { MemberRow } from '../components/MemberRow';
 import { OwnershipCard } from '../components/OwnershipCard';
-import { StatCard } from '../components/StatCard';
+import { SummaryCard } from '../components/SummaryCard';
 import { SectionHeader } from '../components/SectionHeader';
 import { COLORS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
 import { TabBarSpacer } from '../components/TabBarSpacer';
@@ -46,6 +46,8 @@ export const MembersScreen = ({ navigation }) => {
   const totalContributions = members.reduce(
     (sum, m) => sum + (Number(m.total_contribution) || 0), 0
   );
+  const activeCount = members.filter((m) => m.is_active !== false).length;
+  const averageContribution = members.length ? Math.round(totalContributions / members.length) : 0;
 
   return (
     <View style={styles.container}>
@@ -69,22 +71,14 @@ export const MembersScreen = ({ navigation }) => {
         <OwnershipCard my={dashboard?.my_portfolio} members={dashboard?.active_members || members.length} />
 
         {/* ── Summary ── */}
-        <View style={styles.statsRow}>
-          <StatCard
-            label="Total Members"
-            value={String(members.length)}
-            icon="👥"
-            compact
-            style={styles.halfCard}
-          />
-          <StatCard
-            label="Total Contributed"
-            value={`₹${totalContributions.toLocaleString('en-IN')}`}
-            icon="💰"
-            compact
-            style={styles.halfCard}
-          />
-        </View>
+        <SummaryCard
+          label={`Members (${members.length}) · Total contributed`}
+          value={`₹${totalContributions.toLocaleString('en-IN')}`}
+          rows={[
+            { label: 'Active members', value: String(activeCount) },
+            { label: 'Average per member', value: `₹${averageContribution.toLocaleString('en-IN')}` },
+          ]}
+        />
 
         {isAdmin && (
           <View style={styles.adminActions}>
@@ -126,16 +120,6 @@ const styles = themedStyles(() => ({
   scrollContent: {
     paddingHorizontal: SPACING.lg,
     paddingBottom: 0,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.md,
-  },
-  halfCard: {
-    flex: 1,
-    minWidth: 0,
-    marginHorizontal: 4,
   },
   adminActions: {
     flexDirection: 'row',

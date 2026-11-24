@@ -13,6 +13,7 @@ import { CompanyLogo } from '../components/CompanyLogo';
 import { fmtFull } from '../utils/currency';
 import { COLORS, SPACING, RADIUS, themedStyles, TYPE } from '../theme/colors';
 import { TabBarSpacer } from '../components/TabBarSpacer';
+import { SummaryCard } from '../components/SummaryCard';
 
 export const AssetStocksScreen = ({ navigation }) => {
   const { dashboard, stockSummary, fetchDashboard, fetchStockSummary } = usePortfolioStore();
@@ -39,30 +40,15 @@ export const AssetStocksScreen = ({ navigation }) => {
     <View style={styles.container}>
       <ScreenHeader title="Stocks" showBack onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.summary}>
-          <View style={styles.summaryRow}>
-            <View>
-              <Text style={styles.label}>Current</Text>
-              <Text style={styles.value}>{fmtFull(current)}</Text>
-            </View>
-            <View style={styles.right}>
-              <Text style={styles.label}>Total returns</Text>
-              <Text style={[styles.value, { color: returnsColor }]}>
-                {sign}{fmtFull(returns)} ({sign}{returnsPct.toFixed(2)}%)
-              </Text>
-            </View>
-          </View>
-          <View style={[styles.summaryRow, { marginTop: SPACING.lg }]}>
-            <View>
-              <Text style={styles.label}>Invested</Text>
-              <Text style={styles.value}>{fmtFull(invested)}</Text>
-            </View>
-            <View style={styles.right}>
-              <Text style={styles.label}>Allocation</Text>
-              <Text style={styles.value}>100.00%</Text>
-            </View>
-          </View>
-        </View>
+        <SummaryCard
+          label={`Stocks (${holdings.length})`}
+          value={`₹${current.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+          rows={[
+            { label: 'Total returns', value: `${sign}${fmtFull(returns)} (${sign}${returnsPct.toFixed(2)}%)`, color: returnsColor },
+            { label: 'Invested', value: fmtFull(invested) },
+            { label: 'Allocation', value: '100.00%' },
+          ]}
+        />
 
         <View style={styles.listHead}>
           <Text style={styles.headText}>Stocks ({holdings.length})</Text>
@@ -102,16 +88,6 @@ export const AssetStocksScreen = ({ navigation }) => {
 const styles = themedStyles(() => ({
   container: { flex: 1, backgroundColor: COLORS.background },
   content: { paddingHorizontal: SPACING.lg, paddingBottom: 0 },
-  summary: {
-    backgroundColor: COLORS.cardBg,
-    borderRadius: RADIUS.xl,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: SPACING.xl,
-  },
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  label: { ...TYPE.secondary, fontSize: 12, color: COLORS.textMuted },
-  value: { ...TYPE.cardTitle, fontSize: 14, color: COLORS.textPrimary, marginTop: SPACING.xs },
   right: { alignItems: 'flex-end' },
   listHead: {
     flexDirection: 'row',

@@ -15,6 +15,7 @@ import { Icon } from '../components/Icon';
 import { CompanyLogo } from '../components/CompanyLogo';
 import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
 import { TabBarSpacer } from '../components/TabBarSpacer';
+import { SummaryCard } from '../components/SummaryCard';
 
 export const DividendsScreen = ({ navigation }) => {
   const { user } = useAuthStore();
@@ -44,6 +45,15 @@ export const DividendsScreen = ({ navigation }) => {
     if (Number.isNaN(d.getTime())) return v || '';
     return `${String(d.getDate()).padStart(2, '0')} ${MON[d.getMonth()]} '${String(d.getFullYear()).slice(2)}`;
   };
+
+  const now = new Date();
+  const sumWhere = (test) => dividends.reduce((sum, d) => {
+    const dt = new Date(d.ex_date);
+    return !Number.isNaN(dt.getTime()) && test(dt) ? sum + (Number(d.total_dividend) || 0) : sum;
+  }, 0);
+  const thisMonthTotal = sumWhere((dt) => dt.getFullYear() === now.getFullYear() && dt.getMonth() === now.getMonth());
+  const thisYearTotal = sumWhere((dt) => dt.getFullYear() === now.getFullYear());
+  const lastReceived = dividends.map((d) => d.ex_date).filter(Boolean).sort().pop();
 
   // Group by month, newest first.
   const groups = [];
@@ -79,10 +89,15 @@ export const DividendsScreen = ({ navigation }) => {
         }
       >
         {/* ── Summary ── */}
-        <GlassCard style={styles.summaryCard}>
-          <Text style={styles.summaryValue}>{money(totalDividends)}</Text>
-          <Text style={styles.summaryLabel}>Total dividends received</Text>
-        </GlassCard>
+        <SummaryCard
+          label={`Dividends (${dividends.length})`}
+          value={money(totalDividends)}
+          rows={[
+            { label: 'This month', value: money(thisMonthTotal) },
+            { label: 'This year', value: money(thisYearTotal) },
+            { label: 'Last received', value: lastReceived ? fmtDate(lastReceived) : '—' },
+          ]}
+        />
 
         <View style={styles.listHeader}>
           <Text style={styles.listHeaderText}>Dividends</Text>
@@ -141,9 +156,6 @@ const styles = themedStyles(() => ({
     paddingHorizontal: SPACING.xl,
     paddingBottom: 0,
   },
-  summaryCard: { marginBottom: SPACING.lg },
-  summaryValue: { ...TYPE.portfolioValue, color: COLORS.textPrimary },
-  summaryLabel: { ...TYPE.secondary, color: COLORS.textSecondary, marginTop: SPACING.xs },
   listHeader: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: SPACING.md },
   listHeaderText: { ...TYPE.infoTitle, color: COLORS.textSecondary },
   band: {
