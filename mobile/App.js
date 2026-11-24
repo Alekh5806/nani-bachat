@@ -8,8 +8,9 @@ import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Toast from 'react-native-toast-message';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { useFonts } from 'expo-font';
+import { PaperProvider, MD3DarkTheme, MD3LightTheme } from 'react-native-paper';
 
 import { useAuthStore } from './src/store/authStore';
 import { AuthNavigator } from './src/navigation/AuthNavigator';
@@ -23,6 +24,25 @@ import {
   addNotificationListeners,
   registerForPushNotificationsAsync,
 } from './src/services/notifications';
+
+// React Native Paper theme built from the app palette, so Paper components match.
+const buildPaperTheme = () => {
+  const base = COLORS.isDark ? MD3DarkTheme : MD3LightTheme;
+  return {
+    ...base,
+    colors: {
+      ...base.colors,
+      primary: COLORS.accent,
+      background: COLORS.background,
+      surface: COLORS.cardBg,
+      surfaceVariant: COLORS.surface,
+      onSurface: COLORS.textPrimary,
+      onSurfaceVariant: COLORS.textSecondary,
+      outline: COLORS.border,
+      error: COLORS.loss,
+    },
+  };
+};
 
 export default function App() {
   const { token, isLoading, loadToken } = useAuthStore();
@@ -42,7 +62,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!token) return;
+    // Push tokens need a VAPID key on the web, so push is native-only.
+    if (!token || Platform.OS === 'web') return;
     registerForPushNotificationsAsync(token)
       .then((result) => {
         if (!result?.success) {
@@ -76,6 +97,7 @@ export default function App() {
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
+          <PaperProvider theme={buildPaperTheme()}>
           <View key={themeVersion} style={{ flex: 1 }}>
           <NavigationContainer
             initialState={navState.current}
@@ -103,6 +125,7 @@ export default function App() {
           <StatusBar style={themeMode === 'dark' ? 'light' : 'dark'} />
           <Toast config={toastConfig} />
           </View>
+          </PaperProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>

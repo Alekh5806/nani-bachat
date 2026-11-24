@@ -5,7 +5,7 @@
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl,
-  Dimensions, Pressable, Platform
+  Dimensions, Platform
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePortfolioStore } from '../store/portfolioStore';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { fmtFull, fmtShort } from '../utils/currency';
+import { Button, Card, Chip, Divider, IconButton, ProgressBar } from 'react-native-paper';
 import { Icon, AppIcon } from '../components/Icon';
 import { AllocationDonut } from '../components/AllocationDonut';
 import { GrowthChart, formatChartPoint } from '../components/GrowthChart';
@@ -205,20 +206,24 @@ export const DashboardScreen = () => {
 
           <View style={styles.rangeRow}>
             {RANGES.map(([key]) => (
-              <Pressable
+              <Chip
                 key={key}
+                compact
+                selected={range === key}
+                showSelectedCheck={false}
                 onPress={() => setRange(key)}
-                style={[styles.rangeChip, range === key && styles.rangeChipActive]}
+                style={[styles.rangeChipPaper, range === key && styles.rangeChipActive]}
+                textStyle={[styles.rangeChipText, range === key && styles.rangeTextActive]}
               >
-                <Text style={[styles.rangeText, range === key && styles.rangeTextActive]}>{key}</Text>
-              </Pressable>
+                {key}
+              </Chip>
             ))}
           </View>
         </View>
 
         {/* SUMMARY */}
         {holdings.length > 0 && (
-          <View style={[styles.overviewCard, styles.statCard]}>
+          <Card mode="outlined" style={styles.paperCard}>
             <View style={styles.statGrid}>
               {summaryStats.map((st, i) => (
                 <View
@@ -240,17 +245,23 @@ export const DashboardScreen = () => {
                 </View>
               ))}
             </View>
-          </View>
+          </Card>
         )}
 
         {/* OVERVIEW */}
         {holdings.length > 0 && (
-          <View style={styles.overviewCard}>
+          <Card mode="outlined" style={styles.paperCard}>
+            <Card.Content style={styles.paperBody}>
             <View style={styles.overviewHeader}>
               <Text style={styles.overviewTitle}>Top Holdings</Text>
-              <Pressable onPress={() => navigation.navigate('Investments')} hitSlop={8}>
-                <Text style={styles.viewAll}>View all</Text>
-              </Pressable>
+              <Button
+                mode="text"
+                compact
+                onPress={() => navigation.navigate('Investments')}
+                labelStyle={styles.viewAll}
+              >
+                View all
+              </Button>
             </View>
 
             <AllocationDonut
@@ -258,7 +269,7 @@ export const DashboardScreen = () => {
               label="Current value"
               value={fmtShort(p.current_value)}
             />
-            <View style={{ height: SPACING.xl }} />
+            <Divider style={styles.divider} />
 
 
             {slices.map((slice, i) => (
@@ -273,14 +284,22 @@ export const DashboardScreen = () => {
               </View>
             ))}
 
-          </View>
+            </Card.Content>
+          </Card>
         )}
 
         {/* ASSET ALLOCATION */}
         {assets.length > 0 && (
-          <Pressable style={styles.overviewCard} onPress={() => navigation.navigate('AssetStocks')}>
+          <Card mode="outlined" style={styles.paperCard} onPress={() => navigation.navigate('AssetStocks')}>
+            <Card.Content style={styles.paperBody}>
             <View style={styles.overviewHeader}>
               <Text style={styles.overviewTitle}>Asset Allocation</Text>
+              <IconButton
+                icon={() => <AppIcon name="chevron-forward" size={18} color={COLORS.textSecondary} />}
+                size={20}
+                style={styles.chevron}
+                onPress={() => navigation.navigate('AssetStocks')}
+              />
             </View>
             <AllocationDonut slices={assets} half size={220} thickness={34} />
             {assets.map((a) => (
@@ -297,14 +316,21 @@ export const DashboardScreen = () => {
                 </View>
               </View>
             ))}
-          </Pressable>
+            </Card.Content>
+          </Card>
         )}
 
         {/* DIVIDENDS */}
-        <Pressable style={styles.overviewCard} onPress={() => navigation.navigate('Dividends')}>
+        <Card mode="outlined" style={styles.paperCard} onPress={() => navigation.navigate('Dividends')}>
+          <Card.Content style={styles.paperBody}>
           <View style={styles.overviewHeader}>
             <Text style={styles.overviewTitle}>Dividends</Text>
-            <AppIcon name="chevron-forward" size={18} color={COLORS.textSecondary} />
+            <IconButton
+              icon={() => <AppIcon name="chevron-forward" size={18} color={COLORS.textSecondary} />}
+              size={20}
+              style={styles.chevron}
+              onPress={() => navigation.navigate('Dividends')}
+            />
           </View>
           <Text style={styles.divTotal}>{fmtFull(p.total_dividends)}</Text>
           <Text style={styles.divSub}>
@@ -315,13 +341,18 @@ export const DashboardScreen = () => {
               <View key={q.key} style={styles.qRow}>
                 <Text style={styles.qLabel}>{q.label}</Text>
                 <View style={styles.qTrack}>
-                  <View style={[styles.qBar, { width: `${Math.max((q.total / maxQuarter) * 100, 1.5)}%` }]} />
+                  <ProgressBar
+                    progress={Math.max(q.total / maxQuarter, 0.015)}
+                    color={COLORS.accent}
+                    style={styles.qBar}
+                  />
                 </View>
                 <Text style={styles.qAmount}>{fmtFull(q.total)}</Text>
               </View>
             ))}
           </View>}
-        </Pressable>
+          </Card.Content>
+        </Card>
 
         <TabBarSpacer />
       </ScrollView>
@@ -388,22 +419,9 @@ const styles = themedStyles(() => ({
     paddingHorizontal: SPACING.xl,
     marginTop: SPACING.lg,
   },
-  rangeChip: {
-    minWidth: 48,
-    alignItems: 'center',
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
   rangeChipActive: {
     backgroundColor: COLORS.surface,
     borderColor: COLORS.border,
-  },
-  rangeText: {
-    ...TYPE.secondaryMedium,
-    color: COLORS.textMuted,
   },
   rangeTextActive: {
     color: COLORS.textPrimary,
@@ -421,15 +439,15 @@ const styles = themedStyles(() => ({
   // Empty state
 
   // Overview card
-  overviewCard: {
+  paperCard: {
     backgroundColor: COLORS.cardBg,
     borderRadius: RADIUS.xl,
-    borderWidth: 1,
     borderColor: COLORS.border,
-    padding: SPACING.xl,
     marginBottom: SPACING.xl,
   },
-  statCard: { padding: 0, overflow: 'hidden' },
+  paperBody: { padding: SPACING.xl },
+  rangeChipPaper: { backgroundColor: 'transparent', borderColor: 'transparent' },
+  rangeChipText: { ...TYPE.secondaryMedium, color: COLORS.textMuted, marginHorizontal: SPACING.sm },
   statGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   statCell: { width: '33.333%', padding: SPACING.md },
   statCellRight: { borderRightWidth: 1, borderRightColor: COLORS.border },
@@ -457,7 +475,9 @@ const styles = themedStyles(() => ({
   qRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
   qLabel: { ...TYPE.secondary, fontSize: 12, color: COLORS.textMuted, minWidth: 76 },
   qTrack: { flex: 1, marginHorizontal: SPACING.md },
-  qBar: { height: 12, borderRadius: 6, backgroundColor: COLORS.accent },
+  qBar: { height: 12, borderRadius: 6, backgroundColor: COLORS.surface },
+  divider: { marginVertical: SPACING.xl, backgroundColor: COLORS.border },
+  chevron: { margin: 0 },
   qAmount: { ...TYPE.smallValue, fontSize: 12, color: COLORS.textPrimary, minWidth: 84, textAlign: 'right' },
   legendBarShort: { height: 16 },
   legendRow: {

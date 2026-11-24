@@ -1,6 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createStackNavigator, TransitionPresets } from '@react-navigation/stack';
 import { View, Text, StyleSheet, Platform, Animated, PanResponder } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
@@ -25,7 +25,24 @@ import { ProfileScreen } from '../screens/ProfileScreen';
 import { TAB_BAR_HEIGHT } from '../components/TabBarSpacer';
 
 const Tab = createBottomTabNavigator();
-const Stack = createNativeStackNavigator();
+const Stack = createStackNavigator();
+
+// Screens slide in from the right and slide out on back (swipe back works too),
+// on iOS, Android and web alike.
+const stackOptions = () => ({
+  headerShown: false,
+  // The swipe gesture blocks touch scrolling on the web, so it is native-only.
+  gestureEnabled: Platform.OS !== 'web',
+  // The stack turns animation off on the web unless an animation is named.
+  animation: 'slide_from_right',
+  // On the web the stack card grows with its content, which stops inner scrolling.
+  // Pinning it to the screen height lets each screen's ScrollView scroll.
+  cardStyle: {
+    backgroundColor: COLORS.background,
+    ...(Platform.OS === 'web' ? { flex: 1, minHeight: 0, height: '100%' } : null),
+  },
+  ...TransitionPresets.SlideFromRightIOS,
+});
 
 const TAB_LABELS = {
   Dashboard: 'Home',
@@ -216,14 +233,14 @@ const FloatingTabBar = ({ state, navigation }) => {
 };
 
 const DashboardStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
+  <Stack.Navigator screenOptions={stackOptions()}>
     <Stack.Screen name="DashboardHome" component={DashboardScreen} />
     <Stack.Screen name="AssetStocks" component={AssetStocksScreen} />
   </Stack.Navigator>
 );
 
 const InvestmentsStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
+  <Stack.Navigator screenOptions={stackOptions()}>
     <Stack.Screen name="InvestmentsHome" component={InvestmentsScreen} />
     <Stack.Screen name="HoldingDetail" component={HoldingDetailScreen} />
     <Stack.Screen name="AddStock" component={AddStockScreen} />
@@ -233,7 +250,7 @@ const InvestmentsStack = () => (
 );
 
 const MembersStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
+  <Stack.Navigator screenOptions={stackOptions()}>
     <Stack.Screen name="MembersHome" component={MembersScreen} />
     <Stack.Screen name="MemberDetail" component={MemberDetailScreen} />
     <Stack.Screen name="AddMember" component={AddMemberScreen} />
@@ -242,14 +259,14 @@ const MembersStack = () => (
 );
 
 const DividendsStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
+  <Stack.Navigator screenOptions={stackOptions()}>
     <Stack.Screen name="DividendsHome" component={DividendsScreen} />
     <Stack.Screen name="AddDividend" component={AddDividendScreen} />
   </Stack.Navigator>
 );
 
 const ProfileStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
+  <Stack.Navigator screenOptions={stackOptions()}>
     <Stack.Screen name="ProfileHome" component={ProfileScreen} />
   </Stack.Navigator>
 );
