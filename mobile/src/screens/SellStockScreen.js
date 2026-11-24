@@ -264,6 +264,7 @@ export const SellStockScreen = ({ navigation, route }) => {
         loading={loading}
         disabled={!stock || (editing && !changedFields.length)}
         variant={editing ? 'primary' : 'danger'}
+        icon={editing ? '💾' : '💸'}
       />
     </FormScreen>
   );
