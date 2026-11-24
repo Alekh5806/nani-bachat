@@ -101,33 +101,10 @@ export const DividendsScreen = ({ navigation }) => {
           ]}
         />
 
-<<<<<<< HEAD
         <View style={styles.listHeader}>
           <Text style={styles.listHeaderText}>Dividends</Text>
           <Text style={styles.listHeaderText}>Total amount (Shares)</Text>
         </View>
-=======
-        {/* ── Dividend List ── */}
-        <SectionHeader title="Dividend History" icon="📋" />
-        {dividends.map((div, index) => (
-          <GlassCard key={div.id || index} style={styles.divCard}>
-            <View style={styles.divHeader}>
-              <View style={styles.divLeft}>
-                <Text style={styles.divStock}>{div.stock_name}</Text>
-                <Text style={styles.divSymbol}>{div.stock_symbol}</Text>
-              </View>
-              <View style={styles.divRight}>
-                <Text style={styles.divTotal}>
-                  ₹{Number(div.total_dividend).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </Text>
-                <View style={styles.dpsBadge}>
-                  <Text style={styles.dpsText}>
-                    ₹{Number(div.dividend_per_share).toLocaleString('en-IN', { maximumFractionDigits: 6 })}/share
-                  </Text>
-                </View>
-              </View>
-            </View>
->>>>>>> experiment/live-market-quotes
 
         {groups.map((group) => (
           <View key={group.key}>
@@ -137,7 +114,7 @@ export const DividendsScreen = ({ navigation }) => {
             </View>
             {group.items.map((div, i) => {
               const dps = Number(div.dividend_per_share) || 0;
-              const shares = div.quantity || (dps > 0 ? Math.round(Number(div.total_dividend) / dps) : 0);
+              const shares = div.received_quantity ?? div.quantity ?? (dps > 0 ? Math.round(Number(div.total_dividend) / dps) : 0);
               return (
                 <View key={div.id || i} style={[styles.row, i > 0 && styles.rowDivider]}>
                   <CompanyLogo symbol={div.stock_symbol} name={div.stock_name} size={40} style={{ marginRight: SPACING.md }} />

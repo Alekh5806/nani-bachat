@@ -1,11 +1,16 @@
 services:
   - type: web
-    name: nanibachat-api
+    name: nani-bachat
     plan: free
     runtime: python
+    branch: main
+    rootDir: backend
+    healthCheckPath: /api/health/
     buildCommand: "./build.sh"
     startCommand: "gunicorn poolvest.wsgi:application --bind 0.0.0.0:$PORT"
     envVars:
+      - key: DATABASE_URL
+        sync: false
       - key: SECRET_KEY
         generateValue: true
       - key: DEBUG

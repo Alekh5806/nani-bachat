@@ -8,6 +8,7 @@ node_modules/
 
 # Expo / Metro caches
 .expo/
+.wrangler/
 .metro-health-check*
 
 # Build output

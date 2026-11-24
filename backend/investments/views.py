@@ -7,12 +7,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
-<<<<<<< HEAD
 from django.utils import timezone
-from django.db.models import Sum, F, DecimalField
-=======
 from django.db.models import Sum, F, DecimalField, Q
->>>>>>> experiment/live-market-quotes
 from django.db.models.functions import Coalesce
 
 from .models import Stock, StockPriceHistory

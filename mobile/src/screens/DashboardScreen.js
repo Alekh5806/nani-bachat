@@ -42,7 +42,7 @@ export const DashboardScreen = () => {
     stockSummary, fetchStockSummary,
     dividends, fetchDividends,
     growthData, fetchGrowthData,
-    isLoading,
+    isLoading, error,
   } = usePortfolioStore();
   const [refreshing, setRefreshing] = useState(false);
   const [range, setRange] = useState('1M');
@@ -165,10 +165,16 @@ export const DashboardScreen = () => {
   });
   const slices = sorted.slice(0, 5).map(toSlice);
 
-  if (isLoading && !dashboard) {
+  if (!dashboard) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        <DashboardSkeleton />
+        {error && !isLoading ? (
+          <>
+            <ScreenHeader title="Portfolio" />
+            <Text style={styles.loadError}>{error}</Text>
+            <Button onPress={onRefresh}>Retry</Button>
+          </>
+        ) : <DashboardSkeleton />}
       </View>
     );
   }
@@ -369,6 +375,7 @@ function getMonthLabel() {
 
 // Styles
 const styles = themedStyles(() => ({
+  loadError: { ...TYPE.body, color: COLORS.textSecondary, margin: SPACING.lg },
   container: {
     flex: 1,
     backgroundColor: COLORS.background,

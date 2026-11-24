@@ -17,7 +17,7 @@ class DividendSerializer(serializers.ModelSerializer):
         model = Dividend
         fields = [
             'id', 'stock', 'stock_symbol', 'stock_name',
-            'dividend_per_share', 'total_dividend', 'per_member_share',
+            'dividend_per_share', 'received_quantity', 'total_dividend', 'per_member_share',
             'ex_date', 'payment_date', 'notes',
             'created_at', 'updated_at',
         ]

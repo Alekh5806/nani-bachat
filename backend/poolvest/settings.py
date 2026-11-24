@@ -7,6 +7,7 @@ from pathlib import Path
 from datetime import timedelta
 from decouple import config, Csv
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 
 # ──────────────────────────────────────────────
 # BASE DIRECTORY
@@ -84,6 +85,8 @@ DATABASE_URL = config('DATABASE_URL', default=f'sqlite:///{BASE_DIR / "db.sqlite
 DATABASES = {
     'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
 }
+if os.environ.get('RENDER') == 'true' and DATABASES['default']['ENGINE'] != 'django.db.backends.postgresql':
+    raise ImproperlyConfigured('Set DATABASE_URL to the existing PostgreSQL database on Render.')
 DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = True
 
 # ──────────────────────────────────────────────

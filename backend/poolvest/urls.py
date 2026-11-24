@@ -1,13 +1,15 @@
 """
 PoolVest URL Configuration
 """
+import os
 from django.contrib import admin
 from django.urls import path, include
 from django.http import JsonResponse
 
 
 def health_check(request):
-    return JsonResponse({'status': 'ok', 'message': 'PoolVest API is running'})
+    return JsonResponse({'status': 'ok', 'message': 'PoolVest API is running',
+                         'revision': os.environ.get('RENDER_GIT_COMMIT')})
 
 
 urlpatterns = [

@@ -44,7 +44,7 @@ export const usePortfolioStore = create((set, get) => ({
     set({ isLoading: true });
     try {
       const response = await api.get('/portfolio/dashboard/');
-      set({ dashboard: response.data, isLoading: false });
+      set({ dashboard: response.data, isLoading: false, error: null });
       return response.data;
     } catch (error) {
       set({ isLoading: false, error: 'Failed to load dashboard' });

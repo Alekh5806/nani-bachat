@@ -280,6 +280,23 @@ The APK will be at `android/app/build/outputs/apk/release/app-release.apk`
 
 ## 🚀 Deployment
 
+### Release the website and Android APK
+
+Build both clients from the commit on GitHub `main`. Cloudflare's `--branch main` selects the production destination. It uploads the local files in `dist`, even when they were built from another branch.
+
+```bash
+cd mobile
+git fetch origin main
+test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" &&
+  test -z "$(git status --porcelain)" &&
+  npm ci &&
+  npm run build:web &&
+  npx wrangler pages deploy dist --project-name nani-bachat --branch main &&
+  eas build --platform android --profile preview
+```
+
+Check the source commit in Pages and EAS against `origin/main`. The Render API exposes its running commit at `/api/health/`. Android users install the new preview APK over their existing installation.
+
 ### Backend (Render / Railway)
 
 1. Push the `backend/` folder to a Git repository
@@ -289,7 +306,7 @@ The APK will be at `android/app/build/outputs/apk/release/app-release.apk`
    - `SECRET_KEY` → Strong random key
    - `DEBUG` → `False`
    - `REDIS_URL` → Redis connection string
-4. Build command: `pip install -r requirements.txt && python manage.py migrate`
+4. Set the service root to `backend`, select the `main` branch, and use `./build.sh` as the build command. Keep `DATABASE_URL` pointed at the existing portfolio database.
 5. Start command: `gunicorn poolvest.wsgi --bind 0.0.0.0:$PORT`
 
 ### `Procfile` (included)
