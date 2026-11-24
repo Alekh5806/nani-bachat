@@ -1148,7 +1148,7 @@ const styles = themedStyles(() => ({
   embeddedLoading: { paddingVertical: SPACING.xxxl, alignItems: 'center' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   filterLabel: { ...TYPE.secondaryMedium, color: COLORS.textSecondary, flex: 1 },
-  monthChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: COLORS.cardBg, marginRight: 8, borderWidth: 1, borderColor: COLORS.border, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  monthChip: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: RADIUS.full, backgroundColor: COLORS.cardBg, marginRight: SPACING.sm, borderWidth: 1, borderColor: COLORS.border, flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   monthChipActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
   monthChipText: { ...TYPE.secondaryMedium, color: COLORS.textSecondary },
   monthChipTextActive: { color: COLORS.onAccent },

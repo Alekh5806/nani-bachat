@@ -29,7 +29,8 @@ const RANGES = [['1W', 7], ['1M', 30], ['3M', 90], ['1Y', 365], ['ALL', 3650]];
 const RANGE_LABEL = { '1W': 'this week', '1M': 'this month', '3M': 'last 3 months', '1Y': 'this year', ALL: 'all time' };
 
 // Categorical colours for the allocation donut (not P/L colours).
-const CHART_COLORS = ['#4D6BFF', '#8B5CF6', '#06B6D4', '#F59E0B', '#EC4899', '#10B981', '#F97316', '#84CC16', '#14B8A6', '#64748B'];
+// One blue for the biggest holding, then quieter blues and greys, so the chart does not read as a rainbow.
+const CHART_COLORS = ['#4D6BFF', '#7C93FF', '#A9B8FF', '#64748B', '#8793A6', '#AAB4C3', '#C5CCD8', '#D9DEE6'];
 
 
 // Component
@@ -473,7 +474,7 @@ const styles = themedStyles(() => ({
   },
   divTotal: { ...TYPE.sectionTitle, fontSize: 28, color: COLORS.textPrimary },
   divSub: { ...TYPE.secondary, fontSize: 12, color: COLORS.textMuted, marginTop: SPACING.xs },
-  qRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
+  qRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.md },
   qLabel: { ...TYPE.secondary, fontSize: 12, color: COLORS.textMuted, minWidth: 76 },
   qTrack: { flex: 1, marginHorizontal: SPACING.md },
   qBar: { height: 12, borderRadius: 6, backgroundColor: COLORS.surface },
@@ -484,7 +485,7 @@ const styles = themedStyles(() => ({
   legendRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: SPACING.md,
   },
   legendBar: {
     width: 4,

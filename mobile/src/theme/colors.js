@@ -222,8 +222,8 @@ export const FONTS = {
  * same meaning = same token on every screen.
  */
 export const TYPE = {
-  screenTitle: { fontSize: 24, fontWeight: '700' },
-  sectionTitle: { fontSize: 18, fontWeight: '700' },
+  screenTitle: { fontSize: 24, fontWeight: '600' },
+  sectionTitle: { fontSize: 18, fontWeight: '600' },
   cardTitle: { fontSize: 16, fontWeight: '600' },      // names, row titles
   body: { fontSize: 14, fontWeight: '500' },           // default primary text
   secondary: { fontSize: 13, fontWeight: '400' },      // supporting text
@@ -237,9 +237,9 @@ export const TYPE = {
   inputLabel: { fontSize: 13, fontWeight: '500' },
   tab: { fontSize: 13, fontWeight: '600' },
   // Financial values
-  portfolioValue: { fontSize: 28, fontWeight: '700' },
-  stockPrice: { fontSize: 20, fontWeight: '700' },
-  plAmount: { fontSize: 18, fontWeight: '700' },
+  portfolioValue: { fontSize: 28, fontWeight: '600' },
+  stockPrice: { fontSize: 20, fontWeight: '600' },
+  plAmount: { fontSize: 18, fontWeight: '600' },
   plPercent: { fontSize: 14, fontWeight: '600' },
   quantity: { fontSize: 14, fontWeight: '600' },
   smallValue: { fontSize: 14, fontWeight: '600' },

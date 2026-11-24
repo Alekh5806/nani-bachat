@@ -51,6 +51,6 @@ export const AvatarPicker = ({ visible, onDismiss }) => {
 
 const styles = themedStyles(() => ({
   grid: { marginTop: SPACING.lg, flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.md, justifyContent: 'center' },
-  cell: { padding: 3, borderRadius: 40, borderWidth: 2, borderColor: 'transparent' },
+  cell: { padding: 4, borderRadius: 40, borderWidth: 2, borderColor: 'transparent' },
   cellActive: { borderColor: COLORS.accent },
 }));

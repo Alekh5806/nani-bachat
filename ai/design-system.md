@@ -34,21 +34,21 @@ Three text roles only: primary, secondary, muted.
 
 ## Typography
 
-Font: **Inter**, weights 400, 500, 600, 700. The family follows the weight automatically, so write `fontWeight`, never a family name.
+Font: **Inter**, weights 400, 500, 600. No 700 or heavier. The family follows the weight automatically, so write `fontWeight`, never a family name.
 
 Use the semantic token (`...TYPE.cardTitle`), not a raw size.
 
 | Token | Size / weight | Use |
 |---|---|---|
-| `screenTitle` | 24 / 700 | Screen header title |
-| `sectionTitle` | 18 / 700 | Section titles |
-| Card title | 16 / 700 | Home card titles (`overviewTitle`) |
+| `screenTitle` | 24 / 600 | Screen header title |
+| `sectionTitle` | 18 / 600 | Section titles |
+| Card title | 16 / 600 | Home card titles (`overviewTitle`) |
 | `cardTitle` | 16 / 600 | Names and row titles |
 | `body` | 14 / 500 | Default text |
 | `secondary` | 13 / 400 | Supporting text, labels |
 | `caption` | 12 / 400 | Metadata |
 | `infoTitle` | **9 / 400** | Column or info titles above a list ("Stocks (10)", "Current (Invested)") |
-| `portfolioValue` | 28 / 700 | The one big number on a card |
+| `portfolioValue` | 28 / 600 | The one big number on a card |
 
 ### Fixed size rules (do not change without a decision)
 

@@ -103,7 +103,7 @@ export const AddMemberScreen = ({ navigation }) => {
       Toast.show({
         type: 'success',
         text1: 'Member added',
-        text2: recordCatchUp ? `Recorded Rs.${catchUpAmount.toLocaleString('en-IN')} payment` : undefined,
+        text2: recordCatchUp ? `Recorded ₹${catchUpAmount.toLocaleString('en-IN')} payment` : undefined,
       });
       navigation.goBack();
     } catch (error) {
