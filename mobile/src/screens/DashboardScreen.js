@@ -452,8 +452,9 @@ const styles = themedStyles(() => ({
   rangeChipText: { ...TYPE.secondaryMedium, color: COLORS.textMuted, marginHorizontal: SPACING.sm },
   statGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   statCell: { width: '33.333%', padding: SPACING.md },
-  statCellRight: { borderRightWidth: 1, borderRightColor: COLORS.border },
-  statCellBottom: { borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  // Hairlines between the cells, lighter than the card border.
+  statCellRight: { borderRightWidth: 1, borderRightColor: COLORS.isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.04)' },
+  statCellBottom: { borderBottomWidth: 1, borderBottomColor: COLORS.isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.04)' },
   statLabel: { ...TYPE.secondary, fontSize: 12, color: COLORS.textMuted },
   statValue: { ...TYPE.cardTitle, fontSize: 14, color: COLORS.textPrimary, marginTop: SPACING.xs },
   overviewHeader: {
