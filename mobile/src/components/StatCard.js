@@ -117,7 +117,7 @@ const styles = themedStyles(() => ({
   },
   changeBadge: {
     paddingHorizontal: SPACING.sm,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderRadius: RADIUS.sm,
   },
   changeBadgePositive: {

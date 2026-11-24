@@ -359,7 +359,7 @@ const styles = themedStyles(() => ({
   },
   salePnlBadge: {
     paddingHorizontal: SPACING.sm,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderRadius: 6,
     flexShrink: 0,
   },
@@ -387,7 +387,7 @@ const styles = themedStyles(() => ({
   tradeLegPrice: {
     ...TYPE.smallValue,
     color: COLORS.textPrimary,
-    marginTop: 3,
+    marginTop: 4,
   },
   tradeLegDate: {
     ...TYPE.caption,
@@ -403,7 +403,7 @@ const styles = themedStyles(() => ({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 3,
+    paddingVertical: 4,
   },
   saleDetailLabel: {
     ...TYPE.caption,

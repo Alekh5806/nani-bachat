@@ -86,7 +86,7 @@ const styles = themedStyles(() => ({
   adminBadge: {
     backgroundColor: COLORS.gradientPurple + '30',
     paddingHorizontal: SPACING.sm,
-    paddingVertical: 1,
+    paddingVertical: 2,
     borderRadius: RADIUS.sm,
     alignSelf: 'flex-start',
     marginTop: 4,

@@ -107,7 +107,7 @@ const styles = themedStyles(() => ({
   symbol: {
     ...TYPE.caption,
     color: COLORS.textMuted,
-    marginTop: 1,
+    marginTop: 2,
   },
   qty: {
     ...TYPE.quantity,
