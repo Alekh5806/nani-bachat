@@ -17,7 +17,7 @@ import Toast from 'react-native-toast-message';
 import api from '../config/api';
 import { Alert } from '../utils/alert';
 import { usePortfolioStore } from '../store/portfolioStore';
-import { FormScreen, FormCard, FormLabel } from '../components/FormScreen';
+import { FormScreen, FormLabel } from '../components/FormScreen';
 import { SelectedStockCard } from '../components/SelectedStockCard';
 import { PreviewCard, PreviewRow, PreviewTotal } from '../components/PreviewCard';
 import { BuyerPicker } from '../components/BuyerPicker';
@@ -196,7 +196,7 @@ export const EditStockScreen = ({ navigation, route }) => {
       </View>
 
       <FormLabel>Purchase details</FormLabel>
-      <FormCard style={styles.detailsCard}>
+      <View style={styles.detailsCard}>
         <PremiumInput
           label="Quantity"
           error={errors.quantity}
@@ -233,7 +233,7 @@ export const EditStockScreen = ({ navigation, route }) => {
         />
 
         <BuyerPicker members={members} value={form.buyer} onChange={(id) => updateForm('buyer', id)} error={errors.buyer} />
-      </FormCard>
+      </View>
 
       <PreviewCard title="Cost change" style={styles.previewCard}>
         <PreviewRow label="Recorded cost" value={formatCurrency(originalTotal)} />
@@ -284,8 +284,7 @@ const styles = themedStyles(() => ({
     paddingHorizontal: SPACING.xl,
   },
   stockCard: { marginBottom: SPACING.md },
-  // The last field already has its own bottom margin, so no extra card padding.
-  detailsCard: { marginBottom: SPACING.xl, paddingBottom: 0 },
+  detailsCard: { marginBottom: SPACING.xl },
   warningBox: {
     borderRadius: RADIUS.md,
     backgroundColor: COLORS.warning + '14',

@@ -20,6 +20,7 @@ export const PremiumInput = ({
   multiline = false,
   autoCapitalize = 'none',
   autoCorrect = false,
+  autoFocus = false,
 }) => {
   const [focused, setFocused] = useState(false);
 
@@ -47,6 +48,7 @@ export const PremiumInput = ({
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
           autoCorrect={autoCorrect}
+          autoFocus={autoFocus}
           multiline={multiline}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
@@ -81,7 +83,7 @@ const styles = themedStyles(() => ({
   },
   inputContainerFocused: {
     borderColor: COLORS.inputFocus,
-    backgroundColor: COLORS.cardBgAlt,
+    backgroundColor: 'transparent',
   },
   inputContainerError: {
     borderColor: COLORS.loss,

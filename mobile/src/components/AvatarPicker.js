@@ -5,7 +5,7 @@
  */
 import React, { useState } from 'react';
 import { View, Pressable } from 'react-native';
-import { Dialog, Portal, Button } from 'react-native-paper';
+import { DialogCard } from './DialogCard';
 import Toast from 'react-native-toast-message';
 import api from '../config/api';
 import { useAuthStore } from '../store/authStore';
@@ -33,33 +33,24 @@ export const AvatarPicker = ({ visible, onDismiss }) => {
   };
 
   return (
-    <Portal>
-      <Dialog visible={visible} onDismiss={onDismiss} style={styles.dialog}>
-        <Dialog.Title>Choose your avatar</Dialog.Title>
-        <Dialog.Content>
-          <View style={styles.grid}>
-            {AVATAR_KEYS.map((seed) => (
-              <Pressable
-                key={seed}
-                onPress={() => choose(seed)}
-                style={[styles.cell, user?.avatar === seed && styles.cellActive]}
-              >
-                <UserAvatar person={{ avatar: seed }} size={48} />
-              </Pressable>
-            ))}
-          </View>
-        </Dialog.Content>
-        <Dialog.Actions>
-          <Button onPress={onDismiss}>Close</Button>
-        </Dialog.Actions>
-      </Dialog>
-    </Portal>
+    <DialogCard visible={visible} title="Choose your avatar" onDismiss={onDismiss}>
+      <View style={styles.grid}>
+        {AVATAR_KEYS.map((seed) => (
+          <Pressable
+            key={seed}
+            onPress={() => choose(seed)}
+            style={[styles.cell, user?.avatar === seed && styles.cellActive]}
+          >
+            <UserAvatar person={{ avatar: seed }} size={48} />
+          </Pressable>
+        ))}
+      </View>
+    </DialogCard>
   );
 };
 
 const styles = themedStyles(() => ({
-  dialog: { backgroundColor: COLORS.cardBg },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.md, justifyContent: 'center' },
+  grid: { marginTop: SPACING.lg, flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.md, justifyContent: 'center' },
   cell: { padding: 3, borderRadius: 40, borderWidth: 2, borderColor: 'transparent' },
   cellActive: { borderColor: COLORS.accent },
 }));

@@ -5,7 +5,7 @@
  */
 import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
-import { Dialog, Portal, Button } from 'react-native-paper';
+import { DialogCard } from './DialogCard';
 import { ArrowDown2, TickCircle } from 'iconsax-react-native';
 import { UserAvatar } from './UserAvatar';
 import { COLORS, SPACING, RADIUS, themedStyles, TYPE } from '../theme/colors';
@@ -35,37 +35,29 @@ export const BuyerPicker = ({ members, value, onChange, error, readOnly = false,
       </Pressable>
       {!!error && <Text style={styles.error}>{error}</Text>}
 
-      <Portal>
-        <Dialog visible={open} onDismiss={() => setOpen(false)} style={styles.dialog}>
-          <Dialog.Title>Select buyer</Dialog.Title>
-          <Dialog.ScrollArea style={styles.scrollArea}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {members.map((member, i) => {
-                const active = String(member.id) === String(value);
-                return (
-                  <Pressable
-                    key={member.id}
-                    onPress={() => { onChange(String(member.id)); setOpen(false); }}
-                    style={({ pressed }) => [
-                      styles.row,
-                      i > 0 && styles.rowDivider,
-                      active && styles.rowActive,
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <UserAvatar person={member} size={40} style={styles.avatar} />
-                    <Text style={styles.rowName} numberOfLines={1}>{member.name}</Text>
-                    {active && <TickCircle size={18} color={COLORS.accent} variant="Bold" />}
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </Dialog.ScrollArea>
-          <Dialog.Actions>
-            <Button onPress={() => setOpen(false)}>Close</Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
+      <DialogCard visible={open} title="Select buyer" onDismiss={() => setOpen(false)}>
+        <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+          {members.map((member, i) => {
+            const active = String(member.id) === String(value);
+            return (
+              <Pressable
+                key={member.id}
+                onPress={() => { onChange(String(member.id)); setOpen(false); }}
+                style={({ pressed }) => [
+                  styles.row,
+                  i > 0 && styles.rowDivider,
+                  active && styles.rowActive,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <UserAvatar person={member} size={40} style={styles.avatar} />
+                <Text style={styles.rowName} numberOfLines={1}>{member.name}</Text>
+                {active && <TickCircle size={18} color={COLORS.accent} variant="Bold" />}
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </DialogCard>
     </View>
   );
 };
@@ -90,8 +82,7 @@ const styles = themedStyles(() => ({
   avatar: { marginRight: SPACING.md },
   name: { flex: 1, ...TYPE.inputText, color: COLORS.textPrimary },
   placeholder: { flex: 1, ...TYPE.inputText, color: COLORS.textMuted },
-  dialog: { backgroundColor: COLORS.cardBg, maxHeight: '80%' },
-  scrollArea: { paddingHorizontal: 0, maxHeight: 400 },
+  list: { maxHeight: 360, marginTop: SPACING.lg, marginHorizontal: -SPACING.xl },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

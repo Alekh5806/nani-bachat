@@ -19,7 +19,7 @@ All shared components live in `mobile/src/components`. Reuse these before writin
 | Component | Use it for | Notes |
 |---|---|---|
 | `StockRow` | Holding row on Investments | |
-| `MemberRow` | Member on the Members list | Uses `UserAvatar` 44. |
+| `MemberRow` | Member on the Members list: avatar, name, phone, role pill on the right (Admin or Partner). Uses `UserAvatar` 40. |
 | `CompanyLogo` | Any company logo | Props: `symbol`, `name`, `size`. Transparent, 8 radius, letter fallback. Batches lookups through `logoStore`. |
 | `UserAvatar` | Any member picture | Props: `person {avatar, name, avatar_color}`, `size`. Plain image or a letter circle. |
 | `AvatarPicker` | Choose own avatar | Paper `Dialog` with the 14 avatars. Saves with `PATCH /auth/profile/`. |
@@ -40,7 +40,6 @@ All shared components live in `mobile/src/components`. Reuse these before writin
 |---|---|---|
 | `GrowthChart` | Home line chart | Height 120. Drag to read a point. Drag locks page scroll. |
 | `AllocationDonut` | Top Holdings and Asset Allocation | `half` prop draws a half ring. |
-| `OwnershipCard` | The member's ownership | On the Members screen. |
 | `LoadingSkeleton` | Loading state | |
 | `StatCard` | Small stat | Older. Prefer `SummaryCard`. |
 
@@ -54,6 +53,8 @@ Every form screen uses the shared shell. Do not rebuild it.
 | `FormCard` | Bordered card for a group of fields or a preview. Prop: `style`. |
 | `FormLabel` | Small title above a group ("Purchase details"). |
 | `BuyerPicker` | Select field with a member dialog. Props: `members`, `value`, `onChange(id)`, `error`, `readOnly`. |
+| `SwitchRow` | On/off setting in a form: title, optional grey `hint`, flat pill switch on the right, no box. Props: `label`, `hint`, `value`, `onValueChange`. Use it for every form toggle. |
+| `MonthPickerDialog` | Month picker that stays small with any number of months: year arrows and a 12-month grid, months without data greyed out, "All months" button. Props: `visible`, `value` ("YYYY-MM" or null), `enabledMonths`, `onSelect(month or null)`, `onClose`. |
 | `PreviewCard` / `PreviewRow` / `PreviewTotal` | Preview card of Add Stock and Sell: title with divider, rows (bold label, optional grey `sub`, value in the right half) and a totals block under a divider. |
 
 Rules: every control is full width, one per line, with an Iconsax icon through the `icon` prop (emoji names are mapped in `Icon.js`).
@@ -65,7 +66,7 @@ Installed and themed from the app colors (`PaperProvider` in `App.js`). Use for:
 ## Feedback
 
 - **Toast:** `Toast.show({ type: 'success' | 'error' | 'info', text1, text2 })` from `react-native-toast-message`. The look is a dark pill with a colored icon badge (`config/toastConfig.js`). Use toasts for results. Do not use a modal for a plain success message.
-- **Popups and confirmations:** call `Alert.alert(title, message, buttons)` from `utils/alert.js` (same call as React Native, buttons with `style: 'cancel' | 'destructive'`). It shows the app's own dialog (`DialogHost` mounted in `App.js`, built on `DialogCard`), so it looks the same on iOS, Android and web and also works on top of other modals. For a confirm that needs a loading state (delete), use `ConfirmDialog` (`visible`, `title`, `message`, `confirmText`, `destructive`, `loading`, `onConfirm`, `onCancel`). Never use `window.confirm` or React Native's own `Alert`.
+- **Popups and confirmations:** call `Alert.alert(title, message, buttons)` from `utils/alert.js` (same call as React Native, buttons with `style: 'cancel' | 'destructive'`). It shows the app's own dialog (`DialogHost` mounted in `App.js`, built on `DialogCard`), so it looks the same on iOS, Android and web and also works on top of other modals. For a confirm that needs a loading state (delete), use `ConfirmDialog` (`visible`, `title`, `message`, `confirmText`, `destructive`, `loading`, `onConfirm`, `onCancel`). Every dialog uses `DialogCard`: title on the left with a round X close button on the right, optional message and `children` (list, grid, input), then full-width pill buttons (the last one is solid blue, or solid red when its color is `COLORS.loss`; others are light; `variant: 'secondary'` forces light). Pick-lists (`BuyerPicker`, `HoldingSelect`, `AvatarSelect`, `AvatarPicker`, `MonthPickerDialog`, `DatePickerField`) have no bottom button of their own because the X closes them. Never use Paper's `Dialog`. Never use `window.confirm` or React Native's own `Alert`.
 
 ## Adding a component
 

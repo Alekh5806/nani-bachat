@@ -1,18 +1,24 @@
 /**
  * Member Detail Screen
- * One member: info, totals, pending contribution and contribution history.
+ * One member: profile card, totals, pending contribution and contribution history.
  */
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, Text, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
 import api from '../config/api';
 import { usePortfolioStore } from '../store/portfolioStore';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { GlassCard } from '../components/GlassCard';
+import { UserAvatar } from '../components/UserAvatar';
 import { SectionHeader } from '../components/SectionHeader';
-import { COLORS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
+import { COLORS, SPACING, RADIUS, themedStyles, TYPE } from '../theme/colors';
 import { TabBarSpacer } from '../components/TabBarSpacer';
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const monthLabel = (m) => {
+  const [y, mm] = String(m).split('-');
+  return MONTHS[parseInt(mm, 10) - 1] ? `${MONTHS[parseInt(mm, 10) - 1]} ${y}` : m;
+};
 
 const money = (v) => `₹${(Number(v) || 0).toLocaleString('en-IN')}`;
 
@@ -30,6 +36,10 @@ export const MemberDetailScreen = ({ route, navigation }) => {
         .catch(() => {});
     }, [memberParam.id, fetchMembers])
   );
+
+  // Newest first, grouped by year.
+  const sorted = [...history].sort((x, y) => String(y.month).localeCompare(String(x.month)));
+  const years = [...new Set(sorted.map((c) => String(c.month).slice(0, 4)))];
 
   const pending = history.filter((c) => c.status !== 'paid');
   const pendingTotal = pending.reduce((sum, c) => sum + (Number(c.payable_amount ?? c.amount) || 0), 0);
@@ -50,9 +60,16 @@ export const MemberDetailScreen = ({ route, navigation }) => {
         onBack={() => navigation.goBack()}
       />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <GlassCard style={styles.card}>
-          <Row label="Phone" value={member.phone || '—'} />
-          {!!member.email && <Row label="Email" value={member.email} />}
+        <View style={styles.profile}>
+          <UserAvatar person={member} size={56} />
+          <View style={styles.profileText}>
+            <Text style={styles.profileName} numberOfLines={1}>{member.name}</Text>
+            <Text style={styles.profileSub} numberOfLines={1}>{member.phone || '—'}</Text>
+            {!!member.email && <Text style={styles.profileSub} numberOfLines={1}>{member.email}</Text>}
+          </View>
+        </View>
+
+        <View style={styles.card}>
           <Row label="Monthly Amount" value={money(member.monthly_amount)} />
           <Row label="Total Contributed" value={money(member.total_contribution)} />
           <Row label="Ownership" value={`${member.ownership_percentage || 0}%`} />
@@ -61,29 +78,38 @@ export const MemberDetailScreen = ({ route, navigation }) => {
             value={pending.length ? `${money(pendingTotal)} (${pending.length})` : 'None'}
             color={pending.length ? COLORS.loss : COLORS.profit}
           />
-        </GlassCard>
-
-        <Pressable
-          onPress={() =>
-            navigation.navigate('Contributions', { memberId: member.id, memberName: member.name })
-          }
-          style={styles.action}
-        >
-          <Text style={styles.actionText}>Manage Contributions</Text>
-        </Pressable>
+        </View>
 
         <SectionHeader title="Contribution History" />
         {history.length === 0 && <Text style={styles.empty}>No contributions yet</Text>}
-        {history.map((c) => (
-          <GlassCard key={c.id} style={styles.card}>
-            <Row label={c.month} value={money(c.amount)} />
-            <Row
-              label="Status"
-              value={c.status === 'paid' ? `Paid${c.paid_date ? ` on ${c.paid_date}` : ''}` : 'Pending'}
-              color={c.status === 'paid' ? COLORS.profit : COLORS.loss}
-            />
-          </GlassCard>
-        ))}
+        {years.map((year) => {
+          const rows = sorted.filter((c) => String(c.month).slice(0, 4) === year);
+          return (
+            <View key={year}>
+              <View style={styles.band}>
+                <Text style={styles.bandText}>{year}</Text>
+                <Text style={styles.bandTotal}>{rows.filter((c) => c.status === 'paid').length}/{rows.length} paid</Text>
+              </View>
+              {rows.map((c, i) => {
+                const paid = c.status === 'paid';
+                return (
+                  <View key={c.id} style={[styles.hRow, i > 0 && styles.hRowDivider]}>
+                    <View style={styles.hLeft}>
+                      <Text style={styles.hName}>{monthLabel(c.month)}</Text>
+                      <Text style={styles.hSub}>
+                        {paid && c.paid_date ? 'Paid on ' + new Date(c.paid_date).toLocaleDateString('en-IN') : paid ? 'Paid' : 'Not paid yet'}
+                      </Text>
+                    </View>
+                    <View style={styles.hRight}>
+                      <Text style={styles.hAmount}>{money(c.amount)}</Text>
+                      <Text style={[styles.hSub, { color: paid ? COLORS.profit : COLORS.loss }]}>{paid ? 'Paid' : 'Unpaid'}</Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          );
+        })}
         <TabBarSpacer />
       </ScrollView>
     </View>
@@ -93,14 +119,34 @@ export const MemberDetailScreen = ({ route, navigation }) => {
 const styles = themedStyles(() => ({
   container: { flex: 1, backgroundColor: COLORS.background },
   content: { paddingHorizontal: SPACING.lg, paddingBottom: 0 },
-  card: { marginBottom: SPACING.md },
-  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
-  rowLabel: { ...TYPE.secondary, color: COLORS.textSecondary },
-  rowValue: { ...TYPE.smallValue, color: COLORS.textPrimary },
-  empty: { ...TYPE.secondary, color: COLORS.textMuted },
-  action: {
-    alignItems: 'center', borderWidth: 1, borderColor: COLORS.accent,
-    borderRadius: 8, paddingVertical: SPACING.md, marginBottom: SPACING.md,
+  profile: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.lg,
+    backgroundColor: COLORS.cardBg, borderRadius: RADIUS.xl, borderWidth: 1,
+    borderColor: COLORS.border, padding: SPACING.lg, marginBottom: SPACING.md,
   },
-  actionText: { ...TYPE.button, color: COLORS.accent },
+  profileText: { flex: 1, minWidth: 0 },
+  profileName: { ...TYPE.cardTitle, fontSize: 16, color: COLORS.textPrimary },
+  profileSub: { ...TYPE.caption, fontSize: 12, color: COLORS.textMuted, marginTop: 4 },
+  card: {
+    backgroundColor: COLORS.cardBg, borderRadius: RADIUS.xl, borderWidth: 1,
+    borderColor: COLORS.border, padding: SPACING.lg, marginBottom: SPACING.md,
+  },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
+  rowLabel: { ...TYPE.cardTitle, fontSize: 12, flex: 1, color: COLORS.textPrimary },
+  rowValue: { ...TYPE.secondary, fontSize: 12, flex: 1, color: COLORS.textSecondary },
+  empty: { ...TYPE.secondary, color: COLORS.textMuted, marginBottom: SPACING.md },
+  band: {
+    flexDirection: 'row', justifyContent: 'space-between', marginTop: SPACING.md,
+    marginHorizontal: -SPACING.lg, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md,
+    backgroundColor: COLORS.isDark ? COLORS.surface : COLORS.surfaceLight,
+  },
+  bandText: { ...TYPE.secondaryMedium, color: COLORS.textSecondary },
+  bandTotal: { ...TYPE.caption, color: COLORS.textMuted },
+  hRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.md },
+  hRowDivider: { borderTopWidth: 1, borderTopColor: COLORS.divider },
+  hLeft: { flex: 1, minWidth: 0, marginRight: SPACING.md },
+  hRight: { alignItems: 'flex-end' },
+  hName: { ...TYPE.cardTitle, fontSize: 14, color: COLORS.textPrimary },
+  hAmount: { ...TYPE.smallValue, fontSize: 12, color: COLORS.textPrimary },
+  hSub: { ...TYPE.caption, fontSize: 10, color: COLORS.textMuted, marginTop: 4 },
 }));

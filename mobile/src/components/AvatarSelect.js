@@ -6,7 +6,7 @@
  */
 import React, { useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
-import { Dialog, Portal, Button } from 'react-native-paper';
+import { DialogCard } from './DialogCard';
 import { ArrowDown2, Shuffle } from 'iconsax-react-native';
 import { UserAvatar } from './UserAvatar';
 import { AVATAR_KEYS } from '../utils/avatars';
@@ -35,28 +35,24 @@ export const AvatarSelect = ({ value, onChange, label = 'Avatar' }) => {
         <ArrowDown2 size={18} color={COLORS.textSecondary} />
       </Pressable>
 
-      <Portal>
-        <Dialog visible={open} onDismiss={() => setOpen(false)} style={styles.dialog}>
-          <Dialog.Title>Choose an avatar</Dialog.Title>
-          <Dialog.Content>
-            <View style={styles.grid}>
-              {AVATAR_KEYS.map((key) => (
-                <Pressable
-                  key={key}
-                  onPress={() => pick(key)}
-                  style={[styles.cell, value === key && styles.cellActive]}
-                >
-                  <UserAvatar person={{ avatar: key }} size={48} />
-                </Pressable>
-              ))}
-            </View>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => pick('')}>Random</Button>
-            <Button onPress={() => setOpen(false)}>Close</Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
+      <DialogCard
+        visible={open}
+        title="Choose an avatar"
+        onDismiss={() => setOpen(false)}
+        buttons={[{ text: 'Random', variant: 'secondary', onPress: () => pick('') }]}
+      >
+        <View style={styles.grid}>
+          {AVATAR_KEYS.map((key) => (
+            <Pressable
+              key={key}
+              onPress={() => pick(key)}
+              style={[styles.cell, value === key && styles.cellActive]}
+            >
+              <UserAvatar person={{ avatar: key }} size={48} />
+            </Pressable>
+          ))}
+        </View>
+      </DialogCard>
     </View>
   );
 };
@@ -87,8 +83,7 @@ const styles = themedStyles(() => ({
   },
   name: { flex: 1, ...TYPE.inputText, color: COLORS.textPrimary },
   placeholder: { flex: 1, ...TYPE.inputText, color: COLORS.textMuted },
-  dialog: { backgroundColor: COLORS.cardBg },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: SPACING.md },
+  grid: { marginTop: SPACING.lg, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: SPACING.md },
   cell: {
     padding: SPACING.xs,
     borderRadius: RADIUS.md,

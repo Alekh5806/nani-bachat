@@ -41,7 +41,7 @@ const styles = themedStyles(() => ({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
   },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.sm },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
   labelBlock: { flex: 1 },
   label: { ...TYPE.cardTitle, fontSize: 12, color: COLORS.textPrimary },
   labelStrong: { fontSize: 14 },

@@ -189,7 +189,7 @@ const styles = themedStyles(() => ({
     marginBottom: SPACING.md,
   },
   // Two columns like a spec sheet: bold label on the left, value on the right half.
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.sm },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
   rowLabel: { ...TYPE.cardTitle, fontSize: 12, flex: 1, color: COLORS.textPrimary },
   rowValue: { ...TYPE.secondary, fontSize: 12, flex: 1, color: COLORS.textSecondary },
   empty: { ...TYPE.secondary, color: COLORS.textMuted, marginBottom: SPACING.md },

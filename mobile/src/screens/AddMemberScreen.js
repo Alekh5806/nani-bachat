@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { Switch, Text, View } from 'react-native';
+import { View } from 'react-native';
 import Toast from 'react-native-toast-message';
 
 import { Alert } from '../utils/alert';
 import api from '../config/api';
-import { FormScreen, FormCard } from '../components/FormScreen';
+import { FormScreen, FormLabel } from '../components/FormScreen';
+import { SwitchRow } from '../components/SwitchRow';
 import { PreviewCard, PreviewRow, PreviewTotal } from '../components/PreviewCard';
 import { fmtFull } from '../utils/currency';
 import { AvatarSelect } from '../components/AvatarSelect';
@@ -133,8 +134,8 @@ export const AddMemberScreen = ({ navigation }) => {
       subtitle="Create account and optional catch-up payment"
       onBack={() => navigation.goBack()}
     >
-      <FormCard style={styles.card}>
-        <Text style={styles.sectionTitle}>Member Details</Text>
+      <FormLabel>Member details</FormLabel>
+      <View style={styles.card}>
         <PremiumInput
           label="Name"
           error={errors.name}
@@ -172,21 +173,15 @@ export const AddMemberScreen = ({ navigation }) => {
         />
 
         <AvatarSelect value={form.avatar} onChange={(key) => updateForm('avatar', key)} />
-      </FormCard>
+      </View>
 
-      <FormCard style={styles.card}>
-        <View style={styles.toggleRow}>
-          <View style={styles.toggleTextWrap}>
-            <Text style={styles.sectionTitle}>Catch-up Payment</Text>
-            <Text style={styles.helperText}>Use this when a new member pays old months now.</Text>
-          </View>
-          <Switch
-            value={recordCatchUp}
-            onValueChange={setRecordCatchUp}
-            trackColor={{ false: COLORS.surfaceLight, true: COLORS.accent + '80' }}
-            thumbColor={recordCatchUp ? COLORS.accent : COLORS.textMuted}
-          />
-        </View>
+      <View style={styles.card}>
+        <SwitchRow
+          label="Catch-up payment"
+          hint="Use this when a new member pays old months now"
+          value={recordCatchUp}
+          onValueChange={setRecordCatchUp}
+        />
 
         {recordCatchUp && (
           <>
@@ -214,7 +209,7 @@ export const AddMemberScreen = ({ navigation }) => {
             />
           </>
         )}
-      </FormCard>
+      </View>
 
       {recordCatchUp && (
         <PreviewCard title="Catch-up preview" style={styles.card}>
@@ -244,26 +239,6 @@ export default AddMemberScreen;
 const styles = themedStyles(() => ({
   card: {
     marginBottom: SPACING.lg,
-  },
-  sectionTitle: {
-    ...TYPE.sectionTitle,
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.md,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: SPACING.md,
-  },
-  toggleTextWrap: {
-    flex: 1,
-  },
-  helperText: {
-    ...TYPE.secondary,
-    color: COLORS.textSecondary,
-    marginTop: -SPACING.sm,
-    marginBottom: SPACING.md,
   },
   submitButton: {
     marginTop: SPACING.sm,

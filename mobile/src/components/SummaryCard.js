@@ -68,7 +68,7 @@ const styles = themedStyles(() => ({
     borderStyle: 'dashed',
     borderColor: COLORS.isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)',
   },
-  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: SPACING.sm },
+  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
   note: { ...TYPE.caption, color: COLORS.textMuted, marginTop: SPACING.sm },
   rowLabel: { ...TYPE.secondary, fontSize: 12, color: COLORS.textSecondary },
   rowValue: { ...TYPE.smallValue, fontSize: 12, color: COLORS.textPrimary },

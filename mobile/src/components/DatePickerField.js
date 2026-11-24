@@ -7,7 +7,8 @@
  * exactly what the Django serializers expect.
  */
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { DialogCard } from './DialogCard';
 import { Icon } from './Icon';
 import { AppIcon } from './Icon';
 import { COLORS, RADIUS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
@@ -136,80 +137,77 @@ export const DatePickerField = ({
 
       {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <Pressable style={styles.overlay} onPress={() => setOpen(false)}>
-          {/* Absorbs the press so tapping inside the card does not dismiss it. */}
-          <Pressable style={styles.calendar} onPress={() => {}}>
-            {/* Month / year navigation */}
-            <View style={styles.navRow}>
-              <Pressable onPress={() => shiftYear(-1)} style={styles.navBtn} hitSlop={6}>
-                <AppIcon name="play-back" size={14} color={COLORS.textSecondary} />
-              </Pressable>
-              <Pressable onPress={() => shiftMonth(-1)} style={styles.navBtn} hitSlop={6}>
-                <AppIcon name="chevron-back" size={18} color={COLORS.textPrimary} />
-              </Pressable>
-              <Text style={styles.navTitle}>
-                {MONTH_NAMES[cursor.getMonth()]} {cursor.getFullYear()}
-              </Text>
-              <Pressable onPress={() => shiftMonth(1)} style={styles.navBtn} hitSlop={6}>
-                <AppIcon name="chevron-forward" size={18} color={COLORS.textPrimary} />
-              </Pressable>
-              <Pressable onPress={() => shiftYear(1)} style={styles.navBtn} hitSlop={6}>
-                <AppIcon name="play-forward" size={14} color={COLORS.textSecondary} />
-              </Pressable>
-            </View>
-
-            <View style={styles.weekRow}>
-              {WEEKDAYS.map((day, index) => (
-                <Text key={`${day}-${index}`} style={styles.weekday}>{day}</Text>
-              ))}
-            </View>
-
-            <ScrollView style={styles.grid} contentContainerStyle={styles.gridContent}>
-              {days.map((date, index) => {
-                if (!date) return <View key={`blank-${index}`} style={styles.dayCell} />;
-                const dateStr = toDateString(date);
-                const isSelected = dateStr === value;
-                const isToday = dateStr === todayStr;
-                const disabled = isDisabled(date);
-                return (
-                  <Pressable
-                    key={dateStr}
-                    onPress={() => pick(date)}
-                    disabled={disabled}
-                    style={({ pressed }) => [
-                      styles.dayCell,
-                      isSelected && styles.daySelected,
-                      !isSelected && isToday && styles.dayToday,
-                      pressed && !disabled && styles.dayPressed,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.dayText,
-                        isSelected && styles.dayTextSelected,
-                        !isSelected && isToday && styles.dayTextToday,
-                        disabled && styles.dayTextDisabled,
-                      ]}
-                    >
-                      {date.getDate()}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-
-            <View style={styles.actions}>
-              <Pressable onPress={() => setOpen(false)} style={styles.actionBtn}>
-                <Text style={styles.actionText}>Cancel</Text>
-              </Pressable>
-              <Pressable onPress={selectToday} style={[styles.actionBtn, styles.actionPrimary]}>
-                <Text style={[styles.actionText, styles.actionPrimaryText]}>Today</Text>
-              </Pressable>
-            </View>
+      <DialogCard
+        visible={open}
+        title="Select date"
+        onDismiss={() => setOpen(false)}
+        buttons={[
+          { text: 'Cancel', onPress: () => setOpen(false) },
+          { text: 'Today', onPress: selectToday },
+        ]}
+      >
+        <View style={styles.calendar}>
+        {/* Month / year navigation */}
+        <View style={styles.navRow}>
+          <Pressable onPress={() => shiftYear(-1)} style={styles.navBtn} hitSlop={6}>
+            <AppIcon name="play-back" size={14} color={COLORS.textSecondary} />
           </Pressable>
-        </Pressable>
-      </Modal>
+          <Pressable onPress={() => shiftMonth(-1)} style={styles.navBtn} hitSlop={6}>
+            <AppIcon name="chevron-back" size={18} color={COLORS.textPrimary} />
+          </Pressable>
+          <Text style={styles.navTitle}>
+            {MONTH_NAMES[cursor.getMonth()]} {cursor.getFullYear()}
+          </Text>
+          <Pressable onPress={() => shiftMonth(1)} style={styles.navBtn} hitSlop={6}>
+            <AppIcon name="chevron-forward" size={18} color={COLORS.textPrimary} />
+          </Pressable>
+          <Pressable onPress={() => shiftYear(1)} style={styles.navBtn} hitSlop={6}>
+            <AppIcon name="play-forward" size={14} color={COLORS.textSecondary} />
+          </Pressable>
+        </View>
+
+        <View style={styles.weekRow}>
+          {WEEKDAYS.map((day, index) => (
+            <Text key={`${day}-${index}`} style={styles.weekday}>{day}</Text>
+          ))}
+        </View>
+
+        <ScrollView style={styles.grid} contentContainerStyle={styles.gridContent}>
+          {days.map((date, index) => {
+            if (!date) return <View key={`blank-${index}`} style={styles.dayCell} />;
+            const dateStr = toDateString(date);
+            const isSelected = dateStr === value;
+            const isToday = dateStr === todayStr;
+            const disabled = isDisabled(date);
+            return (
+              <Pressable
+                key={dateStr}
+                onPress={() => pick(date)}
+                disabled={disabled}
+                style={({ pressed }) => [
+                  styles.dayCell,
+                  isSelected && styles.daySelected,
+                  !isSelected && isToday && styles.dayToday,
+                  pressed && !disabled && styles.dayPressed,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.dayText,
+                    isSelected && styles.dayTextSelected,
+                    !isSelected && isToday && styles.dayTextToday,
+                    disabled && styles.dayTextDisabled,
+                  ]}
+                >
+                  {date.getDate()}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        </View>
+      </DialogCard>
     </View>
   );
 };
@@ -248,22 +246,7 @@ const styles = themedStyles(() => ({
     marginLeft: SPACING.xs,
   },
 
-  overlay: {
-    flex: 1,
-    backgroundColor: COLORS.overlay,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: SPACING.lg,
-  },
-  calendar: {
-    width: '100%',
-    maxWidth: 360,
-    backgroundColor: COLORS.cardBg,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: SPACING.lg,
-  },
+  calendar: { marginTop: SPACING.lg },
   navRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -307,19 +290,4 @@ const styles = themedStyles(() => ({
   dayTextSelected: { color: COLORS.onAccent, fontWeight: '600' },
   dayTextToday: { color: COLORS.accent },
   dayTextDisabled: { color: COLORS.textMuted, opacity: 0.4 },
-  actions: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-    marginTop: SPACING.md,
-  },
-  actionBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: RADIUS.md,
-    backgroundColor: COLORS.surface,
-    alignItems: 'center',
-  },
-  actionPrimary: { backgroundColor: COLORS.accent },
-  actionText: { ...TYPE.button, color: COLORS.textSecondary },
-  actionPrimaryText: { color: COLORS.onAccent },
 }));

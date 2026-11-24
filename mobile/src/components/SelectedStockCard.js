@@ -60,7 +60,7 @@ const styles = themedStyles(() => ({
     backgroundColor: COLORS.accent + '14',
   },
   changeText: { ...TYPE.captionMedium, color: COLORS.accent },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.sm },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
   label: { ...TYPE.cardTitle, fontSize: 12, flex: 1, color: COLORS.textPrimary },
   value: { ...TYPE.secondary, fontSize: 12, flex: 1, color: COLORS.textSecondary },
 }));

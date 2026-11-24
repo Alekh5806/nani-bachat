@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { shortName } from '../utils/names';
 import { View, Text, Pressable, ScrollView, TextInput, Platform } from 'react-native';
-import { Dialog, Portal, Button } from 'react-native-paper';
+import { DialogCard } from './DialogCard';
 import { ArrowDown2, TickCircle, SearchNormal1 } from 'iconsax-react-native';
 import { CompanyLogo } from './CompanyLogo';
 import { COLORS, SPACING, RADIUS, themedStyles, TYPE } from '../theme/colors';
@@ -42,34 +42,28 @@ export const HoldingSelect = ({ label, holdings, selected, onSelect, emptyText, 
       </Pressable>
       {!!error && <Text style={styles.error}>{error}</Text>}
 
-      <Portal>
-        <Dialog visible={open} onDismiss={() => setOpen(false)} style={styles.dialog}>
-          <Dialog.Title>Select holding</Dialog.Title>
-          <View style={styles.searchBox}>
-            <SearchNormal1 size={16} color={COLORS.textMuted} />
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Search stock or buyer"
-              placeholderTextColor={COLORS.textMuted}
-              style={styles.searchInput}
-            />
-          </View>
-          <Dialog.ScrollArea style={styles.scrollArea}>
-            {shown.length === 0 && (
-              <Text style={styles.empty}>{holdings.length === 0 ? emptyText : 'No match'}</Text>
-            )}
-            <HoldingList
-              holdings={shown}
-              selected={selected}
-              onPick={(h) => { onSelect(h); setOpen(false); setQuery(''); }}
-            />
-          </Dialog.ScrollArea>
-          <Dialog.Actions>
-            <Button onPress={() => setOpen(false)}>Close</Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
+      <DialogCard visible={open} title="Select holding" onDismiss={() => setOpen(false)}>
+        <View style={styles.searchBox}>
+          <SearchNormal1 size={16} color={COLORS.textMuted} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search stock or buyer"
+            placeholderTextColor={COLORS.textMuted}
+            style={styles.searchInput}
+          />
+        </View>
+        <View style={styles.list}>
+          {shown.length === 0 && (
+            <Text style={styles.empty}>{holdings.length === 0 ? emptyText : 'No match'}</Text>
+          )}
+          <HoldingList
+            holdings={shown}
+            selected={selected}
+            onPick={(h) => { onSelect(h); setOpen(false); setQuery(''); }}
+          />
+        </View>
+      </DialogCard>
     </View>
   );
 };
@@ -129,8 +123,7 @@ const styles = themedStyles(() => ({
   logo: { marginRight: SPACING.md, marginTop: 2 },
   name: { ...TYPE.cardTitle, fontSize: 14, color: COLORS.textPrimary, flexShrink: 1 },
   sub: { ...TYPE.caption, fontSize: 10, color: COLORS.textMuted, marginTop: 2 },
-  dialog: { backgroundColor: COLORS.cardBg, maxHeight: '80%' },
-  scrollArea: { paddingHorizontal: 0, maxHeight: 400 },
+  list: { maxHeight: 360, marginHorizontal: -SPACING.xl },
   empty: { ...TYPE.secondary, color: COLORS.textMuted, padding: SPACING.lg },
   searchBox: {
     flexDirection: 'row',
@@ -139,7 +132,7 @@ const styles = themedStyles(() => ({
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.inputBorder,
-    marginHorizontal: SPACING.xl,
+    marginTop: SPACING.lg,
     marginBottom: SPACING.md,
     paddingHorizontal: SPACING.md,
   },

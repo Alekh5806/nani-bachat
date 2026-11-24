@@ -19,10 +19,13 @@ Header "Portfolio" with the month. Cards in order:
 - Opens `HoldingDetail` for one holding (purchases, edit, sell, sales).
 
 ### Member (`MembersScreen`)
-1. Ownership card.
-2. **Members summary** (`SummaryCard`): total contributed, Average per member, Active members.
-3. Admin buttons: Add Member, Contributions.
-4. "All Members" list. Opens `MemberDetail`. Contributions has a back arrow.
+Header action: Add (solid primary, admin only): Add Member on the Member tab, Generate month on the Contribution tab. Tabs **Member**, **Contribution**, **History**; only the active one renders.
+1. **Member** tab: one `SummaryCard` (your ownership value, profit/loss, contributed, dividends, group total, average), "All Members" list in the list-row spec (`MemberRow`). Opens `MemberDetail`.
+2. **Contribution** tab: `ContributionsScreen` embedded (`embedded view="contributions"`): `SummaryCard` (this month collected, Paid, Pending, total collected), a "Month" row (button opening `MonthPickerDialog`, plus a round "more" button for admins that opens a dialog with Clean up unpaid, Delete month and Rebuild pool totals), a tinted "months need settling" box (admin), and the Monthly Cash card (settled/open pill, pool rows, buyer chosen with the common `BuyerPicker`, `PremiumButton` Settle month). The header Add button opens Generate month on this tab (and Add Member on the Member tab; History has no header action).
+3. **History** tab: same embedded screen (`view="history"`): Unpaid and Paid chips (no month filter). Unpaid loads in one request; Paid loads one month at a time, latest first, as the user scrolls, with a month button (opens a year and month grid picker: All months or one month) at the right of the status chips (the Members ScrollView calls the screen's load-more near the bottom). Then the Dividends-style list: a grey band per month ("Nov 2026", "9/11 paid"), rows with avatar, name, paid date (paid only), amount and admin edit/mark-paid icons.
+`ContributionsScreen` still works standalone (from `MemberDetail`, with a back arrow and its own header).
+
+`MemberDetail`: profile card (avatar, name, phone, email), spec-sheet totals card, then the Dividends-style history: a grey band per year ("2026", "9/11 paid"), rows with month, paid date, amount and Paid/Unpaid.
 
 ### Dividend (`DividendsScreen`)
 1. **Dividends summary** (`SummaryCard`): total, This month, This year, Last received.
