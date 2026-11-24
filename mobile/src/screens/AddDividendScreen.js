@@ -4,7 +4,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import {
-  View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Text, Pressable
+  View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Text
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 
@@ -14,7 +14,7 @@ import { PremiumInput } from '../components/PremiumInput';
 import { PremiumButton } from '../components/PremiumButton';
 import { GlassCard } from '../components/GlassCard';
 import { DatePickerField, todayString, formatDateDisplay } from '../components/DatePickerField';
-import { CompanyLogo } from '../components/CompanyLogo';
+import { HoldingSelect } from '../components/HoldingSelect';
 import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
 import { TabBarSpacer } from '../components/TabBarSpacer';
 
@@ -90,51 +90,16 @@ export const AddDividendScreen = ({ navigation }) => {
           keyboardShouldPersistTaps="handled"
         >
           {/* ── Holding Selector ── */}
-          <Text style={styles.sectionLabel}>Select holding</Text>
-          {holdings.length === 0 && (
-            <GlassCard style={styles.selectedCard}>
-              <Text style={styles.selectedQty}>No active holdings to record a dividend against.</Text>
-            </GlassCard>
-          )}
-          {holdings.map((stock) => {
-            const active = selectedStock?.id === stock.id;
-            return (
-              <Pressable
-                key={stock.id}
-                onPress={() => setSelectedStock(stock)}
-                style={({ pressed }) => [
-                  styles.holdingRow,
-                  active && styles.holdingRowActive,
-                  pressed && styles.holdingRowPressed,
-                ]}
-              >
-                <CompanyLogo symbol={stock.symbol} name={stock.name} size={40} style={{ marginRight: SPACING.md }} />
-                <View style={styles.holdingLeft}>
-                  <Text style={[styles.holdingSymbol, active && styles.holdingSymbolActive]}>
-                    {stock.symbol?.replace('.NS', '')}
-                  </Text>
-                  <Text style={styles.holdingName} numberOfLines={1}>{stock.name}</Text>
-                  {/* Whose demat holds these shares — the dividend lands there. */}
-                  <Text style={styles.holdingBuyer}>
-                    Buyer: {stock.buyer_name || 'Not recorded'}
-                  </Text>
-                  <Text style={styles.holdingMeta}>
-                    {stock.quantity} shares · bought at ₹{stock.buy_price} on{' '}
-                    {formatDateDisplay(stock.buy_date)}
-                  </Text>
-                </View>
-                <View style={styles.holdingRight}>
-                  {active
-                    ? <Text style={styles.holdingCheck}>✓</Text>
-                    : <Text style={styles.holdingSelect}>Select</Text>}
-                </View>
-              </Pressable>
-            );
-          })}
+          <HoldingSelect
+            label="Select holding"
+            holdings={holdings}
+            selected={selectedStock}
+            onSelect={setSelectedStock}
+            emptyText="No active holdings to record a dividend against."
+          />
 
           {selectedStock && (
             <GlassCard style={styles.selectedCard} borderGlow>
-              <Text style={styles.selectedName}>{selectedStock.name}</Text>
               <View style={styles.selectedGrid}>
                 <View style={styles.selectedItem}>
                   <Text style={styles.selectedLabel}>Quantity</Text>
@@ -232,79 +197,16 @@ const styles = themedStyles(() => ({
     paddingHorizontal: SPACING.xl,
     paddingBottom: 0,
   },
-  sectionLabel: {
-    ...TYPE.captionMedium,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.sm,
-  },
-  holdingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: COLORS.cardBg,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.glassBorder,
-    padding: SPACING.md,
-    marginBottom: SPACING.sm,
-  },
-  holdingRowActive: {
-    borderColor: COLORS.accent,
-    backgroundColor: COLORS.accent + '14',
-  },
-  holdingRowPressed: {
-    opacity: 0.8,
-  },
-  holdingLeft: {
-    flex: 1,
-    minWidth: 0,
-  },
-  holdingRight: {
-    marginLeft: SPACING.md,
-  },
-  holdingSymbol: {
-    ...TYPE.secondaryMedium,
-    color: COLORS.textSecondary,
-  },
-  holdingSymbolActive: {
-    color: COLORS.accent,
-  },
-  holdingName: {
-    ...TYPE.cardTitle,
-    color: COLORS.textPrimary,
-    marginTop: 2,
-  },
-  holdingBuyer: {
-    ...TYPE.captionMedium,
-    color: COLORS.accent,
-    marginTop: 4,
-  },
-  holdingMeta: {
-    ...TYPE.caption,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  holdingCheck: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: COLORS.accent,
-  },
-  holdingSelect: {
-    ...TYPE.captionMedium,
-    color: COLORS.textMuted,
-  },
   selectedCard: {
-    marginTop: SPACING.sm,
     marginBottom: SPACING.lg,
   },
   selectedGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: SPACING.sm,
   },
   selectedItem: {
     width: '50%',
-    paddingVertical: SPACING.xs,
+    paddingVertical: SPACING.sm,
     paddingRight: SPACING.sm,
   },
   selectedLabel: {
@@ -315,10 +217,6 @@ const styles = themedStyles(() => ({
     ...TYPE.smallValue,
     color: COLORS.textPrimary,
     marginTop: 2,
-  },
-  selectedName: {
-    ...TYPE.cardTitle,
-    color: COLORS.textPrimary,
   },
   selectedQty: {
     ...TYPE.secondary,
