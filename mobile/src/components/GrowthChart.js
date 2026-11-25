@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useId, useMemo, useState } from 'react';
 import { PanResponder, Platform, Pressable, Text, View } from 'react-native';
-import Svg, { Circle, Line, Path } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient, Line, Path, Stop } from 'react-native-svg';
 import { AppIcon } from './Icon';
 import { COLORS, RADIUS, SPACING, TYPE, themedStyles } from '../theme/colors';
 import { fmtFull } from '../utils/currency';
@@ -9,6 +9,7 @@ import { chartGeometry, dateLabel } from '../utils/portfolioHistory';
 const INSET = 8;
 
 export function GrowthChart({ data = [], height = 120 }) {
+  const fillId = 'growth-fill-' + useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const [width, setWidth] = useState(0);
   const [selectedDate, setSelectedDate] = useState(null);
   const selected = selectedDate && data.find((point) => point.date === selectedDate);
@@ -36,18 +37,14 @@ export function GrowthChart({ data = [], height = 120 }) {
 
   if (!point) return <Text style={styles.empty}>No snapshots in this period.</Text>;
 
-  const paths = { recorded: '', carried: '' };
-  let line = '';
-  points.forEach((point, i) => {
+  const line = points.map((point, i) => {
     const previous = points[i - 1];
-    const move = 'M' + point.x.toFixed(1) + ',' + point.y.toFixed(1);
-    if (!previous) { line = move; return; }
-    const carried = point.carried || previous.carried;
-    const segment = carried ? 'H' + point.x.toFixed(1) + 'V' + point.y.toFixed(1)
-      : 'L' + point.x.toFixed(1) + ',' + point.y.toFixed(1);
-    line += segment;
-    paths[carried ? 'carried' : 'recorded'] += 'M' + previous.x.toFixed(1) + ',' + previous.y.toFixed(1) + segment;
-  });
+    const end = point.x.toFixed(1) + ',' + point.y.toFixed(1);
+    if (!previous) return 'M' + end;
+    // Rounded transitions stay within the two values, including flat sections.
+    const middle = ((previous.x + point.x) / 2).toFixed(1);
+    return 'C' + middle + ',' + previous.y.toFixed(1) + ' ' + middle + ',' + point.y.toFixed(1) + ' ' + end;
+  }).join(' ');
   const dot = points[index];
   const moveButton = (step, label, icon) => {
     const target = data[index + step];
@@ -67,17 +64,22 @@ export function GrowthChart({ data = [], height = 120 }) {
         <View pointerEvents="none">
           {points.length > 0 && (
             <Svg width={width} height={height} accessible={false}>
+              <Defs>
+                <LinearGradient id={fillId} x1="0%" y1="0%" x2="0%" y2="100%">
+                  <Stop offset="0" stopColor={COLORS.accent} stopOpacity={0.18} />
+                  <Stop offset="1" stopColor={COLORS.accent} stopOpacity={0} />
+                </LinearGradient>
+              </Defs>
               {[INSET, height / 2, height - INSET].map((y) => (
-                <Line key={y} x1={INSET} x2={width - INSET} y1={y} y2={y} stroke={COLORS.border} strokeDasharray="3 5" />
+                <Line key={y} x1={INSET} x2={width - INSET} y1={y} y2={y} stroke={COLORS.border} strokeOpacity={0.45} strokeWidth={0.75} />
               ))}
               {points.length > 1 && <>
                 <Path d={line + ' L' + points[points.length - 1].x + ',' + height + ' L' + points[0].x + ',' + height + ' Z'}
-                  fill={COLORS.accent} fillOpacity={0.07} />
-                {!!paths.recorded && <Path d={paths.recorded} fill="none" stroke={COLORS.accent} strokeWidth={2.5} strokeLinejoin="round" />}
-                {!!paths.carried && <Path d={paths.carried} fill="none" stroke={COLORS.accent} strokeWidth={2} strokeDasharray="4 4" />}
+                  fill={'url(#' + fillId + ')'} />
+                <Path d={line} fill="none" stroke={COLORS.accent} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
               </>}
               {dot && <>
-                {selected && <Line x1={dot.x} x2={dot.x} y1={INSET} y2={height} stroke={COLORS.textSecondary} strokeDasharray="3 4" />}
+                {selected && <Line x1={dot.x} x2={dot.x} y1={INSET} y2={height} stroke={COLORS.textSecondary} strokeOpacity={0.3} />}
                 <Circle cx={dot.x} cy={dot.y} r={4.5} fill={COLORS.accent} stroke={COLORS.cardBg} strokeWidth={2} />
               </>}
             </Svg>
@@ -93,8 +95,6 @@ export function GrowthChart({ data = [], height = 120 }) {
         <View style={styles.readoutText} accessibilityLiveRegion="polite">
           <Text style={styles.date}>{dateLabel(point.date)}</Text>
           <Text style={styles.amount}>{fmtFull(point.value)}</Text>
-          {point.carried && <Text style={styles.date}>Last recorded {dateLabel(point.sourceDate)}</Text>}
-          {data.length === 1 && <Text style={styles.date}>One recorded day</Text>}
         </View>
         {data.length > 1 && moveButton(1, 'Next day', 'chevron-forward')}
       </View>

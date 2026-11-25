@@ -66,10 +66,6 @@ export function PortfolioHistory({ recent, complete, today, refreshKey }) {
         ))}
       </View>
       {points && <GrowthChart key={key} data={points} />}
-      {!!points?.length && <Text style={styles.explanation}>Value changes include contributions, not just investment returns.</Text>}
-      {points?.some((point) => point.carried) && <Text style={styles.explanation}>
-        Dashed sections show the last recorded value on days without a snapshot.
-      </Text>}
       {failed ? (
         <Pressable accessibilityRole="button" onPress={() => setRetry((n) => n + 1)} style={styles.retry}>
           <Text style={styles.status}>Full history couldn’t refresh. Try again</Text>
@@ -92,5 +88,4 @@ const styles = themedStyles(() => ({
   pressed: { opacity: 0.75 },
   retry: { minHeight: 44, justifyContent: 'center' },
   status: { ...TYPE.secondaryMedium, color: COLORS.textSecondary, textAlign: 'center', paddingVertical: SPACING.md },
-  explanation: { ...TYPE.caption, color: COLORS.textSecondary, marginTop: SPACING.sm },
 }));
