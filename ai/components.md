@@ -19,7 +19,7 @@ All shared components live in `mobile/src/components`. Reuse these before writin
 | Component | Use it for | Notes |
 |---|---|---|
 | `StockRow` | Holding row on Investments | |
-| `MemberRow` | Member on the Members list: avatar, name, phone, role pill on the right (Admin or Partner). Uses `UserAvatar` 40. |
+| `MemberRow` | Directory row with a 40px `UserAvatar`, member name, and phone number. A single badge beside the phone shows Admin, You, or Admin · You when applicable. |
 | `CompanyLogo` | Any company logo | Props: `symbol`, `name`, `size`. Transparent, 8 radius, letter fallback. Batches lookups through `logoStore`. |
 | `UserAvatar` | Any member picture | Props: `person {avatar, name, avatar_color}`, `size`. Plain image or a letter circle. |
 | `AvatarPicker` | Choose own avatar | Paper `Dialog` with the 14 avatars. Saves with `PATCH /auth/profile/`. |
