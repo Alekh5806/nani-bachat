@@ -4,7 +4,7 @@ import {
   Platform, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Eye, EyeSlash, InfoCircle, Lock1, Mobile, People, ShieldTick } from 'iconsax-react-native';
+import { Eye, EyeSlash, InfoCircle, Lock1, Mobile, People, ShieldTick, TickSquare } from 'iconsax-react-native';
 import Toast from 'react-native-toast-message';
 
 import { LoginArtwork, LoginMark } from '../components/LoginArtwork';
@@ -25,6 +25,7 @@ export const LoginScreen = () => {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [remembered, setRemembered] = useState(null);
+  const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [focused, setFocused] = useState(null);
   const [errors, setErrors] = useState({});
@@ -86,6 +87,13 @@ export const LoginScreen = () => {
     phoneRef.current?.focus();
   };
 
+  const toggleRememberMe = () => setRememberMe((current) => !current);
+  const handleRememberKeyDown = (event) => {
+    if (isLoading || event.key !== ' ') return;
+    event.preventDefault();
+    if (!event.repeat) toggleRememberMe();
+  };
+
   const handleLogin = async () => {
     if (isLoading || submitting.current) return;
     const nextErrors = {
@@ -99,7 +107,7 @@ export const LoginScreen = () => {
     }
     submitting.current = true;
     try {
-      const result = await login(phone.trim(), password, true);
+      const result = await login(phone.trim(), password, rememberMe);
       if (result.success) {
         const signedInName = firstName(result.member?.name);
         Toast.show({
@@ -136,11 +144,15 @@ export const LoginScreen = () => {
                 </View>
               </View>
               <View style={[styles.heroMain, wide && styles.heroMainWide]}>
-                {wide && <Text style={styles.eyebrow}>BUILT ON TRUST. GROWN TOGETHER.</Text>}
-                <Text style={[styles.heroTitle, compact && styles.heroTitleCompact, wide && styles.heroTitleWide]}>
-                  Small steps.{'\n'}<Text style={styles.heroTitleAccent}>Shared success.</Text>
-                </Text>
-                {wide && <Text style={styles.heroDescription}>A shared vision. A little discipline.{'\n'}A future we build, together.</Text>}
+                <View style={[styles.proverbFrame, wide && styles.proverbFrameWide]}>
+                  <Text
+                    accessibilityLanguage="gu-IN"
+                    lang="gu"
+                    style={[styles.proverb, compact && styles.proverbCompact, wide && styles.proverbWide]}
+                  >
+                    “ધીરજનાં ફળ મીઠાં”
+                  </Text>
+                </View>
                 <View
                   style={[styles.artwork, wide ? styles.artworkWide : styles.artworkMobile]}
                   pointerEvents="none"
@@ -191,7 +203,7 @@ export const LoginScreen = () => {
                     <TextInput
                       ref={phoneRef} value={phone} onChangeText={(value) => changeField('phone', value)}
                       placeholder="Enter your phone number" placeholderTextColor={styles.placeholder.color}
-                      keyboardType="phone-pad" autoComplete="tel" textContentType="telephoneNumber"
+                      keyboardType="phone-pad" autoComplete="username" textContentType="username"
                       autoCapitalize="none" autoCorrect={false} returnKeyType="next"
                       onSubmitEditing={() => passwordRef.current?.focus()} submitBehavior="submit"
                       onFocus={() => setFocused('phone')} onBlur={() => setFocused(null)} editable={!isLoading}
@@ -221,6 +233,18 @@ export const LoginScreen = () => {
                     >{showPassword ? <EyeSlash size={20} color={styles.inputIcon.color} /> : <Eye size={20} color={styles.inputIcon.color} />}</Pressable>
                   </View>
                   {errors.password && <Text style={styles.fieldError} accessibilityLiveRegion="polite">{errors.password}</Text>}
+                  <Pressable
+                    onPress={toggleRememberMe} disabled={isLoading}
+                    onKeyDown={Platform.OS === 'web' ? handleRememberKeyDown : undefined}
+                    accessibilityRole="checkbox" accessibilityState={{ checked: rememberMe, disabled: isLoading }}
+                    accessibilityLabel="Remember me on this device"
+                    style={({ pressed }) => [styles.rememberRow, pressed && styles.pressed]}
+                  >
+                    <View style={[styles.rememberBox, rememberMe && styles.rememberBoxChecked]} aria-hidden>
+                      {rememberMe && <TickSquare size={24} color={styles.accent.color} variant="Bold" />}
+                    </View>
+                    <Text style={styles.label}>Remember me on this device</Text>
+                  </Pressable>
                   {error && <View style={styles.errorBox} accessibilityRole="alert" accessibilityLiveRegion="polite">
                     <InfoCircle size={18} color={COLORS.loss} /><Text style={styles.errorText}>{error}</Text>
                   </View>}
@@ -232,10 +256,6 @@ export const LoginScreen = () => {
                     {isLoading && <ActivityIndicator size="small" color="#FFFFFF" />}
                     <Text style={styles.signInText}>{isLoading ? 'Welcoming you in…' : 'Sign in'}</Text>
                   </Pressable>
-                  <View style={styles.sessionNote}>
-                    <ShieldTick size={15} color={styles.inputIcon.color} />
-                    <Text style={styles.sessionNoteText}>Your session stays signed in on this device</Text>
-                  </View>
                 </View>
 
                 <View style={styles.helpSection}>
@@ -276,17 +296,16 @@ const styles = themedStyles(() => ({
   brandName: { color: '#F4F6FF', fontSize: 23, fontWeight: '600', letterSpacing: -0.9 },
   brandDot: { color: '#A9C1FF' },
   brandCaption: { color: '#9DACCA', fontSize: 9, fontWeight: '500', letterSpacing: 1.3, marginTop: 4 },
-  heroMain: { marginTop: 24, minHeight: 86, justifyContent: 'center' },
-  heroMainWide: { flex: 1, marginTop: 66, minHeight: 555, justifyContent: 'flex-start' },
-  eyebrow: { color: '#9BAFCF', fontSize: 10, fontWeight: '600', letterSpacing: 2, marginBottom: 22 },
-  heroTitle: { color: '#F7F9FF', fontSize: 32, lineHeight: 40, fontWeight: '500', letterSpacing: -1.5, zIndex: 1 },
-  heroTitleCompact: { fontSize: 28, lineHeight: 36 },
-  heroTitleWide: { fontSize: 54, lineHeight: 64, letterSpacing: -2.6 },
-  heroTitleAccent: { color: '#B2C5FF' },
-  heroDescription: { color: '#A4B1C9', fontSize: 15, lineHeight: 25, fontWeight: '400', marginTop: 22 },
+  heroMain: { marginTop: 24, minHeight: 70, justifyContent: 'center' },
+  heroMainWide: { flex: 1, marginTop: 66, minHeight: 555, justifyContent: 'center' },
+  proverbFrame: { alignSelf: 'flex-start', maxWidth: '100%', borderLeftWidth: 2, borderLeftColor: '#BD9B69', paddingLeft: 14, paddingVertical: 5, zIndex: 1 },
+  proverbFrameWide: { paddingLeft: 24, paddingVertical: 8 },
+  proverb: { color: '#F0DAB4', fontFamily: 'NotoSerifGujarati_600SemiBold', fontSize: 31, lineHeight: 46 },
+  proverbCompact: { fontSize: 27, lineHeight: 42 },
+  proverbWide: { fontSize: 52, lineHeight: 75 },
   artwork: { alignSelf: 'center' },
-  artworkWide: { width: '116%', height: 340, marginTop: 4, marginLeft: -10 },
-  artworkMobile: { position: 'absolute', width: 210, height: 150, right: -69, top: -34, opacity: 0.48 },
+  artworkWide: { width: '116%', height: 340, marginTop: 24, marginLeft: -10 },
+  artworkMobile: { position: 'absolute', width: 196, height: 140, right: -76, top: -33, opacity: 0.28 },
   heroFooter: { flexDirection: 'row', alignItems: 'center', gap: 11, borderTopWidth: 1, borderTopColor: '#29374F', paddingTop: 22 },
   circleIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#1E2E48', alignItems: 'center', justifyContent: 'center' },
   heroFooterText: { color: '#B7C3D9', fontSize: 12, fontWeight: '400' },
@@ -319,15 +338,16 @@ const styles = themedStyles(() => ({
   smallAction: { paddingVertical: 5, paddingLeft: 8 },
   smallActionText: { color: COLORS.isDark ? '#A8BCFF' : '#4A67B2', fontSize: 11, fontWeight: '500' },
   fieldError: { color: COLORS.loss, fontSize: 12, fontWeight: '400', marginTop: 7 },
+  rememberRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 9, marginTop: 7 },
+  rememberBox: { width: 20, height: 20, borderWidth: 1, borderColor: COLORS.isDark ? '#8291B0' : '#7283A6', borderRadius: 5, alignItems: 'center', justifyContent: 'center' },
+  rememberBoxChecked: { borderColor: 'transparent' },
   errorBox: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: COLORS.lossBg, borderRadius: 10, padding: 12, marginTop: 16 },
   errorText: { flex: 1, color: COLORS.loss, fontSize: 12, lineHeight: 19, fontWeight: '400' },
-  signInButton: { minHeight: 56, borderRadius: 12, backgroundColor: '#4164DA', marginTop: 26, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, shadowColor: '#2A4CA9', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.14, shadowRadius: 12, elevation: 2 },
+  signInButton: { minHeight: 56, borderRadius: 12, backgroundColor: '#4164DA', marginTop: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, shadowColor: '#2A4CA9', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.14, shadowRadius: 12, elevation: 2 },
   signInHovered: { backgroundColor: '#3557CD' },
   signInPressed: { backgroundColor: '#2F50C3', transform: [{ scale: 0.99 }] },
   signInLoading: { opacity: 0.8 },
   signInText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600', letterSpacing: 0.1 },
-  sessionNote: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16 },
-  sessionNoteText: { color: COLORS.isDark ? '#96A4BD' : '#77849B', fontSize: 12, fontWeight: '400', flexShrink: 1 },
   helpSection: { marginTop: 29, paddingTop: 24, borderTopWidth: 1, borderTopColor: COLORS.isDark ? '#263147' : '#E7EBF3', alignItems: 'center' },
   memberNote: { color: COLORS.isDark ? '#96A4BD' : '#7B879D', fontSize: 11, fontWeight: '400', textAlign: 'center' },
   helpButton: { minHeight: 42, justifyContent: 'center' },

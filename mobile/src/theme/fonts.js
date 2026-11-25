@@ -1,7 +1,7 @@
 /**
  * Fonts
- * Inter is the only UI font. Custom fonts are separate families per
- * weight, so every text style gets the family that matches its fontWeight.
+ * Inter is the default UI font. Custom fonts are separate families per
+ * weight, so text styles get the family that matches their fontWeight.
  * This is applied centrally in `themedStyles`, so screens keep writing
  * fontWeight.
  *
@@ -12,6 +12,7 @@ import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
 import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
 import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
 import { Inter_800ExtraBold } from '@expo-google-fonts/inter/800ExtraBold';
+import { NotoSerifGujarati_600SemiBold } from '@expo-google-fonts/noto-serif-gujarati/600SemiBold';
 
 export const FONT_ASSETS = {
   Inter_400Regular,
@@ -19,6 +20,7 @@ export const FONT_ASSETS = {
   Inter_600SemiBold,
   Inter_700Bold,
   Inter_800ExtraBold,
+  NotoSerifGujarati_600SemiBold,
 };
 
 const FAMILY_BY_WEIGHT = {
@@ -38,9 +40,8 @@ const FAMILY_BY_WEIGHT = {
 export const fontFamilyFor = (weight) => FAMILY_BY_WEIGHT[String(weight || '400')] || 'Inter_400Regular';
 
 /**
- * Give every text style in a style object (anything with a fontSize or a
- * fontWeight) the Inter family for its weight, and drop fontWeight so the
- * platform does not fake-bold a font that is already the right weight.
+ * Use the Inter family for the requested weight unless the style supplies
+ * a font family. Drop fontWeight to avoid fake bold on named font assets.
  */
 export const applyFont = (styles) => {
   const result = {};
@@ -48,7 +49,7 @@ export const applyFont = (styles) => {
     const style = styles[key];
     if (style && typeof style === 'object' && ('fontSize' in style || 'fontWeight' in style)) {
       const { fontWeight, ...rest } = style;
-      result[key] = { ...rest, fontFamily: fontFamilyFor(fontWeight) };
+      result[key] = { ...rest, fontFamily: rest.fontFamily ?? fontFamilyFor(fontWeight) };
     } else {
       result[key] = style;
     }

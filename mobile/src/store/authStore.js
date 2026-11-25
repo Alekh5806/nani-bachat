@@ -1,27 +1,32 @@
 /**
  * Authentication State Management (Zustand)
  * Handles login, logout, token persistence
- * Users stay logged in for 30 days (refresh token lifetime)
  */
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { usePortfolioStore } from './portfolioStore';
-import api, { setLogoutCallback, setSessionTokens } from '../config/api';
+import api, { revokeSession, setLogoutCallback, setSessionTokens } from '../config/api';
 import { forgetRememberedMember, rememberMember } from '../utils/rememberedMember';
 
+const SESSION_KEYS = ['access_token', 'refresh_token', 'user'];
+
 export const useAuthStore = create((set, get) => {
-  // Register the force-logout callback so the API interceptor
-  // can kick the user back to login if the refresh token expires
-  setLogoutCallback(() => {
-    usePortfolioStore.getState().clearCache();
-    set({ token: null, refreshToken: null, user: null, error: null });
-  });
+  const finishLogout = async () => {
+    setSessionTokens(null, null);
+    try {
+      await AsyncStorage.multiRemove(SESSION_KEYS);
+    } finally {
+      await usePortfolioStore.getState().clearCache();
+      set({ token: null, user: null, rememberMe: false, isLoading: false, error: null });
+    }
+  };
+  setLogoutCallback(finishLogout);
 
   return {
     // ── State ──
     user: null,
     token: null,
-    refreshToken: null,
+    rememberMe: false,
     isLoading: false,
     error: null,
 
@@ -29,14 +34,15 @@ export const useAuthStore = create((set, get) => {
     loadToken: async () => {
       set({ isLoading: true });
       try {
-        const token = await AsyncStorage.getItem('access_token');
-        const refresh = await AsyncStorage.getItem('refresh_token');
-        const userStr = await AsyncStorage.getItem('user');
+        const { access_token: token, refresh_token: refresh, user: userStr } = Object.fromEntries(
+          await AsyncStorage.multiGet(SESSION_KEYS)
+        );
 
         if (token && refresh && userStr) {
           const user = JSON.parse(userStr);
           await rememberMember(user);
-          set({ token, refreshToken: refresh, user, isLoading: false });
+          setSessionTokens(token, refresh, true);
+          set({ token, user, rememberMe: true, isLoading: false });
 
           // Validate in the background so cold starts never block the UI.
           api.get('/portfolio/dashboard/').catch(() => {});
@@ -54,7 +60,6 @@ export const useAuthStore = create((set, get) => {
       try {
         const response = await api.post('/auth/login/', { phone, password });
         const { access, refresh, member } = response.data;
-        setSessionTokens(access, refresh);
         if (get().user?.id !== member?.id) await usePortfolioStore.getState().clearCache();
 
         if (rememberMe) {
@@ -65,12 +70,13 @@ export const useAuthStore = create((set, get) => {
           ]);
           await rememberMember(member);
         } else {
-          await AsyncStorage.multiRemove(['access_token', 'refresh_token', 'user']);
+          await AsyncStorage.multiRemove(SESSION_KEYS);
           await forgetRememberedMember();
         }
+        setSessionTokens(access, refresh, rememberMe);
         set({
           token: access,
-          refreshToken: refresh,
+          rememberMe,
           user: member,
           isLoading: false,
           error: null,
@@ -86,26 +92,21 @@ export const useAuthStore = create((set, get) => {
 
     // ── Logout ──
     logout: async () => {
-      try {
-        const refresh = await AsyncStorage.getItem('refresh_token');
-        if (refresh) {
-          await api.post('/auth/logout/', { refresh }).catch(() => {});
-        }
-      } catch (e) {
-        // Ignore logout API errors
-      }
-
-      setSessionTokens(null, null);
-      await AsyncStorage.multiRemove(['access_token', 'refresh_token', 'user']);
-      await usePortfolioStore.getState().clearCache();
-      set({ token: null, refreshToken: null, user: null, error: null });
+      if (get().isLoading) return;
+      set({ isLoading: true });
+      await revokeSession().catch(() => {});
+      await finishLogout();
     },
 
     // ── Update user data ──
     updateUser: async (userData) => {
+      const { user, rememberMe } = get();
+      if (!user || user.id !== userData.id) return;
       set({ user: userData });
-      await AsyncStorage.setItem('user', JSON.stringify(userData));
-      await rememberMember(userData);
+      if (rememberMe) {
+        await AsyncStorage.setItem('user', JSON.stringify(userData));
+        if (get().user === userData) await rememberMember(userData);
+      }
     },
 
     // ── Clear error ──
@@ -116,9 +117,7 @@ export const useAuthStore = create((set, get) => {
       try {
         const response = await api.get('/auth/profile/');
         const freshUser = response.data;
-        set({ user: freshUser });
-        await AsyncStorage.setItem('user', JSON.stringify(freshUser));
-        await rememberMember(freshUser);
+        await get().updateUser(freshUser);
         return freshUser;
       } catch (error) {
         console.error('Failed to fetch profile:', error);

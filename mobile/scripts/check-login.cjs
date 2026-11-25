@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { transformSync } = require('@babel/core');
+const axios = require('axios');
 
 const values = new Map();
 const storage = {
@@ -24,7 +25,7 @@ function load(file, dependencies) {
   });
   const exports = {};
   vm.runInNewContext(code, {
-    exports, console,
+    exports, console, process, __DEV__: true,
     require: (name) => {
       if (!(name in dependencies)) throw new Error(`Unexpected dependency: ${name}`);
       return dependencies[name];
@@ -63,31 +64,68 @@ async function main() {
 
   let rejectLogin = false;
   let releaseLogin;
-  let logoutCallback;
   let cacheClears = 0;
-  const api = {
-    post: async (url) => {
-      if (url === '/auth/logout/') return {};
-      if (rejectLogin) throw { response: { data: { detail: 'Invalid credentials' } } };
-      await new Promise((resolve) => { releaseLogin = resolve; });
-      return { data: { access: 'test-access', refresh: 'test-refresh', member } };
-    },
-    get: async () => ({ data: { ...member, name: 'Asha Shah' } }),
+  let access = 'test-access';
+  let refresh = 'test-refresh';
+  let expired = false;
+  let refreshUnavailable = false;
+  const refreshAttempts = [];
+  const revoked = [];
+  const reject = (config, status, detail) => {
+    throw new axios.AxiosError(detail, undefined, config, undefined, { status, data: { detail } });
   };
-  const { useAuthStore } = load('src/store/authStore.js', {
-    zustand: require('zustand'),
-    '@react-native-async-storage/async-storage': storage,
-    './portfolioStore': { usePortfolioStore: { getState: () => ({ clearCache: async () => { cacheClears += 1; } }) } },
-    '../config/api': {
-      __esModule: true, default: api,
-      setLogoutCallback: (callback) => { logoutCallback = callback; },
-      setSessionTokens: () => {},
-    },
-    '../utils/rememberedMember': helpers,
-  });
-  const store = useAuthStore;
+  const adapter = async (config) => {
+    const url = config.url;
+    const body = config.data && JSON.parse(config.data);
+    if (url === '/auth/login/') {
+      if (rejectLogin) reject(config, 401, 'Invalid credentials');
+      await new Promise((resolve) => { releaseLogin = resolve; });
+      expired = false;
+      return { data: { access, refresh, member } };
+    }
+    if (url.endsWith('/auth/token/refresh/')) {
+      refreshAttempts.push(body.refresh);
+      if (refreshUnavailable) reject(config, 503, 'Service unavailable');
+      if (body.refresh !== refresh) reject(config, 401, 'Invalid refresh token');
+      access = `access-${refreshAttempts.length}`;
+      refresh = `refresh-${refreshAttempts.length}`;
+      expired = false;
+      return { data: { access, refresh } };
+    }
+    if (expired || config.headers.Authorization !== `Bearer ${access}`) {
+      reject(config, 401, 'Invalid access token');
+    }
+    if (url === '/auth/logout/') {
+      assert.equal(body.refresh, refresh);
+      revoked.push(body.refresh);
+      return { data: {} };
+    }
+    return { data: { ...member, name: 'Asha Shah' } };
+  };
+  const backend = axios.create({ adapter });
+  const startApp = () => {
+    const client = load('src/config/api.js', {
+      axios: {
+        create: (config) => axios.create({ ...config, adapter }),
+        post: backend.post,
+        CanceledError: axios.CanceledError,
+      },
+      '@react-native-async-storage/async-storage': storage,
+    });
+    const { useAuthStore } = load('src/store/authStore.js', {
+      zustand: require('zustand'),
+      '@react-native-async-storage/async-storage': storage,
+      './portfolioStore': { usePortfolioStore: { getState: () => ({ clearCache: async () => { cacheClears += 1; } }) } },
+      '../config/api': client,
+      '../utils/rememberedMember': helpers,
+    });
+    return { store: useAuthStore, api: client.default };
+  };
+
+  let { store, api } = startApp();
   const pending = store.getState().login(member.phone, 'test-password');
   assert.equal(store.getState().isLoading, true);
+  await new Promise(setImmediate);
   releaseLogin();
   const result = await pending;
   assert.equal(result.success, true);
@@ -97,7 +135,28 @@ async function main() {
   assert.equal(values.has('saved_password'), false);
   assert.ok(cacheClears > 0);
 
+  expired = true;
+  await Promise.all([api.get('/portfolio/dashboard/'), api.get('/portfolio/dashboard/')]);
+  assert.deepEqual(refreshAttempts, ['test-refresh']);
+  assert.equal(values.get('access_token'), access);
+  assert.equal(values.get('refresh_token'), refresh);
+
+  ({ store, api } = startApp());
+  expired = true;
+  await store.getState().loadToken();
+  await api.get('/portfolio/dashboard/');
+  assert.deepEqual(refreshAttempts, ['test-refresh', 'refresh-1']);
+  assert.equal(values.get('refresh_token'), refresh);
+
+  expired = true;
+  refreshUnavailable = true;
+  await assert.rejects(api.get('/portfolio/dashboard/'), /Service unavailable/);
+  assert.ok(store.getState().token);
+  assert.equal(values.get('refresh_token'), refresh);
+  refreshUnavailable = false;
+
   await store.getState().logout();
+  assert.deepEqual(revoked, [refresh]);
   assert.equal(store.getState().token, null);
   assert.equal(values.has('access_token'), false);
   assert.equal((await helpers.loadRememberedMember()).member.name, member.name);
@@ -116,23 +175,35 @@ async function main() {
 
   rejectLogin = false;
   const temporary = store.getState().login(member.phone, 'test-password', false);
+  await new Promise(setImmediate);
   releaseLogin();
   await temporary;
+  expired = true;
+  const profile = await store.getState().fetchProfile();
+  assert.equal(profile.name, 'Asha Shah');
   assert.equal(values.has('access_token'), false);
+  assert.equal(values.has('refresh_token'), false);
+  assert.equal(values.has('user'), false);
   assert.equal(values.has('remembered_member'), false);
+  await store.getState().logout();
+  assert.equal(revoked.at(-1), refresh);
 
   // Existing sessions acquire a greeting when the upgraded app is opened.
-  values.set('access_token', 'existing-access');
-  values.set('refresh_token', 'existing-refresh');
+  values.set('access_token', access);
+  values.set('refresh_token', refresh);
   values.set('user', JSON.stringify(member));
+  ({ store, api } = startApp());
   await store.getState().loadToken();
   assert.equal((await helpers.loadRememberedMember()).member.name, member.name);
   await store.getState().fetchProfile();
   assert.equal((await helpers.loadRememberedMember()).member.name, 'Asha Shah');
-  logoutCallback();
+  expired = true;
+  refresh = 'revoked-server-side';
+  await assert.rejects(api.get('/portfolio/dashboard/'), /Invalid refresh token/);
   assert.equal(store.getState().token, null);
+  assert.equal(values.has('refresh_token'), false);
   assert.equal((await helpers.loadRememberedMember()).member.name, 'Asha Shah');
-  console.log('Login checks passed: greetings, identity matching, migration, loading, success, failure, logout, account switching, and profile refresh.');
+  console.log('Login checks passed for remembered and temporary sessions, reload, refresh rotation, and logout.');
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });

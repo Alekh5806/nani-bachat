@@ -4,7 +4,6 @@
  */
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
 
 // ── Base URL Configuration ──
 const DEV_MACHINE_IP = '192.168.0.209'; // Your Mac's LAN IP (for local dev)
@@ -29,70 +28,88 @@ const api = axios.create({
   },
 });
 
-// Tokens for the current session, kept in memory. Used when the user did not
-// tick "Remember me", so nothing is written to storage but requests still work.
-const sessionTokens = { access: null, refresh: null };
-export const setSessionTokens = (access, refresh) => {
-  sessionTokens.access = access || null;
-  sessionTokens.refresh = refresh || null;
-};
-
-// ── Request Interceptor: Attach JWT Token ──
-api.interceptors.request.use(
-  async (config) => {
-    try {
-      const token = sessionTokens.access || (await AsyncStorage.getItem('access_token'));
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    } catch (error) {
-      console.error('Error reading token:', error);
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-// ── Response Interceptor: Handle token refresh ──
-// Store a reference to the logout function (set by authStore)
+const LOGIN_PATH = '/auth/login/';
+const LOGOUT_PATH = '/auth/logout/';
+let nextSessionId = 0;
+let session = null;
 let logoutCallback = null;
 export const setLogoutCallback = (fn) => { logoutCallback = fn; };
+
+export const setSessionTokens = (access, refresh, rememberMe) => {
+  session = access && refresh
+    ? { id: ++nextSessionId, access, refresh, rememberMe, refreshRequest: null, signingOut: false }
+    : null;
+};
+
+export const revokeSession = async () => {
+  const current = session;
+  if (!current) return;
+  current.signingOut = true;
+  await current.refreshRequest?.catch(() => {});
+  await api.post(LOGOUT_PATH, undefined, { _sessionId: current.id });
+};
+
+api.interceptors.request.use((config) => {
+  const isLogout = config.url === LOGOUT_PATH;
+  if ((config._sessionId && config._sessionId !== session?.id) || (session?.signingOut && !isLogout)) {
+    throw new axios.CanceledError('Session ended');
+  }
+  if (session && config.url !== LOGIN_PATH) {
+    config._sessionId = session.id;
+    config.headers.Authorization = `Bearer ${session.access}`;
+    // The logout retry must revoke the newly rotated refresh token.
+    if (isLogout) config.data = { refresh: session.refresh };
+  }
+  return config;
+});
+
+const refreshTokens = async (current) => {
+  try {
+    const { data } = await axios.post(
+      `${getBaseURL()}/auth/token/refresh/`,
+      { refresh: current.refresh },
+      { timeout: api.defaults.timeout }
+    );
+    if (current !== session) return;
+
+    const refresh = data.refresh || current.refresh;
+    if (current.rememberMe && !current.signingOut) {
+      await AsyncStorage.multiSet([
+        ['access_token', data.access],
+        ['refresh_token', refresh],
+      ]).catch(() => console.error('Unable to save renewed session'));
+    }
+    current.access = data.access;
+    current.refresh = refresh;
+  } catch (error) {
+    const status = error.response?.status;
+    if (current === session && !current.signingOut && (status === 400 || status === 401)) {
+      await logoutCallback?.();
+    }
+    throw error;
+  }
+};
 
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
-
-    // If 401 and haven't retried yet, try refreshing token
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-
-      try {
-        const refreshToken = sessionTokens.refresh || (await AsyncStorage.getItem('refresh_token'));
-        if (refreshToken) {
-          const response = await axios.post(
-            `${getBaseURL()}/auth/token/refresh/`,
-            { refresh: refreshToken }
-          );
-
-          const { access } = response.data;
-          sessionTokens.access = access;
-          const stored = await AsyncStorage.getItem('access_token');
-          if (stored) await AsyncStorage.setItem('access_token', access);
-
-          originalRequest.headers.Authorization = `Bearer ${access}`;
-          return api(originalRequest);
-        }
-      } catch (refreshError) {
-        // Refresh failed - clear tokens and force logout
-        setSessionTokens(null, null);
-        await AsyncStorage.multiRemove(['access_token', 'refresh_token', 'user']);
-        if (logoutCallback) logoutCallback();
-        return Promise.reject(refreshError);
-      }
+    const { config, response } = error;
+    const current = session;
+    if (response?.status !== 401 || !config?._sessionId || config._retry ||
+        config._sessionId !== current?.id || (current.signingOut && config.url !== LOGOUT_PATH)) {
+      throw error;
     }
 
-    return Promise.reject(error);
+    // Parallel 401s must share one rotation because the server invalidates the old refresh token.
+    if (config.headers.Authorization === `Bearer ${current.access}`) {
+      current.refreshRequest ??= refreshTokens(current).finally(() => {
+        current.refreshRequest = null;
+      });
+      await current.refreshRequest;
+    }
+
+    config._retry = true;
+    return api(config);
   }
 );
 
