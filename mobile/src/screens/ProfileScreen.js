@@ -1,248 +1,268 @@
-/**
- * Profile Screen
- * User profile, settings, and logout
- */
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, RefreshControl, ActivityIndicator, Pressable } from 'react-native';
-import { Crown1, Brush2, DocumentDownload, Logout, ArrowRight2, Gallery } from 'iconsax-react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Platform, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import {
+  ArrowRight2, Brush2, Call, DocumentDownload, DocumentText, Edit2, Monitor, Moon, Sms, Sun1,
+} from 'iconsax-react-native';
 import Toast from 'react-native-toast-message';
-import { Alert } from '../utils/alert';
 
-import { useAuthStore } from '../store/authStore';
-import { useThemeStore } from '../store/themeStore';
-import { usePortfolioStore } from '../store/portfolioStore';
+import { expo } from '../../app.json';
+import { AvatarPicker } from '../components/AvatarPicker';
+import { MonthlyReportSheet } from '../components/MonthlyReportSheet';
+import { ProfileSheet } from '../components/ProfileSheet';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
-import api from '../config/api';
 import { TabBarSpacer } from '../components/TabBarSpacer';
 import { UserAvatar } from '../components/UserAvatar';
-import { AvatarPicker } from '../components/AvatarPicker';
+import { getReportMonth } from '../services/monthlyReport';
+import { useAuthStore } from '../store/authStore';
+import { useThemeStore } from '../store/themeStore';
+import { COLORS, RADIUS, SPACING, TYPE, themedStyles } from '../theme/colors';
+import { Alert } from '../utils/alert';
+
+const APPEARANCE_OPTIONS = [
+  { value: 'system', label: 'Use device setting', Icon: Monitor },
+  { value: 'light', label: 'Light', Icon: Sun1 },
+  { value: 'dark', label: 'Dark', Icon: Moon },
+];
 
 export const ProfileScreen = ({ navigation }) => {
-  const { user, logout, fetchProfile } = useAuthStore();
-  const { dashboard, fetchDashboard } = usePortfolioStore();
-  const themePreference = useThemeStore((st) => st.preference);
-  const setThemePreference = useThemeStore((st) => st.setPreference);
-  const [downloading, setDownloading] = useState(false);
+  const user = useAuthStore((state) => state.user);
+  const fetchProfile = useAuthStore((state) => state.fetchProfile);
+  const logout = useAuthStore((state) => state.logout);
+  const signingOut = useAuthStore((state) => state.isLoading);
+  const preference = useThemeStore((state) => state.preference);
+  const setPreference = useThemeStore((state) => state.setPreference);
   const [refreshing, setRefreshing] = useState(false);
-  const [profileData, setProfileData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [activeSheet, setActiveSheet] = useState(null);
 
-  // Fetch fresh profile data on mount
   useEffect(() => {
-    loadProfileData();
-  }, []);
-
-  const loadProfileData = async () => {
-    setLoading(true);
-    try {
-      const [freshUser, dashData] = await Promise.all([
-        fetchProfile(),
-        fetchDashboard(),
-      ]);
-      if (freshUser) {
-        setProfileData(freshUser);
-      }
-    } catch (e) {
-      console.error('Failed to load profile:', e);
-    }
-    setLoading(false);
-  };
+    fetchProfile();
+  }, [fetchProfile]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadProfileData();
-    setRefreshing(false);
-  }, []);
-
-  const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
-            Toast.show({ type: 'success', text1: 'Signed out' });
-          },
-        },
-      ]
-    );
-  };
-
-  const handleDownloadReport = async () => {
-    setDownloading(true);
     try {
-      Toast.show({
-        type: 'info',
-        text1: 'Generating Report',
-        text2: 'Your PDF report is being prepared...',
-      });
-      const month = new Date().toISOString().slice(0, 7);
-      Alert.alert(
-        'Report',
-        `Monthly report for ${month} will be generated. Check your backend at /api/reports/monthly/?month=${month}`,
-      );
-    } catch (e) {
-      Alert.alert('Error', 'Failed to generate report');
+      await fetchProfile();
+    } finally {
+      setRefreshing(false);
     }
-    setDownloading(false);
-  };
+  }, [fetchProfile]);
 
-  // Use fresh profile data if available, fallback to stored user
-  const displayUser = profileData || user;
+  const closeSheet = () => setActiveSheet(null);
+  const currentMonth = getReportMonth();
+  const themeLabel = APPEARANCE_OPTIONS.find((option) => option.value !== 'system' && option.value === preference)
+    ?.label ?? 'System';
+  const role = (user?.role || 'member').replace(/^./, (letter) => letter.toUpperCase());
 
-  // Tapping Appearance steps through System, Light and Dark.
-  const THEMES = [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']];
-  const nextTheme = () => {
-    const index = THEMES.findIndex(([value]) => value === themePreference);
-    setThemePreference(THEMES[(index + 1) % THEMES.length][0]);
+  const confirmLogout = () => {
+    Alert.alert('Log out?', 'You can sign back in with your phone number and password.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Log out',
+        style: 'destructive',
+        onPress: async () => {
+          await logout();
+          Toast.show({ type: 'success', text1: 'Signed out' });
+        },
+      },
+    ]);
   };
-  const themeLabel = THEMES.find(([value]) => value === themePreference)?.[1] || 'System';
 
   return (
     <View style={styles.container}>
-      <ScreenHeader
-        title="Profile"
-        subtitle="Your account"
-        showBack
-        onBack={() => navigation.goBack()}
-        hideProfile
-      />
+      <ScreenHeader title="Profile" showBack hideProfile onBack={() => navigation.goBack()} />
 
       <ScrollView
-        style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} />
         }
       >
-        <AvatarPicker visible={pickerOpen} onDismiss={() => setPickerOpen(false)} />
-
-        {/* ── Profile hero ── */}
-        <View style={styles.hero}>
-          <View style={styles.heroTop}>
-            <Pressable onPress={() => setPickerOpen(true)}>
-              <UserAvatar person={{ ...displayUser, avatar: user?.avatar ?? displayUser?.avatar }} size={64} />
-            </Pressable>
-            <View style={styles.heroText}>
-              <Text style={styles.name} numberOfLines={1}>{displayUser?.name || 'Member'}</Text>
-              <Text style={styles.heroSub} numberOfLines={1}>{displayUser?.phone || ''}</Text>
-              {!!displayUser?.email && <Text style={styles.heroSub} numberOfLines={1}>{displayUser.email}</Text>}
+        <View style={styles.content}>
+          <View style={[styles.card, styles.identityCard]}>
+            <View style={styles.identity}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Change avatar"
+                onPress={() => setActiveSheet('avatar')}
+                style={({ pressed }) => [styles.avatarButton, pressed && styles.dim]}
+              >
+                <View style={styles.avatar} pointerEvents="none">
+                  <UserAvatar person={user} size={64} />
+                </View>
+                <View style={styles.editBadge} pointerEvents="none">
+                  <Edit2 size={12} color={COLORS.onAccent} variant="Bold" />
+                </View>
+              </Pressable>
+              <View style={styles.identityText}>
+                <Text style={styles.name}>{user?.name?.trim() || 'Member'}</Text>
+                {!!user?.name?.trim() && <Text style={styles.role}>{role}</Text>}
+              </View>
+            </View>
+            <View style={styles.contactDetails}>
+              <ContactDetail Icon={Call} label="Phone" value={user?.phone} />
+              <ContactDetail Icon={Sms} label="Email" value={user?.email} />
             </View>
           </View>
-          <Pressable onPress={() => setPickerOpen(true)} style={styles.heroButton}>
-            <Gallery size={16} color={COLORS.onAccent} />
-            <Text style={styles.heroButtonText}>Change avatar</Text>
-          </Pressable>
+
+          <View style={[styles.card, styles.settingsCard]}>
+            <ProfileRow
+              Icon={Brush2}
+              label="Appearance"
+              value={themeLabel}
+              ActionIcon={ArrowRight2}
+              onPress={() => setActiveSheet('appearance')}
+            />
+            <View style={styles.divider} />
+            <ProfileRow
+              Icon={DocumentText}
+              label="Monthly pool report"
+              detail={currentMonth.label}
+              ActionIcon={DocumentDownload}
+              onPress={() => setActiveSheet(currentMonth)}
+            />
+          </View>
+
+          <View style={styles.footer}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ disabled: signingOut, busy: signingOut }}
+              disabled={signingOut}
+              onPress={confirmLogout}
+              style={({ pressed }) => [styles.logout, (pressed || signingOut) && styles.dim]}
+            >
+              <Text style={styles.logoutText}>{signingOut ? 'Logging out…' : 'Log out'}</Text>
+            </Pressable>
+            <Text style={styles.appInfo}>Nani Bachat · Version {expo.version}</Text>
+          </View>
+          <TabBarSpacer />
         </View>
-
-        {/* ── Account ── */}
-        <ProfileRow
-          Icon={Crown1}
-          label="Role"
-          pill={(displayUser?.role || 'member').replace(/^./, (c) => c.toUpperCase())}
-        />
-        <View style={styles.divider} />
-
-        <ProfileRow Icon={Brush2} label="Appearance" value={themeLabel} onPress={nextTheme} chevron />
-        <ProfileRow
-          Icon={DocumentDownload}
-          label="Monthly report"
-          onPress={handleDownloadReport}
-          loading={downloading}
-          chevron
-        />
-        <View style={styles.divider} />
-
-        <ProfileRow Icon={Logout} label="Log out" onPress={handleLogout} danger chevron />
-
-        <Text style={styles.appInfo}>Nani Bachat · Version 1.0.0</Text>
-
-        <TabBarSpacer />
       </ScrollView>
+
+      <AvatarPicker visible={activeSheet === 'avatar'} onDismiss={closeSheet} />
+      {activeSheet === 'appearance' && (
+        <ProfileSheet title="Appearance" onDismiss={closeSheet}>
+          <View accessibilityRole="radiogroup" style={styles.options}>
+            {APPEARANCE_OPTIONS.map(({ value, label, Icon }) => {
+              const checked = preference === value;
+              return (
+                <Pressable
+                  key={value}
+                  accessibilityRole="radio"
+                  aria-checked={checked}
+                  onPress={() => {
+                    closeSheet();
+                    setPreference(value);
+                  }}
+                  style={({ pressed }) => [
+                    styles.option, checked && styles.optionSelected, pressed && styles.dim,
+                  ]}
+                >
+                  <Icon size={20} color={COLORS.textSecondary} />
+                  <Text style={styles.optionLabel}>{label}</Text>
+                  {checked && <Text style={styles.check} accessible={false}>✓</Text>}
+                </Pressable>
+              );
+            })}
+          </View>
+        </ProfileSheet>
+      )}
+      {activeSheet && typeof activeSheet === 'object' && (
+        <MonthlyReportSheet month={activeSheet} onDismiss={closeSheet} />
+      )}
     </View>
   );
 };
 
-// One settings row: round icon, label, and on the right a pill and/or a chevron.
-const ProfileRow = ({ Icon, label, pill, value, onPress, chevron, danger, loading }) => (
+const ContactDetail = ({ Icon, label, value }) => (
+  <View style={styles.contactRow}>
+    <View style={styles.contactIcon} pointerEvents="none">
+      <Icon size={18} color={COLORS.textSecondary} />
+    </View>
+    <View style={styles.contactText}>
+      <Text style={styles.contactLabel}>{label}</Text>
+      <Text selectable={!!value} textBreakStrategy="simple" style={styles.contactValue}>
+        {value || '—'}
+      </Text>
+    </View>
+  </View>
+);
+
+const ProfileRow = ({ Icon, label, detail, value, ActionIcon, onPress }) => (
   <Pressable
+    accessibilityRole="button"
+    accessibilityLabel={[label, detail || value].filter(Boolean).join(', ')}
     onPress={onPress}
-    disabled={!onPress || loading}
     style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
   >
-    <View style={[styles.rowIcon, danger && styles.rowIconDanger]}>
-      <Icon size={20} color={danger ? COLORS.loss : COLORS.accent} />
+    <View style={styles.rowIcon}>
+      <Icon size={20} color={COLORS.textPrimary} />
     </View>
-    <Text style={[styles.rowLabel, danger && styles.rowLabelDanger]}>{label}</Text>
-    {!!value && <Text style={styles.valueText}>{value}</Text>}
-    {!!pill && (
-      <View style={styles.pill}>
-        <Text style={styles.pillText}>{pill}</Text>
-      </View>
-    )}
-    {loading ? (
-      <ActivityIndicator size="small" color={COLORS.accent} />
-    ) : (
-      chevron && <ArrowRight2 size={16} color={COLORS.textMuted} />
-    )}
+    <View style={styles.rowText}>
+      <Text style={styles.rowLabel}>{label}</Text>
+      {detail && <Text style={styles.rowDetail}>{detail}</Text>}
+    </View>
+    {value && <Text style={styles.rowValue}>{value}</Text>}
+    <ActionIcon size={18} color={COLORS.textSecondary} />
   </Pressable>
 );
 
 const styles = themedStyles(() => ({
   container: { flex: 1, backgroundColor: COLORS.background },
-  scrollView: { flex: 1 },
-  scrollContent: { paddingHorizontal: SPACING.xl, paddingBottom: 0 },
-  hero: {
-    backgroundColor: COLORS.accent,
-    borderRadius: RADIUS.xl,
-    padding: SPACING.xl,
-    marginBottom: SPACING.xl,
+  scrollContent: { paddingHorizontal: SPACING.xl, paddingTop: SPACING.xs },
+  content: { alignSelf: 'center', width: '100%', maxWidth: 520 },
+  card: { backgroundColor: COLORS.cardBg, borderColor: COLORS.border, borderWidth: 1, borderRadius: RADIUS.xxl },
+  identityCard: { padding: SPACING.xl },
+  identity: { flexDirection: 'row', alignItems: 'center', gap: SPACING.lg },
+  avatarButton: { paddingRight: SPACING.xs, paddingBottom: 3 },
+  avatar: {
+    width: 64, height: 64, borderRadius: 32, overflow: 'hidden', backgroundColor: COLORS.surface,
   },
-  heroTop: { flexDirection: 'row', alignItems: 'center' },
-  heroText: { flex: 1, minWidth: 0, marginLeft: SPACING.lg },
-  name: { ...TYPE.sectionTitle, color: COLORS.onAccent },
-  heroSub: { ...TYPE.caption, fontSize: 12, color: 'rgba(255, 255, 255, 0.8)', marginTop: SPACING.xs },
-  heroButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.sm,
-    marginTop: SPACING.xl,
-    paddingVertical: SPACING.md,
-    borderRadius: RADIUS.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  editBadge: {
+    position: 'absolute', right: 0, bottom: 0, width: 26, height: 26, borderRadius: 13,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.accent,
+    borderWidth: 2, borderColor: COLORS.cardBg,
   },
-  heroButtonText: { ...TYPE.secondaryMedium, color: COLORS.onAccent },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.md },
-  rowPressed: { opacity: 0.7 },
+  dim: { opacity: 0.65 },
+  identityText: { flex: 1, minWidth: 0 },
+  name: { ...TYPE.screenTitle, fontSize: 26, fontWeight: '700', color: COLORS.textPrimary },
+  role: { ...TYPE.secondaryMedium, color: COLORS.textSecondary, marginTop: SPACING.xs },
+  contactDetails: {
+    marginTop: SPACING.xl, paddingTop: SPACING.lg, borderTopWidth: 1, borderColor: COLORS.divider,
+    gap: SPACING.lg,
+  },
+  contactRow: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.md },
+  contactIcon: { width: 24, alignItems: 'center', paddingTop: 2 },
+  contactText: { flex: 1, minWidth: 0, gap: SPACING.xs },
+  contactLabel: { ...TYPE.captionMedium, color: COLORS.textSecondary },
+  contactValue: {
+    ...TYPE.body, color: COLORS.textPrimary, ...(Platform.OS === 'web' && { overflowWrap: 'anywhere' }),
+  },
+  settingsCard: { marginTop: SPACING.lg, overflow: 'hidden' },
+  row: {
+    minHeight: 66, flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
+    paddingVertical: SPACING.md, paddingHorizontal: SPACING.lg,
+  },
+  rowPressed: { backgroundColor: COLORS.surface },
   rowIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.accent + '14',
-    marginRight: SPACING.lg,
+    width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: RADIUS.md,
+    backgroundColor: COLORS.surface, marginRight: SPACING.xs,
   },
-  rowIconDanger: { backgroundColor: COLORS.loss + '14' },
-  rowLabel: { flex: 1, ...TYPE.cardTitle, fontSize: 14, color: COLORS.textPrimary },
-  rowLabelDanger: { color: COLORS.loss },
-  pill: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    borderRadius: RADIUS.full,
-    backgroundColor: COLORS.accent + '14',
-    marginRight: SPACING.sm,
+  rowText: { flex: 1, minWidth: 0, gap: SPACING.xs },
+  rowLabel: { ...TYPE.body, fontWeight: '600', color: COLORS.textPrimary },
+  rowDetail: { ...TYPE.caption, color: COLORS.textSecondary },
+  rowValue: { ...TYPE.captionMedium, maxWidth: '42%', color: COLORS.textSecondary, textAlign: 'right' },
+  divider: { height: 1, marginHorizontal: SPACING.lg, backgroundColor: COLORS.divider },
+  footer: { alignItems: 'center', marginTop: SPACING.lg, gap: SPACING.xs, marginBottom: SPACING.sm },
+  logout: { minHeight: 48, justifyContent: 'center', paddingHorizontal: SPACING.xl },
+  logoutText: { ...TYPE.button, color: COLORS.loss },
+  appInfo: { ...TYPE.caption, color: COLORS.textMuted, textAlign: 'center' },
+  options: { gap: SPACING.xs },
+  option: {
+    minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
+    paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: RADIUS.lg,
   },
-  valueText: { ...TYPE.captionMedium, color: COLORS.textMuted, marginRight: SPACING.sm },
-  pillText: { ...TYPE.captionMedium, color: COLORS.accent },
-  divider: { height: 1, backgroundColor: COLORS.divider, marginVertical: SPACING.sm },
-  appInfo: { ...TYPE.caption, fontSize: 10, color: COLORS.textMuted, textAlign: 'center', marginTop: SPACING.xl },
+  optionSelected: { backgroundColor: COLORS.surface },
+  optionLabel: { ...TYPE.body, color: COLORS.textPrimary, flex: 1 },
+  check: { ...TYPE.sectionTitle, color: COLORS.textPrimary },
 }));

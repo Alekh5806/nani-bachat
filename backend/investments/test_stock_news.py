@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 from decimal import Decimal
+from threading import Event
 from unittest.mock import patch
 
 from bs4 import BeautifulSoup
@@ -161,6 +162,91 @@ class GroupStockNewsTests(TestCase):
         self.assertTrue(data['issues'])
         self.assertEqual([item['kind'] for item in data['items']], ['Dividend', 'Filing'])
         self.assertIsNone(data['items'][0]['expected'])
+
+    def test_portfolio_feed_separates_dates_and_preserves_source_failures(self):
+        self.lot(2)
+        self.lot(1, symbol='XYZ.NS')
+        payment = TODAY + timedelta(days=1)
+        known_date = TODAY + timedelta(days=2)
+        self.dates.side_effect = lambda exchange, code: {
+            EX: {'rate': Decimal(5), 'record': EX, 'pay': payment,
+                 'url': 'https://stockanalysis.com/calendar'},
+        } if code == 'ABC' else {}
+
+        def actions(code, start, end):
+            if code == 'XYZ':
+                raise SourceError('Unavailable provider')
+            return [EVENT, {**EVENT, 'date': known_date}]
+
+        self.actions.side_effect = actions
+        self.filings.return_value = ([{
+            'kind': 'Filing', 'title': 'Quarterly results', 'date': TODAY,
+            'url': 'https://www.bseindia.com/sample.pdf',
+        }], None)
+
+        url = reverse('investments:portfolio-news')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual([item['display_date'] for item in data['upcoming']], [
+            payment.isoformat(), known_date.isoformat(),
+        ])
+        self.assertEqual([item['display_date_label'] for item in data['upcoming']], ['Payment date', 'Ex-date'])
+        self.assertEqual([item['kind'] for item in data['recent']], ['Filing', 'Filing', 'Dividend'])
+        self.assertEqual(data['upcoming'][1]['expected'], '10.00')
+        self.assertEqual(data['recent'][0]['source'], 'BSE')
+        self.assertEqual(data['issues'][0]['symbol'], 'XYZ.NS')
+        self.assertEqual(data['issues'][0]['source'], 'NSE corporate actions')
+        self.assertEqual(data['upcoming'][0]['id'], data['recent'][-1]['id'])
+
+        filtered = self.client.get(url, {'symbol': 'XYZ.NS'}).json()
+        self.assertEqual([item['symbol'] for item in filtered['recent']], ['XYZ.NS'])
+        self.assertEqual(len(filtered['stocks']), 2)
+        self.assertEqual(self.actions.call_count, 2)
+        self.assertEqual(self.client.get(url, {'symbol': 'OUTSIDE.NS'}).status_code, 404)
+        self.client.force_authenticate(None)
+        self.assertEqual(self.client.get(url).status_code, 401)
+
+    def test_portfolio_paginates_same_day_filings_without_duplicates(self):
+        self.lot(1)
+        self.actions.return_value = []
+        self.filings.return_value = ([
+            {'kind': 'Filing', 'title': f'Filing {number}', 'date': TODAY,
+             'url': f'https://www.nseindia.com/{number}.pdf'}
+            for number in range(25)
+        ], None)
+        url = reverse('investments:portfolio-news')
+        first = self.client.get(url).json()
+        second = self.client.get(url, {'cursor': first['next_cursor']}).json()
+        self.assertEqual(len(first['recent']), 20)
+        self.assertEqual(len(second['recent']), 5)
+        self.assertEqual(len({item['id'] for item in first['recent'] + second['recent']}), 25)
+        self.assertIsNone(second['next_cursor'])
+        self.assertEqual(self.client.get(url, {'cursor': 'bad-cursor'}).status_code, 400)
+        self.filings.assert_called_once()
+
+    def test_portfolio_returns_while_a_source_refreshes_and_reuses_the_result(self):
+        self.lot(2)
+        release_source = Event()
+
+        def slow_actions(*args):
+            release_source.wait(timeout=3)
+            return [EVENT]
+
+        self.actions.side_effect = slow_actions
+        url = reverse('investments:portfolio-news')
+        try:
+            with patch('investments.portfolio_news.SOURCE_WAIT_SECONDS', 0):
+                partial = self.client.get(url).json()
+        finally:
+            release_source.set()
+        complete = self.client.get(url).json()
+
+        self.assertTrue(any(issue['source'] == 'NSE corporate actions' and issue['updating']
+                            for issue in partial['issues']))
+        self.assertEqual(complete['issues'], [])
+        self.assertEqual(complete['recent'][0]['expected'], '10.00')
+        self.actions.assert_called_once()
 
     def test_receipt_workflow_handles_sold_lots_subpaise_rates_and_stale_quantity(self):
         lot = self.lot(3, sell=EX)

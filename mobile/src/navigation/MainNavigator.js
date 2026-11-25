@@ -2,16 +2,17 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StackActions } from '@react-navigation/native';
 import { createStackNavigator, TransitionPresets } from '@react-navigation/stack';
-import { View, Text, StyleSheet, Platform, Animated, PanResponder } from 'react-native';
+import { View, Text, StyleSheet, Platform, Animated, PanResponder, Pressable } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
-import { Home2, Chart1, Chart21, Profile2User, Wallet3, Profile } from 'iconsax-react-native';
+import { Home2, Chart1, Chart21, DocumentText, Profile2User, Wallet3, Profile } from 'iconsax-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, TYPE, themedStyles } from '../theme/colors';
 
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { AssetStocksScreen } from '../screens/AssetStocksScreen';
 import { StockNewsScreen } from '../screens/StockNewsScreen';
+import { StockNewsDetailScreen } from '../screens/StockNewsDetailScreen';
 import { InvestmentsScreen } from '../screens/InvestmentsScreen';
 import { AddStockScreen } from '../screens/AddStockScreen';
 import { SellStockScreen } from '../screens/SellStockScreen';
@@ -50,6 +51,7 @@ const stackOptions = () => ({
 const TAB_LABELS = {
   Dashboard: 'Home',
   Investments: 'Stocks',
+  News: 'News',
   Members: 'Members',
   Dividends: 'Dividend',
   Profile: 'Profile',
@@ -59,6 +61,7 @@ const TAB_LABELS = {
 const TAB_ICONS = {
   Dashboard: Home2,
   Investments: Chart1,
+  News: DocumentText,
   Members: Profile2User,
   Dividends: Wallet3,
   Profile: Profile,
@@ -116,10 +119,19 @@ const FloatingTabBar = ({ state, navigation }) => {
     return Math.max(0, Math.min(count - 1, Math.floor((pageX - rowX.current) / w)));
   };
 
-  // Tap: switches tabs or goes back one screen within the active tab.
-  // Drag: once the finger has moved a few pixels the capsule follows it, and
-  // the tab under the finger opens on release.
-  const drag = React.useRef({ active: false, startX: 0, lastX: 0, shown: null });
+  const selectTab = (index, dragging = false) => {
+    const route = routes[index];
+    if (index !== live.current.index) {
+      navigation.navigate(route.name);
+    } else if (dragging) {
+      springTo(index);
+    } else if (route.state?.key && route.state.index > 0) {
+      navigation.dispatch({ ...StackActions.pop(), target: route.state.key });
+    }
+  };
+
+  // Let buttons own taps and accessibility activation. The row takes over on a horizontal drag.
+  const drag = React.useRef({ lastX: 0, shown: null });
   const showPreview = (index) => {
     if (drag.current.shown !== index) {
       drag.current.shown = index;
@@ -128,45 +140,26 @@ const FloatingTabBar = ({ state, navigation }) => {
   };
   const responder = React.useMemo(
     () => PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onStartShouldSetPanResponderCapture: () => true,
-      onMoveShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponderCapture: (_, g) => Math.abs(g.dx) > 6 && Math.abs(g.dx) > Math.abs(g.dy),
       onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: (e) => {
-        rowRef.current?.measureInWindow?.((x) => { rowX.current = x; });
         const x = e.nativeEvent.pageX;
-        drag.current = { active: false, startX: x, lastX: x, shown: null };
+        drag.current = { lastX: x, shown: null };
+        slide.stopAnimation();
         showPreview(indexAt(x));
       },
       onPanResponderMove: (_, g) => {
-        const d = drag.current;
-        d.lastX = g.moveX;
-        if (!d.active && Math.abs(g.moveX - d.startX) > 6) {
-          d.active = true;
-          slide.stopAnimation();
-        }
-        if (d.active) {
-          const w = live.current.itemWidth;
-          const x = g.moveX - rowX.current;
-          slide.setValue(Math.max(0, Math.min((count - 1) * w, x - w / 2)));
-          showPreview(indexAt(g.moveX));
-        }
+        drag.current.lastX = g.moveX;
+        const w = live.current.itemWidth;
+        const x = g.moveX - rowX.current;
+        slide.setValue(Math.max(0, Math.min((count - 1) * w, x - w / 2)));
+        showPreview(indexAt(g.moveX));
       },
       onPanResponderRelease: () => {
-        const d = drag.current;
-        const target = indexAt(d.active ? d.lastX : d.startX);
-        d.shown = null;
+        const target = indexAt(drag.current.lastX);
+        drag.current.shown = null;
         setPreview(null);
-        if (target !== live.current.index) {
-          navigation.navigate(routes[target].name);
-        } else if (d.active) {
-          springTo(target);
-        } else {
-          const stack = routes[target].state;
-          if (stack?.key && stack.index > 0) {
-            navigation.dispatch({ ...StackActions.pop(), target: stack.key });
-          }
-        }
+        selectTab(target, true);
       },
       onPanResponderTerminate: () => {
         drag.current.shown = null;
@@ -174,7 +167,7 @@ const FloatingTabBar = ({ state, navigation }) => {
         springTo(live.current.index);
       },
     }),
-    [count, navigation, state.routes, routes.length]
+    [count, navigation, state.routes]
   );
 
   const activeIndex = preview ?? currentIndex;
@@ -204,6 +197,7 @@ const FloatingTabBar = ({ state, navigation }) => {
       )}
       <View
         ref={rowRef}
+        accessibilityRole="tablist"
         style={styles.row}
         onLayout={(e) => {
           setRowWidth(e.nativeEvent.layout.width);
@@ -213,6 +207,7 @@ const FloatingTabBar = ({ state, navigation }) => {
       >
         {itemWidth > 0 && (
           <Animated.View
+            pointerEvents="none"
             style={[styles.capsule, { width: itemWidth, opacity: activeIndex < 0 ? 0 : 1, transform: [{ translateX: slide }] }]}
           />
         )}
@@ -221,18 +216,19 @@ const FloatingTabBar = ({ state, navigation }) => {
           const Glyph = (focused && ACTIVE_ICONS[route.name]) || TAB_ICONS[route.name];
           const color = focused ? COLORS.accent : COLORS.textPrimary;
           return (
-            <View
+            <Pressable
               key={route.key}
               accessibilityRole="tab"
-              accessibilityState={{ selected: currentIndex === index }}
+              accessibilityLabel={TAB_LABELS[route.name] || route.name}
+              aria-selected={currentIndex === index}
               style={styles.item}
-              pointerEvents="none"
+              onPress={() => selectTab(index)}
             >
               {Glyph && <Glyph size={24} color={color} variant={focused ? 'Bold' : 'Linear'} />}
-              <Text style={[styles.label, { color }]} numberOfLines={1}>
+              <Text style={[styles.label, { color }]} numberOfLines={1} maxFontSizeMultiplier={1.3}>
                 {TAB_LABELS[route.name] || route.name}
               </Text>
-            </View>
+            </Pressable>
           );
         })}
       </View>
@@ -256,10 +252,16 @@ const InvestmentsStack = () => (
     <Stack.Screen name="InvestmentsHome" component={InvestmentsScreen} />
     <Stack.Screen name="HoldingDetail" component={HoldingDetailScreen} />
     <Stack.Screen name="StockTransaction" component={StockTransactionScreen} />
-    <Stack.Screen name="StockNews" component={StockNewsScreen} />
     <Stack.Screen name="AddStock" component={AddStockScreen} />
     <Stack.Screen name="SellStock" component={SellStockScreen} />
     <Stack.Screen name="EditStock" component={EditStockScreen} />
+  </Stack.Navigator>
+);
+
+const NewsStack = () => (
+  <Stack.Navigator screenOptions={stackOptions()}>
+    <Stack.Screen name="NewsHome" component={StockNewsScreen} />
+    <Stack.Screen name="NewsDetail" component={StockNewsDetailScreen} />
   </Stack.Navigator>
 );
 
@@ -286,7 +288,6 @@ const ProfileStack = () => (
 );
 
 export const MainNavigator = () => {
-  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       tabBar={(props) => <FloatingTabBar {...props} />}
@@ -295,6 +296,7 @@ export const MainNavigator = () => {
     >
       <Tab.Screen name="Dashboard" component={DashboardStack} />
       <Tab.Screen name="Investments" component={InvestmentsStack} />
+      <Tab.Screen name="News" component={NewsStack} />
       <Tab.Screen name="Members" component={MembersStack} />
       <Tab.Screen name="Dividends" component={DividendsStack} />
       <Tab.Screen name="Profile" component={ProfileStack} />
@@ -342,6 +344,7 @@ const styles = themedStyles(() => ({
   },
   item: {
     flex: 1,
+    minWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
@@ -350,9 +353,7 @@ const styles = themedStyles(() => ({
     ...TYPE.tab,
     fontSize: 10,
     lineHeight: 16,
-    // Wider than a tab on purpose: the text is centred under its icon and may
-    // extend into the quiet space beside it, so it is never cut with an ellipsis.
-    width: 96,
+    width: '100%',
     textAlign: 'center',
   },
 }));

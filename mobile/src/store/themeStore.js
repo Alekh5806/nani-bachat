@@ -27,7 +27,8 @@ export const useThemeStore = create((set, get) => ({
 
   setPreference: (preference, persist = true) => {
     const mode = resolveMode(preference);
-    const version = applyThemeMode(mode);
+    const current = get();
+    const version = mode === current.mode ? current.version : applyThemeMode(mode);
     set({ preference, mode, version });
     if (persist) AsyncStorage.setItem(KEY, preference).catch(() => {});
   },

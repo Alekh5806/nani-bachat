@@ -12,13 +12,15 @@ import { StockAction, StockTabs, stockStyles } from '../components/StocksUI';
 import { usePersistedState } from '../utils/usePersistedState';
 import { COLORS, SPACING } from '../theme/colors';
 import { TabBarSpacer } from '../components/TabBarSpacer';
+import { TabSwipeArea } from '../components/TabSwipeArea';
 
 const TABS = [['holdings', 'Holdings'], ['history', 'History']];
+const TAB_KEYS = TABS.map(([key]) => key);
 
 export const InvestmentsScreen = ({ navigation }) => {
   const isAdmin = useAuthStore((state) => state.user?.role === 'admin');
   const { stockSummary, holdingsFailed, stockTransactions, transactionsFailed, fetchStockTransactions } = usePortfolioStore();
-  const [tab, setTab] = usePersistedState('tab:invest', 'holdings', ['holdings', 'history']);
+  const [tab, setTab] = usePersistedState('tab:invest', 'holdings', TAB_KEYS);
   const [refreshing, setRefreshing] = useState(false);
   const { width, fontScale } = useWindowDimensions();
   const prices = useStockPrices(isAdmin);
@@ -41,7 +43,7 @@ export const InvestmentsScreen = ({ navigation }) => {
   const add = isAdmin ? () => navigation.navigate('AddStock') : undefined;
   const separateAction = add && (width - SPACING.lg * 2) / fontScale < 340;
   return (
-    <View style={stockStyles.screen}>
+    <TabSwipeArea tab={tab} tabKeys={TAB_KEYS} onChange={setTab} style={stockStyles.screen}>
       <View style={stockStyles.header}>
         <ScreenHeader title="Stocks" inset={SPACING.lg}
           rightAction={separateAction ? undefined : add} rightLabel="Record purchase"
@@ -60,7 +62,8 @@ export const InvestmentsScreen = ({ navigation }) => {
         refreshControl={<RefreshControl refreshing={refreshing && tab === 'holdings'} onRefresh={refresh} tintColor={COLORS.accent} />}
       >
         <StockHoldings summary={stockSummary} failed={holdingsFailed} prices={prices} onAdd={add}
-          onNews={() => navigation.navigate('StockNews')} onOpen={(holding) => navigation.navigate('HoldingDetail', { holding })} />
+          onNews={() => navigation.navigate('News', { screen: 'NewsHome', pop: true })}
+          onOpen={(holding) => navigation.navigate('HoldingDetail', { holding })} />
         <TabBarSpacer />
       </ScrollView>
       <ScrollView
@@ -73,6 +76,6 @@ export const InvestmentsScreen = ({ navigation }) => {
         <View style={{ height: SPACING.sm }} />
         <TabBarSpacer />
       </ScrollView>
-    </View>
+    </TabSwipeArea>
   );
 };

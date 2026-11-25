@@ -27,12 +27,12 @@ export const StockAction = ({ label, onPress, disabled, primary, danger, icon, b
 );
 
 export const StockTabs = ({ value, onChange, options }) => (
-  <View style={stockStyles.tabs}>
+  <View accessibilityRole="tablist" style={stockStyles.tabs}>
     {options.map(([key, title]) => (
       <Pressable
         key={key}
         accessibilityRole="tab"
-        accessibilityState={{ selected: value === key }}
+        aria-selected={value === key}
         onPress={() => onChange(key)}
         style={({ pressed, focused }) => [
           stockStyles.tab, value === key && stockStyles.currentTab,

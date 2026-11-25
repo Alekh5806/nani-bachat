@@ -15,6 +15,7 @@ import { usePersistedState } from '../utils/usePersistedState';
 import { ContributionsScreen } from './ContributionsScreen';
 import { COLORS, RADIUS, SPACING, themedStyles, TYPE } from '../theme/colors';
 import { TabBarSpacer } from '../components/TabBarSpacer';
+import { TabSwipeArea } from '../components/TabSwipeArea';
 
 const TABS = [['members', 'Directory'], ['contributions', 'Contributions'], ['history', 'History']];
 const TAB_KEYS = TABS.map(([key]) => key);
@@ -43,6 +44,12 @@ export const MembersScreen = ({ navigation }) => {
     loadDirectory();
   }, [loadDirectory]));
 
+  const selectTab = useCallback((key) => {
+    if (key === tab) return;
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    setTab(key);
+  }, [tab, setTab]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     try {
@@ -68,7 +75,7 @@ export const MembersScreen = ({ navigation }) => {
   const compactHeader = width < 360 && !!isAdmin && tab === 'contributions';
 
   return (
-    <View style={styles.container}>
+    <TabSwipeArea tab={tab} tabKeys={TAB_KEYS} onChange={selectTab} style={styles.container}>
       <View style={styles.frame}>
         <ScreenHeader
           title="Members"
@@ -89,11 +96,7 @@ export const MembersScreen = ({ navigation }) => {
                 key={key}
                 accessibilityRole="tab"
                 aria-selected={tab === key}
-                onPress={() => {
-                  if (key === tab) return;
-                  scrollRef.current?.scrollTo({ y: 0, animated: false });
-                  setTab(key);
-                }}
+                onPress={() => selectTab(key)}
                 style={[
                   styles.tab,
                   isWeb && width < 360 && key === 'contributions' && styles.longTab,
@@ -208,7 +211,7 @@ export const MembersScreen = ({ navigation }) => {
           <TabBarSpacer />
         </ScrollView>
       </View>
-    </View>
+    </TabSwipeArea>
   );
 };
 

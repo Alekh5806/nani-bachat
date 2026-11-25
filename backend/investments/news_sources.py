@@ -13,27 +13,38 @@ from django.core.cache import cache
 IST = ZoneInfo('Asia/Kolkata')
 HEADERS = {'User-Agent': 'PoolVest/1.0 (group portfolio tracker)'}
 NSE_MCP = 'https://mcp.nseindia.in/bhavcopy/cm/mcp'
+SOURCE_UPDATING = 'Updating source.'
 
 
 class SourceError(ValueError):
     pass
 
 
-def cached_source(key, fetch):
+def cached_source(key, fetch, *, cache_only=False, remember_failure=False):
     """Cache public data only. Never cache a member's eligibility or receipt status."""
     key = f'stock-news-v1:{key}'
     snapshot = cache.get(key)
     now = datetime.now(IST)
     if snapshot and now - snapshot[0] < timedelta(minutes=30):
         return snapshot[1], None
+    failure_key = f'{key}:failed'
+    if (cache_only or remember_failure) and cache.get(failure_key):
+        if snapshot:
+            return snapshot[1], f'Showing data from {snapshot[0]:%d %b, %H:%M} IST.'
+        return None, 'Temporarily unavailable.'
+    if cache_only:
+        return snapshot[1] if snapshot else None, SOURCE_UPDATING
     try:
         value = fetch()
     except (requests.RequestException, ValueError, KeyError, TypeError, IndexError,
             AttributeError, InvalidOperation, OverflowError):
+        if remember_failure:
+            cache.set(failure_key, True, 60)
         if snapshot:
             return snapshot[1], f'Showing data from {snapshot[0]:%d %b, %H:%M} IST.'
         return None, 'Temporarily unavailable.'
     cache.set(key, (now, value), 7 * 86400)
+    cache.delete(failure_key)
     return value, None
 
 

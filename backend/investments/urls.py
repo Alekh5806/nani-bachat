@@ -2,11 +2,13 @@
 from django.urls import path
 from . import views
 from .stock_news import stock_news
+from .portfolio_news import portfolio_news
 
 app_name = 'investments'
 
 urlpatterns = [
     path('stocks/news/', stock_news, name='stock-news'),
+    path('stocks/news/portfolio/', portfolio_news, name='portfolio-news'),
     path('stocks/', views.StockListView.as_view(), name='stock-list'),
     path('stocks/create/', views.StockCreateView.as_view(), name='stock-create'),
     path('stocks/summary/', views.StockSummaryView.as_view(), name='stock-summary'),

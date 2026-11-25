@@ -34,12 +34,20 @@ export const AvatarPicker = ({ visible, onDismiss }) => {
 
   return (
     <DialogCard visible={visible} title="Choose your avatar" onDismiss={onDismiss}>
-      <View style={styles.grid}>
-        {AVATAR_KEYS.map((seed) => (
+      <View accessibilityRole="radiogroup" style={styles.grid}>
+        {AVATAR_KEYS.map((seed, index) => (
           <Pressable
             key={seed}
+            accessibilityRole="radio"
+            accessibilityLabel={`Avatar ${index + 1}`}
+            aria-checked={user?.avatar === seed}
+            disabled={saving}
             onPress={() => choose(seed)}
-            style={[styles.cell, user?.avatar === seed && styles.cellActive]}
+            style={({ pressed }) => [
+              styles.cell,
+              user?.avatar === seed && styles.cellActive,
+              (pressed || saving) && styles.dim,
+            ]}
           >
             <UserAvatar person={{ avatar: seed }} size={48} />
           </Pressable>
@@ -53,4 +61,5 @@ const styles = themedStyles(() => ({
   grid: { marginTop: SPACING.lg, flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.md, justifyContent: 'center' },
   cell: { padding: 4, borderRadius: 40, borderWidth: 2, borderColor: 'transparent' },
   cellActive: { borderColor: COLORS.accent },
+  dim: { opacity: 0.65 },
 }));

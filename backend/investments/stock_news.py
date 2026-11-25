@@ -74,35 +74,38 @@ def dividend_item(events, lots, receipts, adjustments, details, active, today):
     }
 
 
-def build_feed(symbol, lots, today):
+def feed_window(lots, today):
     start = min(lot.buy_date for lot in lots)
     active = any(not lot.is_sold for lot in lots)
     end = today + timedelta(days=365) if active else max(
         (lot.sell_date for lot in lots if lot.sell_date), default=today)
+    return start, end, active
+
+
+def load_feed_sources(symbol, window, today, *, cache_only=False, remember_failure=False):
+    start, end, active = window
     code, exchange = symbol.rsplit('.', 1)
     if exchange not in {'NS', 'BO'}:
-        return {'items': [], 'issues': ['This exchange is not covered.']}
-    issues = []
+        return [], None, {}, {'Exchange': 'This exchange is not covered.'}
+    issues = {}
 
     def load(key, label, fetch):
-        data, issue = cached_source(key, fetch)
+        data, issue = cached_source(key, fetch, cache_only=cache_only, remember_failure=remember_failure)
         if issue:
-            issues.append(f'{label}: {issue}')
+            issues[label] = issue
         return data
 
-    items = []
+    filings = []
     # The BSE listing on the issuer page resolves a letter ticker to its scrip code.
     bse_code = code if code.isdigit() else None
     bse_symbol = symbol
     if active or exchange == 'BO':
-        company = load(f'filings:{symbol}', 'Company filings', lambda: company_filings(symbol))
+        company = load(f'filings:{symbol}', 'Screener filings', lambda: company_filings(symbol))
         if company:
             filings, bse_listing = company
             if bse_listing and exchange == 'BO':
                 ticker, bse_code = bse_listing
                 bse_symbol = f'{ticker}.BO'
-            if active:
-                items.extend(f for f in filings if f['date'] <= today and held_on(lots, f['date']))
 
     def get_actions():
         if exchange == 'NS':
@@ -110,7 +113,27 @@ def build_feed(symbol, lots, today):
         return bse_actions(bse_symbol, start, today)
 
     period = 'active' if active else end.isoformat()
-    actions = load(f'actions:{symbol}:{start}:{period}', 'Corporate actions', get_actions)
+    actions_source = 'NSE corporate actions' if exchange == 'NS' else 'Yahoo Finance corporate actions'
+    actions = load(f'actions:{symbol}:{start}:{period}', actions_source, get_actions)
+    date_code = code if exchange == 'NS' else bse_code
+    calendar = {}
+    if date_code:
+        calendar = load(f'dates:{symbol}', 'Stock Analysis dividend calendar', lambda: dividend_dates(
+            'nse' if exchange == 'NS' else 'bom', date_code)) or {}
+    return filings, actions, calendar, issues
+
+
+def qualifying_receipts(lots):
+    by_id = {lot.pk: lot for lot in lots}
+    receipts = Dividend.objects.filter(stock_id__in=by_id).select_related('stock')
+    return [receipt for receipt in receipts if by_id[receipt.stock_id].qualifies_on_ex_date(receipt.ex_date)]
+
+
+def build_feed(symbol, lots, today, *, sources=None, receipts=None):
+    window = feed_window(lots, today)
+    start, end, active = window
+    filings, actions, calendar, issues = sources if sources is not None else load_feed_sources(symbol, window, today)
+    items = [f for f in filings if active and f['date'] <= today and held_on(lots, f['date'])]
     adjustments = None if actions is None else set()
     unique = {(a['kind'], a['date'], a['title']): a for a in (actions or []) if start <= a['date'] <= end}
     by_day = defaultdict(list)
@@ -124,11 +147,6 @@ def build_feed(symbol, lots, today):
             if active and held_on(lots, day):
                 items.append(event)
 
-    date_code = code if exchange == 'NS' else bse_code
-    calendar = {}
-    if date_code:
-        calendar = load(f'dates:{symbol}', 'Dividend calendar', lambda: dividend_dates(
-            'nse' if exchange == 'NS' else 'bom', date_code)) or {}
     for day, details in calendar.items():
         if not start <= day <= end or day in by_day:
             continue
@@ -138,12 +156,11 @@ def build_feed(symbol, lots, today):
         by_day[day].append(dict(kind='Dividend', title='Cash dividend', date=day,
                                 rate=rate, url=details['url']))
 
-    receipts = defaultdict(list)
-    for receipt in Dividend.objects.filter(stock_id__in=[lot.pk for lot in lots]).select_related('stock'):
-        if receipt.stock.qualifies_on_ex_date(receipt.ex_date):
-            receipts[receipt.ex_date].append(receipt)
+    by_ex_date = defaultdict(list)
+    for receipt in receipts if receipts is not None else qualifying_receipts(lots):
+        by_ex_date[receipt.ex_date].append(receipt)
     for day, events in by_day.items():
-        item = dividend_item(events, lots, receipts[day], adjustments, calendar.get(day, {}), active, today)
+        item = dividend_item(events, lots, by_ex_date[day], adjustments, calendar.get(day, {}), active, today)
         if item:
             items.append(item)
     unique_items = {(i['date'], i['kind'], i['url'], i['title']): i for i in items}
@@ -152,22 +169,43 @@ def build_feed(symbol, lots, today):
     return {'items': ordered, 'issues': issues}
 
 
+def portfolio_lots(today):
+    by_symbol = defaultdict(list)
+    lots = Stock.objects.filter(buy_date__lte=today).only(
+        'id', 'symbol', 'quantity', 'name', 'buy_date', 'is_sold', 'sell_date', 'buyer_id').order_by(
+            '-buy_date', 'symbol', '-id')
+    for lot in lots:
+        by_symbol[listing(lot.symbol)].append(lot)
+    return by_symbol
+
+
+def stock_listings(by_symbol):
+    listings = [
+        {'symbol': symbol, 'name': lots[0].name, 'active': any(not lot.is_sold for lot in lots)}
+        for symbol, lots in by_symbol.items()
+    ]
+    return sorted(listings, key=lambda s: (not s['active'], s['symbol']))
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def stock_news(request):
     today = timezone.localdate()
-    by_symbol = defaultdict(list)
-    lots = Stock.objects.filter(buy_date__lte=today).only(
-        'id', 'symbol', 'quantity', 'name', 'buy_date', 'is_sold', 'sell_date', 'buyer_id')
-    for lot in lots:
-        by_symbol[listing(lot.symbol)].append(lot)
+    by_symbol = portfolio_lots(today)
     requested = request.query_params.get('symbol')
     if requested is None:
-        listings = [
-            {'symbol': symbol, 'name': lots[0].name, 'active': any(not lot.is_sold for lot in lots)}
-            for symbol, lots in by_symbol.items()
-        ]
-        return Response({'stocks': sorted(listings, key=lambda s: (not s['active'], s['symbol']))})
+        return Response({'stocks': stock_listings(by_symbol)})
     if requested not in by_symbol:
         return Response({'detail': 'This stock is outside the group portfolio.'}, status=404)
-    return Response(build_feed(requested, by_symbol[requested], today))
+    feed = build_feed(requested, by_symbol[requested], today)
+    issue_labels = {
+        'Screener filings': 'Company filings',
+        'NSE corporate actions': 'Corporate actions',
+        'Yahoo Finance corporate actions': 'Corporate actions',
+        'Stock Analysis dividend calendar': 'Dividend calendar',
+    }
+    return Response({
+        'items': feed['items'],
+        'issues': [f'{issue_labels[source]}: {message}' if source in issue_labels else message
+                   for source, message in feed['issues'].items()],
+    })

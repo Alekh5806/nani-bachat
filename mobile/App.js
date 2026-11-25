@@ -8,7 +8,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Toast from 'react-native-toast-message';
-import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { View, ActivityIndicator, Appearance, Platform } from 'react-native';
 import { useFonts } from 'expo-font';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PaperProvider, MD3DarkTheme, MD3LightTheme } from 'react-native-paper';
@@ -55,6 +55,14 @@ export default function App() {
   const themeVersion = useThemeStore((st) => st.version);
   const themeMode = useThemeStore((st) => st.mode);
   const navState = useRef();
+
+  useEffect(() => {
+    const subscription = Appearance.addChangeListener(() => {
+      const { preference, setPreference } = useThemeStore.getState();
+      if (preference === 'system') setPreference('system', false);
+    });
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
     const init = async () => {
