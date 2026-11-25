@@ -1,5 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { StackActions } from '@react-navigation/native';
 import { createStackNavigator, TransitionPresets } from '@react-navigation/stack';
 import { View, Text, StyleSheet, Platform, Animated, PanResponder } from 'react-native';
 import { BlurView } from 'expo-blur';
@@ -115,7 +116,7 @@ const FloatingTabBar = ({ state, navigation }) => {
     return Math.max(0, Math.min(count - 1, Math.floor((pageX - rowX.current) / w)));
   };
 
-  // Tap: opens the tab, and the capsule springs there (same as before).
+  // Tap: switches tabs or goes back one screen within the active tab.
   // Drag: once the finger has moved a few pixels the capsule follows it, and
   // the tab under the finger opens on release.
   const drag = React.useRef({ active: false, startX: 0, lastX: 0, shown: null });
@@ -160,6 +161,11 @@ const FloatingTabBar = ({ state, navigation }) => {
           navigation.navigate(routes[target].name);
         } else if (d.active) {
           springTo(target);
+        } else {
+          const stack = routes[target].state;
+          if (stack?.key && stack.index > 0) {
+            navigation.dispatch({ ...StackActions.pop(), target: stack.key });
+          }
         }
       },
       onPanResponderTerminate: () => {
