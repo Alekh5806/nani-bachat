@@ -214,7 +214,7 @@ const styles = themedStyles(() => ({
   card: { backgroundColor: COLORS.cardBg, borderColor: COLORS.border, borderWidth: 1, borderRadius: RADIUS.xxl },
   identityCard: { padding: SPACING.xl },
   identity: { flexDirection: 'row', alignItems: 'center', gap: SPACING.lg },
-  avatarButton: { paddingRight: SPACING.xs, paddingBottom: 3 },
+  avatarButton: { paddingRight: SPACING.xs, paddingBottom: 4 },
   avatar: {
     width: 64, height: 64, borderRadius: 32, overflow: 'hidden', backgroundColor: COLORS.surface,
   },

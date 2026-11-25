@@ -57,7 +57,7 @@ const styles = themedStyles(() => ({
   logo: { backgroundColor: COLORS.logoBg },
   name: { ...TYPE.cardTitle, color: COLORS.textPrimary },
   meta: { ...TYPE.caption, color: COLORS.textSecondary },
-  figures: { maxWidth: '49%', alignItems: 'flex-end', gap: 3 },
+  figures: { maxWidth: '49%', alignItems: 'flex-end', gap: 4 },
   change: { ...TYPE.secondaryMedium, textAlign: 'right', fontVariant: ['tabular-nums'] },
   stacked: { flexDirection: 'column', alignItems: 'stretch', paddingRight: SPACING.xxxl },
   stackedFigures: { alignItems: 'flex-start', maxWidth: '100%', marginLeft: 44 },

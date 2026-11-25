@@ -14,12 +14,12 @@ import { applyFont } from './fonts';
  */
 const DARK = {
   isDark: true,
-  background: '#0B0F19',
-  cardBg: '#111827',
-  cardBgAlt: '#172033',
-  surface: '#172033',
-  surfaceLight: '#263244',
-  cardElevated: '#172033',
+  background: '#111213',
+  cardBg: '#18191B',
+  cardBgAlt: '#1F2023',
+  surface: '#1F2023',
+  surfaceLight: '#2A2B2F',
+  cardElevated: '#1F2023',
 
   // Primary (brand blue)
   accent: '#4D6BFF',
@@ -35,10 +35,10 @@ const DARK = {
   gradientPurple: '#4D6BFF',
   gradientPink: '#4D6BFF',
 
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  textMuted: '#919BAD',
-  textInverse: '#0B0F19',
+  textPrimary: '#F3F2EF',
+  textSecondary: '#A5A39D',
+  textMuted: '#938F89',
+  textInverse: '#111213',
 
   // Semantic: positive / negative / warning / neutral
   profit: '#22C55E',
@@ -49,45 +49,45 @@ const DARK = {
   lossBg: '#3A171B',
   warning: '#F59E0B',
   warningBg: '#3A2A0D',
-  neutral: '#9CA3AF',
-  neutralBg: '#172033',
+  neutral: '#A5A39D',
+  neutralBg: '#1F2023',
   info: '#4D6BFF',
 
-  border: '#263244',
-  borderLight: '#263244',
+  border: '#2A2B2F',
+  borderLight: '#2A2B2F',
   divider: 'rgba(255, 255, 255, 0.06)',
   overlay: 'rgba(0, 0, 0, 0.7)',
-  glass: '#111827',
-  glassLight: '#172033',
-  glassBorder: '#263244',
+  glass: '#18191B',
+  glassLight: '#1F2023',
+  glassBorder: '#2A2B2F',
 
   // Company logo container
-  logoBg: '#172033',
-  logoBorder: '#263244',
+  logoBg: '#1F2023',
+  logoBorder: '#2A2B2F',
 
-  tabBarBg: '#0B0F19',
+  tabBarBg: '#111213',
   tabBarActive: '#4D6BFF',
-  tabBarInactive: '#6B7280',
+  tabBarInactive: '#77746E',
 
-  inputBg: '#111827',
-  inputBorder: '#263244',
+  inputBg: '#18191B',
+  inputBorder: '#2A2B2F',
   inputFocus: '#4D6BFF',
-  placeholder: '#6B7280',
+  placeholder: '#77746E',
 
   buttonPrimary: '#4D6BFF',
-  buttonSecondary: '#172033',
+  buttonSecondary: '#1F2023',
   buttonDanger: '#F87171',
-  buttonDisabled: '#263244',
+  buttonDisabled: '#2A2B2F',
 };
 
 const LIGHT = {
   ...DARK,
   isDark: false,
-  background: '#F5F6F8',
+  background: '#F6F5F2',
   cardBg: '#FFFFFF',
-  cardBgAlt: '#F3F4F6',
-  surface: '#F3F4F6',
-  surfaceLight: '#E5E7EB',
+  cardBgAlt: '#F1F0EC',
+  surface: '#F1F0EC',
+  surfaceLight: '#E7E5DF',
   cardElevated: '#FFFFFF',
 
   accent: '#1E41DB',
@@ -103,9 +103,9 @@ const LIGHT = {
   gradientPurple: '#1E41DB',
   gradientPink: '#1E41DB',
 
-  textPrimary: '#111827',
-  textSecondary: '#596272',
-  textMuted: '#646D7D',
+  textPrimary: '#161615',
+  textSecondary: '#5C5A55',
+  textMuted: '#6B6963',
   textInverse: '#FFFFFF',
 
   profit: '#137535',
@@ -116,34 +116,34 @@ const LIGHT = {
   lossBg: '#FEE2E2',
   warning: '#D97706',
   warningBg: '#FEF3C7',
-  neutral: '#6B7280',
-  neutralBg: '#F3F4F6',
+  neutral: '#6B6963',
+  neutralBg: '#F1F0EC',
   info: '#1E41DB',
 
-  border: '#E5E7EB',
-  borderLight: '#E5E7EB',
+  border: '#E7E5DF',
+  borderLight: '#E7E5DF',
   divider: 'rgba(0, 0, 0, 0.07)',
   overlay: 'rgba(0, 0, 0, 0.45)',
   glass: '#FFFFFF',
   glassLight: '#FFFFFF',
-  glassBorder: '#E5E7EB',
+  glassBorder: '#E7E5DF',
 
-  logoBg: '#F3F4F6',
-  logoBorder: '#E5E7EB',
+  logoBg: '#F1F0EC',
+  logoBorder: '#E7E5DF',
 
   tabBarBg: '#FFFFFF',
   tabBarActive: '#1E41DB',
-  tabBarInactive: '#9CA3AF',
+  tabBarInactive: '#8E8B85',
 
   inputBg: '#FFFFFF',
-  inputBorder: '#E5E7EB',
+  inputBorder: '#E7E5DF',
   inputFocus: '#1E41DB',
-  placeholder: '#9CA3AF',
+  placeholder: '#8E8B85',
 
   buttonPrimary: '#1E41DB',
-  buttonSecondary: '#F3F4F6',
+  buttonSecondary: '#F1F0EC',
   buttonDanger: '#DC2626',
-  buttonDisabled: '#E5E7EB',
+  buttonDisabled: '#E7E5DF',
 };
 
 export const PALETTES = { dark: DARK, light: LIGHT };
@@ -229,7 +229,7 @@ export const TYPE = {
   secondary: { fontSize: 13, fontWeight: '400' },      // supporting text
   secondaryMedium: { fontSize: 13, fontWeight: '500' },
   // Rule: column / info titles above a list (for example "Stocks (10)" and "Current (Invested)") use infoTitle.
-  infoTitle: { fontSize: 9, fontWeight: '400' },
+  infoTitle: { fontSize: 11, fontWeight: '400' },
   caption: { fontSize: 12, fontWeight: '400' },        // metadata: phone, date, symbol
   captionMedium: { fontSize: 12, fontWeight: '500' },  // badges, small links
   button: { fontSize: 14, fontWeight: '600' },
@@ -251,9 +251,9 @@ export const TYPE = {
 export const RADIUS = {
   sm: 6,
   md: 10,
-  lg: 14,
-  xl: 18,
-  xxl: 22,
+  lg: 12,
+  xl: 16,
+  xxl: 20,
   full: 9999,
 };
 

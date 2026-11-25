@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Refresh2, Wallet3 } from 'iconsax-react-native';
+import { Refresh2 } from 'iconsax-react-native';
 import { usePortfolioStore } from '../store/portfolioStore';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { AllocationDonut } from '../components/AllocationDonut';
@@ -20,7 +20,7 @@ const PRICE_REFRESH_MS = 60000;
 // The smaller of the two columns needs at least 360 points at the default text size.
 const MIN_COLUMNS_WIDTH = 360 * (1.2 + 1) + SPACING.lg;
 const SIDE_EDGES = ['left', 'right'];
-const CHART_COLORS = ['#4D6BFF', '#7C93FF', '#A9B8FF', '#64748B', '#8793A6', '#C5CCD8'];
+const CHART_COLORS = ['#4D6BFF', '#7C93FF', '#A9B8FF', '#8A8780', '#A5A39D', '#C4C1B9'];
 const hasAmount = (value) => value != null && value !== '' && Number.isFinite(Number(value));
 const money = (value) => hasAmount(value) ? fmtFull(value) : '—';
 const signedMoney = (value) => (Number(value) > 0 ? '+' : '') + money(value);
@@ -139,11 +139,10 @@ function PortfolioValueCard({ dashboard, refreshing, refresh, today, refreshKey 
   const gain = p.profit_loss;
   const pct = Number(p.growth_percentage);
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, styles.heroCard]}>
       <View style={styles.heroHeading}>
         <View style={styles.heroLabel}>
-          <Wallet3 size={18} color={COLORS.textSecondary} />
-          <Text style={styles.caption}>Club portfolio value</Text>
+          <Text style={styles.caption}>Total Balance</Text>
         </View>
         <Pressable accessibilityRole="button" accessibilityLabel="Refresh portfolio"
           accessibilityState={{ busy: refreshing, disabled: refreshing }} disabled={refreshing}
@@ -151,18 +150,22 @@ function PortfolioValueCard({ dashboard, refreshing, refresh, today, refreshKey 
           {refreshing ? <ActivityIndicator size="small" color={COLORS.accent} /> : <Refresh2 size={18} color={COLORS.textPrimary} />}
         </Pressable>
       </View>
-      <Text style={styles.heroValue} selectable>{money(p.current_value)}</Text>
+      <Text style={styles.heroValue} selectable numberOfLines={1} adjustsFontSizeToFit>{money(p.current_value)}</Text>
       <View style={styles.heroStats}>
         <View style={styles.metric}>
-          <Text style={styles.caption}>Invested capital</Text>
-          <Text style={styles.metricValue}>{money(p.total_invested)}</Text>
+          <Text style={styles.caption}>All-time return</Text>
+          <View style={styles.metricLine}>
+            <Text style={[styles.metricValue, { color: returnColor(gain) }]} numberOfLines={1} adjustsFontSizeToFit>{signedMoney(gain)}</Text>
+            {Number(p.total_invested) > 0 && hasAmount(p.growth_percentage) && <Text style={[styles.metricPct, { color: returnColor(gain) }]}>
+              {(pct > 0 ? '+' : '') + pct.toFixed(2) + '%'}
+            </Text>}
+          </View>
         </View>
         <View style={styles.metric}>
-          <Text style={styles.caption}>All-time return</Text>
-          <Text style={[styles.metricValue, { color: returnColor(gain) }]}>{signedMoney(gain)}</Text>
-          {Number(p.total_invested) > 0 && hasAmount(p.growth_percentage) && <Text style={[styles.caption, { color: returnColor(gain) }]}>
-            {(pct > 0 ? '+' : '') + pct.toFixed(2) + '%'}
-          </Text>}
+          <Text style={styles.caption}>Invested capital</Text>
+          <View style={styles.metricLine}>
+            <Text style={styles.metricValue} numberOfLines={1} adjustsFontSizeToFit>{money(p.total_invested)}</Text>
+          </View>
         </View>
       </View>
       <PortfolioHistory recent={dashboard.growth_data} complete={dashboard.growth_data_complete} today={today} refreshKey={refreshKey} />
@@ -270,13 +273,16 @@ const styles = themedStyles(() => ({
   link: { maxWidth: '100%', minHeight: 44, justifyContent: 'center' },
   linkText: { ...TYPE.button, color: COLORS.isDark ? CHART_COLORS[1] : COLORS.accent },
   pressed: { opacity: 0.65 },
+  heroCard: { padding: SPACING.lg },
   heroHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   heroLabel: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flexShrink: 1 },
-  refresh: { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center', borderRadius: RADIUS.full, backgroundColor: COLORS.surface },
-  heroValue: { ...TYPE.portfolioValue, color: COLORS.textPrimary, marginVertical: SPACING.sm, fontVariant: ['tabular-nums'] },
-  heroStats: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.md, marginTop: SPACING.md },
-  metric: { flexGrow: 1, flexShrink: 1, minWidth: 120, maxWidth: '100%', gap: SPACING.xs },
-  metricValue: { ...TYPE.cardTitle, color: COLORS.textPrimary, fontVariant: ['tabular-nums'] },
+  refresh: { minHeight: 36, minWidth: 36, alignItems: 'center', justifyContent: 'center', borderRadius: RADIUS.full, backgroundColor: COLORS.surface },
+  heroValue: { ...TYPE.portfolioValue, fontSize: 36, lineHeight: 44, color: COLORS.textPrimary, marginTop: SPACING.xs, marginBottom: SPACING.sm, fontVariant: ['tabular-nums'] },
+  heroStats: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.xs, marginBottom: SPACING.lg },
+  metric: { flex: 1, minWidth: 0, gap: SPACING.xs, padding: SPACING.md, borderRadius: RADIUS.md, backgroundColor: COLORS.surface },
+  metricLine: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: SPACING.xs },
+  metricPct: { ...TYPE.captionMedium, fontVariant: ['tabular-nums'] },
+  metricValue: { ...TYPE.cardTitle, flexShrink: 1, fontSize: 14, color: COLORS.textPrimary, fontVariant: ['tabular-nums'] },
   sectionValue: { ...TYPE.portfolioValue, color: COLORS.textPrimary, marginTop: SPACING.xs },
   rowLabel: { flexShrink: 1, maxWidth: '100%', flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   rowText: { ...TYPE.body, color: COLORS.textSecondary, flexShrink: 1 },

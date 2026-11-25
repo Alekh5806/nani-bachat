@@ -19,19 +19,31 @@
     <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
     <style id="expo-reset">
       /* These styles make the body full-height */
-      html,
-      body {
+      html {
         height: 100%;
       }
-      /* These styles disable body scrolling if you are using <ScrollView> */
+      /* Pin the body to the real screen. On iOS home-screen apps, height:100% can start
+         shorter than the screen (white band at the bottom, extra space at the top)
+         until the device is rotated. A fixed box with inset 0 avoids that. */
       body {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        margin: 0;
         overflow: hidden;
+        overscroll-behavior: none;
       }
-      /* These styles make the root element full-height */
+      /* The root fills the pinned body */
       #root {
         display: flex;
-        height: 100%;
-        flex: 1;
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
       }
     </style>
   </head>

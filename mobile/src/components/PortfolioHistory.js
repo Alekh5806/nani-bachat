@@ -4,12 +4,12 @@ import { useFocusEffect } from '@react-navigation/native';
 import { GrowthChart } from './GrowthChart';
 import { fetchPages } from '../config/fetchPages';
 import { COLORS, RADIUS, SPACING, TYPE, themedStyles } from '../theme/colors';
-import { fmtFull } from '../utils/currency';
-import { chartPoints, firstDayOfRange, historyCovered, valueChange } from '../utils/portfolioHistory';
+import { chartPoints, firstDayOfRange, historyCovered } from '../utils/portfolioHistory';
 
 const RANGES = [
-  { label: '7D', days: 7 }, { label: '30D', days: 30 }, { label: '90D', days: 90 },
-  { label: '1Y', days: 365 }, { label: 'All', days: null },
+  { label: '1W', days: 7 }, { label: '1M', days: 30 },
+  { label: '3M', days: 90 }, { label: '1Y', days: 365 },
+  { label: 'ALL', days: null },
 ];
 
 export function PortfolioHistory({ recent, complete, today, refreshKey }) {
@@ -45,16 +45,9 @@ export function PortfolioHistory({ recent, complete, today, refreshKey }) {
     return rows ? chartPoints([...(rows || []), ...(recent || [])], since, today) : null;
   }, [covered, recent, result?.rows, since, today]);
   const failed = !covered && result?.failed;
-  const change = ready ? valueChange(points) : null;
-  const delta = change && (change.percentage != null ? change.percentage.toFixed(2) + '%' : fmtFull(change.amount));
   return (
     <View style={styles.history}>
-      <View style={styles.heading}>
-        <Text accessibilityRole="header" style={styles.title}>Value History</Text>
-        {change != null && <Text style={styles.change}>
-          {(change.amount > 0 ? '+' : '') + delta} in value
-        </Text>}
-      </View>
+      {points && <View style={styles.chart}><GrowthChart key={key} data={points} /></View>}
       <View style={styles.ranges}>
         {RANGES.map((item) => (
           <Pressable key={item.label} accessibilityRole="button" accessibilityState={{ selected: range === item }} aria-pressed={range === item}
@@ -65,7 +58,6 @@ export function PortfolioHistory({ recent, complete, today, refreshKey }) {
           </Pressable>
         ))}
       </View>
-      {points && <GrowthChart key={key} data={points} />}
       {failed ? (
         <Pressable accessibilityRole="button" onPress={() => setRetry((n) => n + 1)} style={styles.retry}>
           <Text style={styles.status}>Full history couldn’t refresh. Try again</Text>
@@ -76,15 +68,13 @@ export function PortfolioHistory({ recent, complete, today, refreshKey }) {
 }
 
 const styles = themedStyles(() => ({
-  history: { borderTopWidth: 1, borderTopColor: COLORS.border, paddingTop: SPACING.lg, marginTop: SPACING.lg },
-  heading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: SPACING.sm },
-  change: { ...TYPE.secondaryMedium, color: COLORS.textSecondary },
-  title: { ...TYPE.cardTitle, color: COLORS.textPrimary },
-  ranges: { flexDirection: 'row', flexWrap: 'wrap', padding: SPACING.xs, borderRadius: RADIUS.lg, backgroundColor: COLORS.surface, marginVertical: SPACING.md },
-  range: { flexGrow: 1, flexShrink: 1, minWidth: 44, paddingHorizontal: SPACING.xs, alignItems: 'center', justifyContent: 'center', minHeight: 44, borderRadius: RADIUS.md },
-  active: { backgroundColor: COLORS.cardBg, borderWidth: 1, borderColor: COLORS.border },
-  rangeText: { ...TYPE.secondaryMedium, color: COLORS.textSecondary },
-  activeText: { color: COLORS.isDark ? COLORS.textPrimary : COLORS.accent },
+  history: { marginTop: SPACING.xs },
+  chart: { marginTop: SPACING.sm },
+  ranges: { flexDirection: 'row', marginTop: SPACING.sm },
+  range: { flex: 1, minWidth: 44, alignItems: 'center', justifyContent: 'center', minHeight: 36, borderRadius: RADIUS.md },
+  active: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border },
+  rangeText: { ...TYPE.body, color: COLORS.textMuted },
+  activeText: { color: COLORS.textPrimary },
   pressed: { opacity: 0.75 },
   retry: { minHeight: 44, justifyContent: 'center' },
   status: { ...TYPE.secondaryMedium, color: COLORS.textSecondary, textAlign: 'center', paddingVertical: SPACING.md },

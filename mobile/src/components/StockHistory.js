@@ -127,16 +127,16 @@ export const StockHistory = ({ transactions, failed, refreshing, onRefresh, onOp
 };
 
 const styles = themedStyles(() => ({
-  badge: { alignSelf: 'flex-start', backgroundColor: COLORS.surfaceLight, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 },
+  badge: { alignSelf: 'flex-start', backgroundColor: COLORS.surfaceLight, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
   saleBadge: { backgroundColor: COLORS.neutralBg, borderColor: COLORS.border, borderWidth: 1 },
   badgeText: { ...TYPE.captionMedium, color: COLORS.textPrimary },
   row: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md, minHeight: 72, gap: SPACING.sm },
-  body: { flex: 1, minWidth: 0, gap: 3 },
+  body: { flex: 1, minWidth: 0, gap: 4 },
   logo: { backgroundColor: COLORS.logoBg },
   identity: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  titleLine: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 5 },
+  titleLine: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 },
   name: { ...TYPE.secondaryMedium, color: COLORS.textPrimary, flexShrink: 1 },
-  amount: { maxWidth: '44%', alignItems: 'flex-end', gap: 3 },
+  amount: { maxWidth: '44%', alignItems: 'flex-end', gap: 4 },
   meta: { ...TYPE.caption, color: COLORS.textSecondary },
   stacked: { flexDirection: 'column', alignItems: 'stretch' },
   stackedAmount: { alignItems: 'flex-start', marginLeft: 42, maxWidth: '100%' },

@@ -167,7 +167,7 @@ export const HoldingDetailScreen = ({ route, navigation }) => {
 
 const styles = themedStyles(() => ({
   company: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, marginBottom: SPACING.lg },
-  companyText: { flex: 1, minWidth: 0, gap: 3 },
+  companyText: { flex: 1, minWidth: 0, gap: 4 },
   companyName: { ...TYPE.screenTitle, color: COLORS.textPrimary },
   secondary: { marginTop: SPACING.md },
   lot: {
