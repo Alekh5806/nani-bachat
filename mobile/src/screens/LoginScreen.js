@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  AccessibilityInfo, ActivityIndicator, Animated, Image, KeyboardAvoidingView,
+  AccessibilityInfo, ActivityIndicator, Animated, KeyboardAvoidingView,
   Platform, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Eye, EyeSlash, InfoCircle, Lock1, Mobile, People, ShieldTick, TickSquare } from 'iconsax-react-native';
+import { Eye, EyeSlash, InfoCircle, Lock1, Mobile, TickSquare } from 'iconsax-react-native';
 import Toast from 'react-native-toast-message';
 
 import { LoginArtwork } from '../components/LoginArtwork';
@@ -121,6 +121,16 @@ export const LoginScreen = () => {
     }
   };
 
+  const proverb = (
+    <Text
+      accessibilityLanguage="gu-IN"
+      lang="gu"
+      style={[styles.proverb, compact && styles.proverbCompact, wide && styles.proverbWide]}
+    >
+      “ધીરજનાં ફળ મીઠાં”
+    </Text>
+  );
+
   return (
     <View style={[styles.screen, wide && styles.screenWide]}>
       <KeyboardAvoidingView
@@ -134,48 +144,22 @@ export const LoginScreen = () => {
           showsVerticalScrollIndicator={false}
         >
           <View style={[styles.layout, wide && styles.layoutWide]}>
-            <View style={[styles.hero, wide ? styles.heroWide : { paddingTop: insets.top + 24 }]}>
-              <View style={styles.heroOrb} pointerEvents="none" />
-              <View style={styles.brand}>
-                {!wide && <View style={styles.brandMark}>
-                  <Image source={require('../../assets/favicon.png')} style={styles.brandIcon} accessible={false} />
-                </View>}
-                <View>
-                  {!wide && <Text style={styles.brandName}>Nani Bachat</Text>}
-                  <Text style={styles.brandCaption}>YOUR PRIVATE INVESTMENT CIRCLE</Text>
+            <View style={[
+              styles.hero,
+              wide ? styles.heroWide : { paddingTop: insets.top + 24 },
+              compact && styles.heroCompact,
+            ]}>
+              <View style={[styles.heroContent, wide && styles.heroContentWide]}>
+                <View style={!wide && styles.brandMobile}>
+                  <Text style={[styles.brandName, wide && styles.brandNameWide]}>Nani Bachat</Text>
+                  <Text style={styles.brandCaption}>Private investment circle</Text>
+                  {!wide && proverb}
+                </View>
+                <View style={wide ? styles.heroFeatureWide : [styles.heroFeatureMobile, compact && styles.heroFeatureCompact]}>
+                  <LoginArtwork />
+                  {wide && proverb}
                 </View>
               </View>
-              <View style={[styles.heroMain, wide && styles.heroMainWide]}>
-                <View style={[styles.proverbFrame, wide && styles.proverbFrameWide]}>
-                  <Text
-                    accessibilityLanguage="gu-IN"
-                    lang="gu"
-                    style={[styles.proverb, compact && styles.proverbCompact, wide && styles.proverbWide]}
-                  >
-                    “ધીરજનાં ફળ મીઠાં”
-                  </Text>
-                </View>
-                {wide ? (
-                  <Image
-                    source={require('../../assets/login/nani-bachat-logo.webp')}
-                    style={styles.brandLogo}
-                    resizeMode="contain"
-                    accessible
-                    accessibilityLabel="Nani Bachat"
-                  />
-                ) : (
-                  <View
-                    style={styles.artworkMobile}
-                    pointerEvents="none"
-                    accessibilityElementsHidden
-                    importantForAccessibility="no-hide-descendants"
-                  ><LoginArtwork /></View>
-                )}
-              </View>
-              {wide && <View style={styles.heroFooter}>
-                <View style={styles.circleIcon}><People size={18} color="#C3D1F1" /></View>
-                <Text style={styles.heroFooterText}>Your people. Your goals. Your growth.</Text>
-              </View>}
             </View>
 
             <View style={[
@@ -183,26 +167,21 @@ export const LoginScreen = () => {
               wide ? styles.formSideWide : { paddingBottom: Math.max(insets.bottom, 24) },
               compact && styles.formSideCompact,
             ]}>
-              {wide && <View style={styles.privateBadge}>
-                <ShieldTick size={15} color={COLORS.textSecondary} />
-                <Text style={styles.privateBadgeText}>A space for your circle</Text>
-              </View>}
               <Animated.View style={[
-                styles.formContent, wide && styles.formContentWide,
+                styles.formContent,
                 { opacity: entrance, transform: [{ translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] },
               ]}>
-                {(wide || member) && <View style={[styles.welcomeIcon, !wide && styles.welcomeIconMobile]}>
-                  {member ? <UserAvatar person={member} size={44} /> : <Lock1 size={24} color={COLORS.isDark ? '#A8BCFF' : '#4966C9'} />}
+                {member && <View style={[styles.welcomeIcon, !wide && styles.welcomeIconMobile]}>
+                  <UserAvatar person={member} size={44} />
                 </View>}
-                <Text style={styles.formEyebrow}>{member ? 'YOUR CIRCLE MISSED YOU' : 'WELCOME TO YOUR CIRCLE'}</Text>
                 <Text style={[styles.greeting, wide && styles.greetingWide, !wide && member && { paddingRight: 48 }]} accessibilityRole="header">
                   {greetingForHour(hour)},{'\n'}<Text style={styles.greetingName}>{name ? `${name}.` : 'welcome home.'}</Text>
                 </Text>
                 <Text style={styles.formDescription}>
-                  {member ? 'Good to see you again. Let’s keep growing.' : 'Sign in to a future we’re building together.'}
+                  {member ? 'Enter your password to continue.' : 'Use your registered phone number.'}
                 </Text>
 
-                <View style={styles.form}>
+                <View style={[styles.form, compact && styles.formCompact]}>
                   <View style={styles.labelRow}>
                     <Text style={styles.label} nativeID="login-phone-label">Phone number</Text>
                     {remembered && <Pressable
@@ -240,7 +219,6 @@ export const LoginScreen = () => {
                     <Pressable
                       onPress={() => setShowPassword((current) => !current)} accessibilityRole="button"
                       accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
-                      accessibilityState={{ checked: showPassword }}
                       style={({ pressed }) => [styles.eyeButton, pressed && styles.pressed]}
                     >{showPassword ? <EyeSlash size={20} color={styles.inputIcon.color} /> : <Eye size={20} color={styles.inputIcon.color} />}</Pressable>
                   </View>
@@ -248,7 +226,7 @@ export const LoginScreen = () => {
                   <Pressable
                     onPress={toggleRememberMe} disabled={isLoading}
                     onKeyDown={Platform.OS === 'web' ? handleRememberKeyDown : undefined}
-                    accessibilityRole="checkbox" accessibilityState={{ checked: rememberMe, disabled: isLoading }}
+                    accessibilityRole="checkbox" aria-checked={rememberMe}
                     accessibilityLabel="Remember me on this device"
                     style={({ pressed }) => [styles.rememberRow, pressed && styles.pressed]}
                   >
@@ -262,7 +240,7 @@ export const LoginScreen = () => {
                   </View>}
                   <Pressable
                     onPress={handleLogin} disabled={isLoading} accessibilityRole="button" accessibilityLabel="Sign in"
-                    accessibilityState={{ disabled: isLoading, busy: isLoading }}
+                    aria-busy={isLoading}
                     style={({ pressed, hovered }) => [styles.signInButton, hovered && styles.signInHovered, pressed && styles.signInPressed, isLoading && styles.signInLoading]}
                   >
                     {isLoading && <ActivityIndicator size="small" color="#FFFFFF" />}
@@ -271,10 +249,9 @@ export const LoginScreen = () => {
                 </View>
 
                 <View style={styles.helpSection}>
-                  <Text style={styles.memberNote}>Every great journey starts with a circle.</Text>
                   <Pressable
                     onPress={() => setHelpVisible((visible) => !visible)} accessibilityRole="button"
-                    accessibilityState={{ expanded: helpVisible }} hitSlop={6}
+                    aria-expanded={helpVisible} hitSlop={6}
                     style={({ pressed }) => [styles.helpButton, pressed && styles.pressed]}
                   ><Text style={styles.helpButtonText}>Need help signing in?</Text></Pressable>
                   {helpVisible && <View style={styles.helpBox}><Text style={styles.helpText}>
@@ -282,9 +259,6 @@ export const LoginScreen = () => {
                   </Text></View>}
                 </View>
               </Animated.View>
-              <View style={[styles.footer, wide && styles.footerWide]}>
-                <Text style={styles.footerText}>A LITTLE TODAY. A LOT, TOGETHER.</Text>
-              </View>
             </View>
           </View>
         </ScrollView>
@@ -295,46 +269,38 @@ export const LoginScreen = () => {
 
 const styles = themedStyles(() => ({
   flex: { flex: 1 },
-  screen: { flex: 1, backgroundColor: '#101D33' },
+  screen: { flex: 1, backgroundColor: '#132033' },
   screenWide: { backgroundColor: COLORS.isDark ? '#090F1C' : '#EEF1F7' },
   scroll: { flexGrow: 1 },
   layout: { flex: 1, width: '100%', alignSelf: 'center' },
-  layoutWide: { flexDirection: 'row', maxWidth: 1480, minHeight: 780, borderRadius: 28, overflow: 'hidden' },
-  hero: { backgroundColor: '#101D33', overflow: 'hidden', paddingHorizontal: 28, paddingBottom: 22 },
-  heroWide: { width: '51%', padding: 44, paddingBottom: 34 },
-  heroOrb: { position: 'absolute', width: 520, height: 520, borderRadius: 260, backgroundColor: '#152640', top: -270, right: -260, opacity: 0.7 },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 45, zIndex: 1 },
-  brandMark: { width: 45, height: 45, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FCF8F3' },
-  brandIcon: { width: 36, height: 36 },
-  brandName: { color: '#F4F6FF', fontSize: 23, fontWeight: '600', letterSpacing: -0.9 },
-  brandCaption: { color: '#9DACCA', fontSize: 9, fontWeight: '500', letterSpacing: 1.3, marginTop: 4 },
-  brandLogo: { alignSelf: 'center', width: 320, height: 245, borderRadius: 22, marginTop: 36 },
-  heroMain: { marginTop: 24, minHeight: 70, justifyContent: 'center' },
-  heroMainWide: { flex: 1, marginTop: 66, minHeight: 555, justifyContent: 'center' },
-  proverbFrame: { alignSelf: 'flex-start', maxWidth: '100%', borderLeftWidth: 2, borderLeftColor: '#BD9B69', paddingLeft: 14, paddingVertical: 5, zIndex: 1 },
-  proverbFrameWide: { paddingLeft: 24, paddingVertical: 8 },
-  proverb: { color: '#F0DAB4', fontFamily: 'NotoSerifGujarati_600SemiBold', fontSize: 31, lineHeight: 46 },
-  proverbCompact: { fontSize: 27, lineHeight: 42 },
-  proverbWide: { fontSize: 52, lineHeight: 75 },
-  artworkMobile: { position: 'absolute', width: 196, height: 140, right: -76, top: -33, opacity: 0.28 },
-  heroFooter: { flexDirection: 'row', alignItems: 'center', gap: 11, borderTopWidth: 1, borderTopColor: '#29374F', paddingTop: 22 },
-  circleIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#1E2E48', alignItems: 'center', justifyContent: 'center' },
-  heroFooterText: { color: '#B7C3D9', fontSize: 12, fontWeight: '400' },
+  layoutWide: { flexDirection: 'row', maxWidth: 1480, minHeight: 640, borderRadius: 28, overflow: 'hidden' },
+  hero: { backgroundColor: '#132033', paddingHorizontal: 28, paddingBottom: 24 },
+  heroCompact: { paddingHorizontal: 22 },
+  heroWide: { width: '51%', padding: 44, borderRightWidth: 1, borderRightColor: '#27334A' },
+  heroContent: { width: '100%', maxWidth: 410, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 2 },
+  heroContentWide: { flex: 1, maxWidth: '100%', flexDirection: 'column', alignItems: 'stretch', gap: 14 },
+  brandMobile: { flex: 1, minWidth: 0 },
+  brandName: { color: '#F4F6FF', fontSize: 25, fontWeight: '600', letterSpacing: -0.8 },
+  brandNameWide: { fontSize: 28, letterSpacing: -0.9 },
+  brandCaption: { color: '#AEBACF', fontSize: 12, lineHeight: 18, marginTop: 3 },
+  heroFeatureMobile: { width: 128, marginRight: -8 },
+  heroFeatureCompact: { width: 98 },
+  heroFeatureWide: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 36 },
+  proverb: { color: '#F0DAB4', fontFamily: 'NotoSerifGujarati_600SemiBold', fontSize: 22, lineHeight: 32, marginTop: 12 },
+  proverbCompact: { fontSize: 20, lineHeight: 30 },
+  proverbWide: { fontSize: 40, lineHeight: 58, textAlign: 'center', marginTop: 3 },
   formSide: { backgroundColor: COLORS.isDark ? '#101725' : '#FBFCFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, marginTop: -1, paddingHorizontal: 28, paddingTop: 30, flex: 1 },
-  formSideCompact: { paddingHorizontal: 22 },
-  formSideWide: { width: '49%', borderRadius: 0, borderTopLeftRadius: 0, borderTopRightRadius: 0, marginTop: 0, paddingHorizontal: 48, paddingTop: 36, paddingBottom: 30, alignItems: 'center', justifyContent: 'space-between' },
-  privateBadge: { flexDirection: 'row', gap: 7, alignSelf: 'flex-end', alignItems: 'center' },
-  privateBadgeText: { color: COLORS.textSecondary, fontSize: 11, fontWeight: '400' },
+  formSideCompact: { paddingHorizontal: 22, paddingTop: 24 },
+  formSideWide: { width: '49%', borderRadius: 0, borderTopLeftRadius: 0, borderTopRightRadius: 0, marginTop: 0, paddingHorizontal: 48, paddingVertical: 40, justifyContent: 'center' },
   formContent: { width: '100%', maxWidth: 410, alignSelf: 'center' },
-  formContentWide: { paddingVertical: 36 },
-  welcomeIcon: { width: 52, height: 52, borderRadius: 17, backgroundColor: COLORS.isDark ? '#202C46' : '#EDF1FC', borderWidth: 1, borderColor: COLORS.isDark ? '#2C3A56' : '#E0E7F9', alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
-  welcomeIconMobile: { position: 'absolute', right: 0, top: 0, width: 44, height: 44, borderRadius: 14, marginBottom: 0 },
-  formEyebrow: { color: COLORS.isDark ? '#9CAED8' : '#687BA4', fontSize: 10, fontWeight: '600', letterSpacing: 1.4, marginBottom: 12 },
+  welcomeIcon: { alignSelf: 'flex-start', marginBottom: 18 },
+  welcomeIconMobile: { position: 'absolute', right: 0, top: 0, marginBottom: 0 },
   greeting: { color: COLORS.isDark ? '#EEF2FC' : '#14213B', fontSize: 31, lineHeight: 40, fontWeight: '500', letterSpacing: -1.3 },
-  greetingWide: { fontSize: 37, lineHeight: 46, letterSpacing: -1.7 },
+  greetingWide: { fontSize: 42, lineHeight: 51, letterSpacing: -1.8 },
   greetingName: { color: COLORS.isDark ? '#A8BCFF' : '#627CB7' },
-  formDescription: { color: COLORS.isDark ? '#A0ADC5' : '#727F96', fontSize: 14, lineHeight: 22, fontWeight: '400', marginTop: 12 },
+  formDescription: { color: COLORS.isDark ? '#A0ADC5' : '#5C6A80', fontSize: 14, lineHeight: 22, fontWeight: '400', marginTop: 12 },
   form: { marginTop: 30 },
+  formCompact: { marginTop: 24 },
   labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 24, marginBottom: 8 },
   label: { color: COLORS.isDark ? '#D4DCEE' : '#33415B', fontSize: 14, fontWeight: '500' },
   passwordLabel: { marginTop: 21, marginBottom: 11 },
@@ -342,7 +308,7 @@ const styles = themedStyles(() => ({
   inputFocused: { borderColor: COLORS.isDark ? '#8DA9FF' : '#6C85C4', backgroundColor: COLORS.isDark ? '#1B2941' : '#FFFFFF' },
   inputError: { borderColor: COLORS.loss },
   input: { flex: 1, minWidth: 0, minHeight: 54, paddingVertical: 15, paddingRight: 8, color: COLORS.isDark ? '#F0F4FF' : '#1E2C48', fontSize: 16, fontWeight: '400', ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}) },
-  placeholder: { color: COLORS.isDark ? '#7F8EA8' : '#8B97AB' },
+  placeholder: { color: COLORS.isDark ? '#7F8EA8' : '#64748B' },
   inputIcon: { color: COLORS.isDark ? '#94A4C1' : '#7B8CA9' },
   accent: { color: COLORS.isDark ? '#A8BCFF' : '#4A67B2' },
   eyeButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
@@ -359,14 +325,10 @@ const styles = themedStyles(() => ({
   signInPressed: { backgroundColor: '#2F50C3', transform: [{ scale: 0.99 }] },
   signInLoading: { opacity: 0.8 },
   signInText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600', letterSpacing: 0.1 },
-  helpSection: { marginTop: 29, paddingTop: 24, borderTopWidth: 1, borderTopColor: COLORS.isDark ? '#263147' : '#E7EBF3', alignItems: 'center' },
-  memberNote: { color: COLORS.isDark ? '#96A4BD' : '#7B879D', fontSize: 11, fontWeight: '400', textAlign: 'center' },
-  helpButton: { minHeight: 42, justifyContent: 'center' },
+  helpSection: { marginTop: 18, alignItems: 'center' },
+  helpButton: { minHeight: 44, justifyContent: 'center' },
   helpButtonText: { color: COLORS.isDark ? '#A8BCFF' : '#4A67B2', fontSize: 12, fontWeight: '500' },
   helpBox: { backgroundColor: COLORS.isDark ? '#1B273D' : '#EEF2FA', padding: 14, borderRadius: 10, marginTop: 4 },
   helpText: { color: COLORS.isDark ? '#B9C6DD' : '#5F6F89', fontSize: 12, lineHeight: 20, fontWeight: '400' },
-  footer: { alignItems: 'center', marginTop: 24 },
-  footerWide: { marginTop: 0 },
-  footerText: { color: COLORS.isDark ? '#7F8DA8' : '#8A97AC', fontSize: 8, fontWeight: '500', letterSpacing: 1.8, textAlign: 'center' },
   pressed: { opacity: 0.65 },
 }));
