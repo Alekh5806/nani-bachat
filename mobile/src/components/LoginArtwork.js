@@ -80,11 +80,3 @@ export const LoginArtwork = () => (
     <Path d="M427 166 H439 M433 160 V172 M206 65 H214 M210 61 V69" stroke="#A3B7EA" strokeWidth="1.2" strokeLinecap="round" opacity="0.6" />
   </Svg>
 );
-
-export const LoginMark = ({ size = 38 }) => (
-  <Svg width={size} height={size} viewBox="0 0 40 40" accessible={false}>
-    <Path d="M6 23 L13 19 L13 31 L6 27 Z" fill="#8EA9FF" />
-    <Path d="M17 16 L24 12 L24 31 L17 27 Z" fill="#B9CAFF" />
-    <Path d="M28 9 L35 5 L35 26 L28 30 Z" fill="#D9E4FF" />
-  </Svg>
-);

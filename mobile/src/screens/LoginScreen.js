@@ -1,13 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  AccessibilityInfo, ActivityIndicator, Animated, KeyboardAvoidingView,
+  AccessibilityInfo, ActivityIndicator, Animated, Image, KeyboardAvoidingView,
   Platform, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Eye, EyeSlash, InfoCircle, Lock1, Mobile, People, ShieldTick, TickSquare } from 'iconsax-react-native';
 import Toast from 'react-native-toast-message';
 
-import { LoginArtwork, LoginMark } from '../components/LoginArtwork';
+import { LoginArtwork } from '../components/LoginArtwork';
 import { UserAvatar } from '../components/UserAvatar';
 import { useAuthStore } from '../store/authStore';
 import { COLORS, themedStyles } from '../theme/colors';
@@ -137,9 +137,11 @@ export const LoginScreen = () => {
             <View style={[styles.hero, wide ? styles.heroWide : { paddingTop: insets.top + 24 }]}>
               <View style={styles.heroOrb} pointerEvents="none" />
               <View style={styles.brand}>
-                <View style={styles.brandMark}><LoginMark size={34} /></View>
+                {!wide && <View style={styles.brandMark}>
+                  <Image source={require('../../assets/favicon.png')} style={styles.brandIcon} accessible={false} />
+                </View>}
                 <View>
-                  <Text style={styles.brandName}>nani bachat<Text style={styles.brandDot}>.</Text></Text>
+                  {!wide && <Text style={styles.brandName}>Nani Bachat</Text>}
                   <Text style={styles.brandCaption}>YOUR PRIVATE INVESTMENT CIRCLE</Text>
                 </View>
               </View>
@@ -153,12 +155,22 @@ export const LoginScreen = () => {
                     “ધીરજનાં ફળ મીઠાં”
                   </Text>
                 </View>
-                <View
-                  style={[styles.artwork, wide ? styles.artworkWide : styles.artworkMobile]}
-                  pointerEvents="none"
-                  accessibilityElementsHidden
-                  importantForAccessibility="no-hide-descendants"
-                ><LoginArtwork /></View>
+                {wide ? (
+                  <Image
+                    source={require('../../assets/login/nani-bachat-logo.webp')}
+                    style={styles.brandLogo}
+                    resizeMode="contain"
+                    accessible
+                    accessibilityLabel="Nani Bachat"
+                  />
+                ) : (
+                  <View
+                    style={styles.artworkMobile}
+                    pointerEvents="none"
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                  ><LoginArtwork /></View>
+                )}
               </View>
               {wide && <View style={styles.heroFooter}>
                 <View style={styles.circleIcon}><People size={18} color="#C3D1F1" /></View>
@@ -291,11 +303,12 @@ const styles = themedStyles(() => ({
   hero: { backgroundColor: '#101D33', overflow: 'hidden', paddingHorizontal: 28, paddingBottom: 22 },
   heroWide: { width: '51%', padding: 44, paddingBottom: 34 },
   heroOrb: { position: 'absolute', width: 520, height: 520, borderRadius: 260, backgroundColor: '#152640', top: -270, right: -260, opacity: 0.7 },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 10, zIndex: 1 },
-  brandMark: { width: 45, height: 45, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1D2C47', borderWidth: 1, borderColor: '#344360' },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 45, zIndex: 1 },
+  brandMark: { width: 45, height: 45, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FCF8F3' },
+  brandIcon: { width: 36, height: 36 },
   brandName: { color: '#F4F6FF', fontSize: 23, fontWeight: '600', letterSpacing: -0.9 },
-  brandDot: { color: '#A9C1FF' },
   brandCaption: { color: '#9DACCA', fontSize: 9, fontWeight: '500', letterSpacing: 1.3, marginTop: 4 },
+  brandLogo: { alignSelf: 'center', width: 320, height: 245, borderRadius: 22, marginTop: 36 },
   heroMain: { marginTop: 24, minHeight: 70, justifyContent: 'center' },
   heroMainWide: { flex: 1, marginTop: 66, minHeight: 555, justifyContent: 'center' },
   proverbFrame: { alignSelf: 'flex-start', maxWidth: '100%', borderLeftWidth: 2, borderLeftColor: '#BD9B69', paddingLeft: 14, paddingVertical: 5, zIndex: 1 },
@@ -303,8 +316,6 @@ const styles = themedStyles(() => ({
   proverb: { color: '#F0DAB4', fontFamily: 'NotoSerifGujarati_600SemiBold', fontSize: 31, lineHeight: 46 },
   proverbCompact: { fontSize: 27, lineHeight: 42 },
   proverbWide: { fontSize: 52, lineHeight: 75 },
-  artwork: { alignSelf: 'center' },
-  artworkWide: { width: '116%', height: 340, marginTop: 24, marginLeft: -10 },
   artworkMobile: { position: 'absolute', width: 196, height: 140, right: -76, top: -33, opacity: 0.28 },
   heroFooter: { flexDirection: 'row', alignItems: 'center', gap: 11, borderTopWidth: 1, borderTopColor: '#29374F', paddingTop: 22 },
   circleIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#1E2E48', alignItems: 'center', justifyContent: 'center' },

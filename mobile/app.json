@@ -24,7 +24,8 @@
       "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0D0D0D"
+        "monochromeImage": "./assets/adaptive-monochrome.png",
+        "backgroundColor": "#FCF8F3"
       },
       "package": "com.nanibachat.app",
       "googleServicesFile": "./google-services.json"
@@ -38,7 +39,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/icon.png",
+          "icon": "./assets/notification-icon.png",
           "color": "#00D09C",
           "androidMode": "default",
           "androidCollapsedTitle": "Nani Bachat"
