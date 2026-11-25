@@ -37,7 +37,7 @@ export const AddMemberScreen = ({ navigation }) => {
     monthlyAmount: '1000',
     paymentMonth: getCurrentMonth(),
   });
-  const [recordCatchUp, setRecordCatchUp] = useState(true);
+  const [recordCatchUp, setRecordCatchUp] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const catchUpAmount = useMemo(() => {
@@ -177,7 +177,7 @@ export const AddMemberScreen = ({ navigation }) => {
 
       <View style={styles.card}>
         <SwitchRow
-          label="Catch-up payment"
+          label="Record a catch-up payment"
           hint="Use this when a new member pays old months now"
           value={recordCatchUp}
           onValueChange={setRecordCatchUp}

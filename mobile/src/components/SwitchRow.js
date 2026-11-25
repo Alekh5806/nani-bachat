@@ -13,7 +13,7 @@ export const SwitchRow = ({ label, hint, value, onValueChange, style }) => (
   <Pressable
     onPress={() => onValueChange(!value)}
     accessibilityRole="switch"
-    accessibilityState={{ checked: !!value }}
+    aria-checked={!!value}
     accessibilityLabel={label}
     style={[styles.row, style]}
   >

@@ -50,7 +50,7 @@ const stackOptions = () => ({
 const TAB_LABELS = {
   Dashboard: 'Home',
   Investments: 'Stocks',
-  Members: 'Member',
+  Members: 'Members',
   Dividends: 'Dividend',
   Profile: 'Profile',
 };

@@ -1,147 +1,246 @@
-/**
- * Members Screen
- * Shows all pool members with their contribution and portfolio details
- */
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
-  View, Text, ScrollView, RefreshControl, Pressable
+  ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, Text, View, useWindowDimensions,
 } from 'react-native';
-import { Add } from 'iconsax-react-native';
+import { Add, ArrowDown2, Refresh2 } from 'iconsax-react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { usePortfolioStore } from '../store/portfolioStore';
 import { useAuthStore } from '../store/authStore';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { GlassCard } from '../components/GlassCard';
 import { MemberRow } from '../components/MemberRow';
 import { fmtFull } from '../utils/currency';
 import { usePersistedState } from '../utils/usePersistedState';
-import { SummaryCard } from '../components/SummaryCard';
-import { SectionHeader } from '../components/SectionHeader';
 import { ContributionsScreen } from './ContributionsScreen';
-import { COLORS, SPACING, themedStyles, TYPE } from '../theme/colors';
+import { COLORS, RADIUS, SPACING, themedStyles, TYPE } from '../theme/colors';
 import { TabBarSpacer } from '../components/TabBarSpacer';
 
-const TABS = [['members', 'Member'], ['contributions', 'Contribution'], ['history', 'History']];
+const TABS = [['members', 'Directory'], ['contributions', 'Contributions'], ['history', 'History']];
+const TAB_KEYS = TABS.map(([key]) => key);
+const CONTENT_WIDTH = 1040;
 
 export const MembersScreen = ({ navigation }) => {
   const { user } = useAuthStore();
   const { members, fetchMembers, dashboard, fetchDashboard } = usePortfolioStore();
+  const { width } = useWindowDimensions();
   const [refreshing, setRefreshing] = useState(false);
-  const [tab, setTab] = usePersistedState('tab:members', 'members', TABS.map(([key]) => key));
-  // History tab registers a "load more" function here; we call it near the bottom.
+  const [directoryStatus, setDirectoryStatus] = useState('loading');
+  const [showBreakdown, setShowBreakdown] = useState(false);
+  const [tab, setTab] = usePersistedState('tab:members', 'members', TAB_KEYS);
+  const scrollRef = useRef(null);
   const endRef = useRef(null);
-  // Contribution tab registers its "Generate month" opener here for the header Add button.
   const addRef = useRef(null);
-  const viewH = useRef(0);
-  const nearEnd = (y, viewport, content) => {
-    if (y + viewport >= content - 240) endRef.current?.();
+  const refreshRef = useRef(null);
+  const viewHeight = useRef(0);
+
+  const loadDirectory = useCallback(async () => {
+    const [result] = await Promise.all([fetchMembers(), fetchDashboard()]);
+    setDirectoryStatus(result == null ? 'error' : 'ready');
+  }, [fetchMembers, fetchDashboard]);
+
+  useFocusEffect(useCallback(() => {
+    loadDirectory();
+  }, [loadDirectory]));
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      if (tab === 'members') await loadDirectory();
+      else await refreshRef.current?.();
+    } finally {
+      setRefreshing(false);
+    }
   };
 
-  useEffect(() => {
-    fetchMembers();
-    fetchDashboard();
-  }, []);
+  const nearEnd = (y, viewport, content) => {
+    if (tab === 'history' && y + viewport >= content - 240) endRef.current?.();
+  };
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchMembers();
-      fetchDashboard();
-    }, [fetchMembers, fetchDashboard])
-  );
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await Promise.all([fetchMembers(), fetchDashboard()]);
-    setRefreshing(false);
-  }, []);
-
-  const isAdmin = user?.role === 'admin';
-  const my = dashboard?.my_portfolio || {};
-  const pnl = Number(my.profit_loss) || 0;
-  const totalContributions = members.reduce(
-    (sum, m) => sum + (Number(m.total_contribution) || 0), 0
-  );
-  const activeCount = members.filter((m) => m.is_active !== false).length;
-  const averageContribution = members.length ? Math.round(totalContributions / members.length) : 0;
+  const isAdmin = user?.is_staff || user?.is_admin || user?.role === 'admin';
+  const my = dashboard?.my_portfolio;
+  const pnl = Number(my?.profit_loss) || 0;
+  const activeMembers = members.filter((member) => member.is_active !== false);
+  const groupTotal = activeMembers.reduce((sum, member) => sum + (Number(member.total_contribution) || 0), 0);
+  const average = activeMembers.length ? groupTotal / activeMembers.length : 0;
+  const isWeb = Platform.OS === 'web';
+  const wide = isWeb && width >= 840;
+  const compactHeader = width < 360 && !!isAdmin && tab === 'contributions';
 
   return (
     <View style={styles.container}>
-      <ScreenHeader
-        title="Members"
-        subtitle={`${members.length} active members`}
-        rightAction={isAdmin && tab !== 'history'
-          ? () => (tab === 'members' ? navigation.navigate('AddMember') : addRef.current?.())
-          : undefined}
-        rightIcon={<Add size={16} color={COLORS.onAccent} />}
-        rightLabel="Add"
-      />
-
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        scrollEventThrottle={200}
-        onLayout={(e) => { viewH.current = e.nativeEvent.layout.height; }}
-        onScroll={({ nativeEvent: n }) => nearEnd(n.contentOffset.y, n.layoutMeasurement.height, n.contentSize.height)}
-        onContentSizeChange={(w, h) => nearEnd(0, viewH.current, h)}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} />
-        }
-      >
-        {/* ── Tabs: only the active one is rendered ── */}
-        <View style={styles.tabs}>
-          {TABS.map(([key, label]) => (
-            <Pressable key={key} onPress={() => setTab(key)} style={[styles.tab, tab === key && styles.tabActive]}>
-              <Text style={[styles.tabText, tab === key && styles.tabTextActive]}>{label}</Text>
+      <View style={styles.frame}>
+        <ScreenHeader
+          title="Members"
+          subtitle={!compactHeader && (members.length > 0 || directoryStatus === 'ready')
+            ? `${activeMembers.length} active ${activeMembers.length === 1 ? 'member' : 'members'}`
+            : undefined}
+          inset={SPACING.lg}
+          rightAction={isAdmin && tab !== 'history'
+            ? () => (tab === 'members' ? navigation.navigate('AddMember') : addRef.current?.())
+            : undefined}
+          rightIcon={!compactHeader && <Add size={16} color={COLORS.onAccent} />}
+          rightLabel={tab === 'members' ? 'Add member' : 'Generate month'}
+        />
+        <View style={styles.tabBar}>
+          <View accessibilityRole="tablist" style={styles.tabs}>
+            {TABS.map(([key, label]) => (
+              <Pressable
+                key={key}
+                accessibilityRole="tab"
+                aria-selected={tab === key}
+                onPress={() => {
+                  if (key === tab) return;
+                  scrollRef.current?.scrollTo({ y: 0, animated: false });
+                  setTab(key);
+                }}
+                style={[
+                  styles.tab,
+                  isWeb && width < 360 && key === 'contributions' && styles.longTab,
+                  tab === key && styles.tabActive,
+                ]}
+              >
+                <Text style={[styles.tabText, tab === key && styles.tabTextActive]}>{label}</Text>
+              </Pressable>
+            ))}
+          </View>
+          {isWeb && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Refresh current tab"
+              aria-busy={refreshing}
+              disabled={refreshing}
+              onPress={onRefresh}
+              style={({ hovered }) => [styles.refreshButton, hovered && styles.refreshHovered]}
+            >
+              {refreshing
+                ? <ActivityIndicator size="small" color={COLORS.accent} />
+                : <Refresh2 size={17} color={COLORS.textSecondary} />}
             </Pressable>
-          ))}
+          )}
         </View>
 
-        {tab === 'members' ? (
-          <>
-          {/* ── Ownership and group totals: one summary card ── */}
-          <SummaryCard
-            label={`Your ownership · ${Number(my.ownership_percentage || 0).toFixed(1)}% of the group`}
-            value={fmtFull(my.current_value)}
-            style={{ marginBottom: 0 }}
-            rows={[
-              { label: 'Profit / loss', value: `${pnl >= 0 ? '+' : ''}${fmtFull(pnl)}`, color: pnl === 0 ? COLORS.neutral : pnl > 0 ? COLORS.profit : COLORS.loss },
-              { label: 'Contributed', value: fmtFull(my.total_contribution) },
-              { label: 'Dividends', value: fmtFull(my.dividend_earned) },
-              { label: `Group contributed (${activeCount} members)`, value: `₹${totalContributions.toLocaleString('en-IN')}` },
-              { label: 'Average per member', value: `₹${averageContribution.toLocaleString('en-IN')}` },
-            ]}
-          />
+        <ScrollView
+          ref={scrollRef}
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          scrollEventThrottle={200}
+          onLayout={(e) => { viewHeight.current = e.nativeEvent.layout.height; }}
+          onScroll={({ nativeEvent: n }) => nearEnd(n.contentOffset.y, n.layoutMeasurement.height, n.contentSize.height)}
+          onContentSizeChange={(_, height) => nearEnd(0, viewHeight.current, height)}
+          refreshControl={isWeb ? undefined : <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} />}
+        >
+          {tab === 'members' ? (
+            <View style={[styles.directory, wide && styles.directoryWide]}>
+              <GlassCard style={wide && styles.summaryWide} padding={SPACING.md}>
+                <Text style={styles.label}>Your portfolio value</Text>
+                <Text style={styles.value}>{my ? fmtFull(my.current_value) : '—'}</Text>
+                {my && (
+                  <View style={styles.metrics}>
+                    <Text style={styles.label}>{Number(my.ownership_percentage || 0).toFixed(1)}% ownership</Text>
+                    <Text style={[styles.metricValue, { color: pnl === 0 ? COLORS.neutral : pnl > 0 ? COLORS.profit : COLORS.loss }]}>
+                      {pnl > 0 ? '+' : ''}{fmtFull(pnl)} P/L
+                    </Text>
+                  </View>
+                )}
+                <Pressable
+                  accessibilityRole="button"
+                  aria-expanded={showBreakdown}
+                  onPress={() => setShowBreakdown((open) => !open)}
+                  style={styles.disclosure}
+                >
+                  <Text style={styles.link}>{showBreakdown ? 'Hide breakdown' : 'View breakdown'}</Text>
+                  <ArrowDown2 size={14} color={COLORS.accent} style={showBreakdown && styles.expandedIcon} />
+                </Pressable>
+                {showBreakdown && (
+                  <View style={styles.breakdown}>
+                    {[
+                      ['Your contributions', my ? fmtFull(my.total_contribution) : '—'],
+                      ['Dividends', my ? fmtFull(my.dividend_earned) : '—'],
+                      ['Group contributions', directoryStatus === 'ready' || members.length ? fmtFull(groupTotal) : '—'],
+                      ['Average per active member', directoryStatus === 'ready' || members.length ? fmtFull(average) : '—'],
+                    ].map(([label, value]) => (
+                      <View key={label} style={styles.breakdownRow}>
+                        <Text style={[styles.label, styles.breakdownLabel]}>{label}</Text>
+                        <Text style={styles.breakdownValue}>{value}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </GlassCard>
 
-          {/* ── Member List ── */}
-          <SectionHeader title="All Members" />
-          {members.map((member, index) => (
-            <MemberRow key={member.id || index} member={member} onPress={() => navigation.navigate('MemberDetail', { member })} />
-          ))}
-          </>
-        ) : (
-          <ContributionsScreen route={{}} navigation={navigation} embedded view={tab} endRef={endRef} addRef={addRef} />
-        )}
+              <View style={styles.directoryList}>
+                <Text accessibilityRole="header" style={styles.sectionTitle}>All members</Text>
+                {members.length > 0 ? (
+                  <GlassCard style={styles.listCard} padding={0}>
+                    {members.map((member, index) => (
+                      <MemberRow
+                        key={member.id}
+                        member={member}
+                        isSelf={member.id === user?.id}
+                        divided={index > 0}
+                        onPress={() => navigation.navigate('MemberDetail', { member })}
+                      />
+                    ))}
+                  </GlassCard>
+                ) : directoryStatus === 'loading' ? (
+                  <ActivityIndicator accessibilityLabel="Loading members" color={COLORS.accent} />
+                ) : directoryStatus === 'error' ? (
+                  <Pressable accessibilityRole="button" onPress={loadDirectory} style={styles.disclosure}>
+                    <Text style={styles.link}>Couldn’t load members. Retry</Text>
+                  </Pressable>
+                ) : (
+                  <Text style={styles.label}>No members yet</Text>
+                )}
+              </View>
+            </View>
+          ) : (
+            <ContributionsScreen
+              embedded
+              view={tab}
+              endRef={endRef}
+              addRef={addRef}
+              refreshRef={refreshRef}
+            />
+          )}
 
-        <TabBarSpacer />
-      </ScrollView>
+          <TabBarSpacer />
+        </ScrollView>
+      </View>
     </View>
   );
 };
 
 const styles = themedStyles(() => ({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  frame: { flex: 1, width: '100%', maxWidth: CONTENT_WIDTH, alignSelf: 'center' },
   scrollView: { flex: 1 },
-  scrollContent: {
-    paddingHorizontal: SPACING.lg,
-    paddingBottom: 0,
-  },
-  tabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: COLORS.divider, marginBottom: SPACING.md },
-  tab: { paddingVertical: SPACING.md, marginRight: SPACING.xl, borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  tabActive: { borderBottomColor: COLORS.textPrimary },
-  tabText: { ...TYPE.body, color: COLORS.textMuted },
-  tabTextActive: { color: COLORS.textPrimary },
+  scrollContent: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.md },
+  tabBar: { flexDirection: 'row', alignItems: 'center', marginHorizontal: SPACING.lg, borderBottomWidth: 1, borderBottomColor: COLORS.divider },
+  tabs: { flex: 1, flexDirection: 'row' },
+  tab: { minHeight: 44, justifyContent: 'center', alignItems: 'center', flex: 1, paddingHorizontal: SPACING.xs, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  longTab: { flex: 1.3 },
+  tabActive: { borderBottomColor: COLORS.accent },
+  tabText: { ...TYPE.tab, color: COLORS.textMuted, textAlign: 'center' },
+  tabTextActive: { color: COLORS.accent },
+  refreshButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: RADIUS.md },
+  refreshHovered: { backgroundColor: COLORS.accent + '0D' },
+  directory: { gap: SPACING.lg },
+  directoryWide: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.xxl },
+  summaryWide: { width: 320 },
+  label: { ...TYPE.secondary, color: COLORS.textSecondary },
+  value: { ...TYPE.portfolioValue, color: COLORS.textPrimary, marginTop: SPACING.xs },
+  metrics: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: SPACING.lg, rowGap: SPACING.xs, marginTop: SPACING.xs },
+  metricValue: { ...TYPE.secondaryMedium },
+  disclosure: { minHeight: 44, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: -SPACING.sm },
+  link: { ...TYPE.secondaryMedium, color: COLORS.accent },
+  expandedIcon: { transform: [{ rotate: '180deg' }] },
+  breakdown: { marginTop: SPACING.sm, paddingTop: SPACING.sm, borderTopWidth: 1, borderTopColor: COLORS.divider, gap: SPACING.sm },
+  breakdownRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: SPACING.sm },
+  breakdownLabel: { flex: 1 },
+  breakdownValue: { ...TYPE.secondaryMedium, color: COLORS.textPrimary },
+  directoryList: { flex: 1, minWidth: 0 },
+  sectionTitle: { ...TYPE.sectionTitle, color: COLORS.textPrimary, marginBottom: SPACING.sm },
+  listCard: { overflow: 'hidden', borderRadius: RADIUS.lg },
 }));
