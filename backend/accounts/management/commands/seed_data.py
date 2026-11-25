@@ -159,26 +159,10 @@ class Command(BaseCommand):
                     if created:
                         self.stdout.write(f'  🎁 Dividend: {data["stock"].symbol}')
 
-        # ── Create Portfolio Snapshots ──
-        from portfolio.models import PortfolioSnapshot
-
-        base_invested = 40000
-        for i in range(90):
-            snap_date = date.today() - timedelta(days=90-i)
-            growth = 1 + (random.uniform(-0.02, 0.04) * (i / 90))
-            value = base_invested * growth * (1 + i * 0.005)
-
-            PortfolioSnapshot.objects.get_or_create(
-                date=snap_date,
-                defaults={
-                    'total_invested': base_invested + (i * 200),
-                    'total_current_value': round(value, 2),
-                    'total_profit_loss': round(value - (base_invested + i * 200), 2),
-                    'profit_loss_percentage': round(((value - (base_invested + i * 200)) / (base_invested + i * 200)) * 100, 2),
-                    'total_dividends': 555 + (i * 5),
-                    'member_count': 10,
-                }
-            )
+        # Record the seeded ledger's actual valuation. Random historical values
+        # cannot be reconciled to the purchases/contributions above.
+        from portfolio.services import PortfolioService
+        PortfolioService.save_current_snapshot()
 
         self.stdout.write(self.style.SUCCESS('\n✅ Database seeded successfully!'))
         self.stdout.write(self.style.WARNING('\n📌 Login Credentials:'))

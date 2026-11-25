@@ -165,7 +165,7 @@ function PortfolioValueCard({ dashboard, refreshing, refresh, today, refreshKey 
           </Text>}
         </View>
       </View>
-      <PortfolioHistory recent={dashboard.growth_data} today={today} refreshKey={refreshKey} />
+      <PortfolioHistory recent={dashboard.growth_data} complete={dashboard.growth_data_complete} today={today} refreshKey={refreshKey} />
     </View>
   );
 }

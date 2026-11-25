@@ -2,12 +2,16 @@
 Views for the portfolio app.
 Dashboard data, portfolio summary, and growth charts.
 """
+from datetime import date
 from rest_framework import generics, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.db.models import Q
+from django.utils import timezone
 from concurrent.futures import ThreadPoolExecutor
 
 from .models import PortfolioSnapshot
@@ -32,6 +36,7 @@ class DashboardView(APIView):
 
         # Portfolio summary
         portfolio = PortfolioService.get_portfolio_summary()
+        snapshot, _ = PortfolioService.save_current_snapshot(portfolio)
 
         # Member's personal portfolio
         member_portfolio = PortfolioService.get_member_portfolio(request.user)
@@ -43,10 +48,10 @@ class DashboardView(APIView):
         active_members = Member.objects.filter(is_active=True).count()
 
         # Recent growth data (last 30 snapshots)
-        growth_data = PortfolioSnapshotSerializer(
-            PortfolioSnapshot.objects.all()[:30],
-            many=True
-        ).data
+        recent = list(PortfolioSnapshot.objects.filter(date__lte=snapshot.date)[:31])
+        if recent and recent[0].date == snapshot.date:
+            recent[0] = snapshot
+        growth_data = PortfolioSnapshotSerializer(recent[:30], many=True).data
 
         return Response({
             'portfolio': portfolio,
@@ -54,6 +59,7 @@ class DashboardView(APIView):
             'allocation': allocation,
             'active_members': active_members,
             'growth_data': growth_data,
+            'growth_data_complete': len(recent) <= 30,
         })
 
 
@@ -112,8 +118,35 @@ class PortfolioGrowthView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        limit = self.request.query_params.get('limit', 90)
-        return PortfolioSnapshot.objects.all()[:int(limit)]
+        params = self.request.query_params
+        limit = params.get('limit', '90')
+        if limit != 'all':
+            try:
+                limit = int(limit)
+                if limit < 1:
+                    raise ValueError
+                # Older mobile clients use Number.MAX_SAFE_INTEGER for All.
+                limit = min(limit, 1000000)
+            except (TypeError, ValueError):
+                raise ValidationError({'limit': 'Use a positive integer, or all.'})
+        since = params.get('since')
+        if since:
+            try:
+                parsed = date.fromisoformat(since)
+                if parsed.isoformat() != since:
+                    raise ValueError
+                since = parsed
+            except ValueError:
+                raise ValidationError({'since': 'Use a calendar date in YYYY-MM-DD format.'})
+
+        PortfolioService.save_current_snapshot()
+        snapshots = PortfolioSnapshot.objects.filter(date__lte=timezone.localdate())
+        if since:
+            # Include the previous recorded value as context for a missing first
+            # day. The client labels any carried values rather than inventing prices.
+            previous = snapshots.filter(date__lt=since).first()
+            snapshots = snapshots.filter(Q(date__gte=since) | Q(pk=previous.pk if previous else None))
+        return snapshots if limit == 'all' else snapshots[:limit]
 
 
 class AllocationView(APIView):

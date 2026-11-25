@@ -4,7 +4,6 @@ Handles scheduled stock price updates and daily snapshots.
 """
 from celery import shared_task
 from django.utils import timezone
-from django.contrib.auth import get_user_model
 import logging
 
 logger = logging.getLogger(__name__)
@@ -48,31 +47,9 @@ def save_daily_snapshot():
     Save daily portfolio snapshot for growth chart.
     Runs daily at 4 PM IST (after market close).
     """
-    from portfolio.models import PortfolioSnapshot
     from portfolio.services import PortfolioService
-    from dividends.models import Dividend
-    from django.db.models import Sum
-
-    Member = get_user_model()
-    today = timezone.now().date()
-
-    portfolio = PortfolioService.get_portfolio_summary()
-    total_dividends = Dividend.objects.aggregate(
-        total=Sum('total_dividend')
-    )['total'] or 0
-
-    snapshot, created = PortfolioSnapshot.objects.update_or_create(
-        date=today,
-        defaults={
-            'total_invested': portfolio['total_invested'],
-            'total_current_value': portfolio['current_value'],
-            'total_profit_loss': portfolio['profit_loss'],
-            'profit_loss_percentage': portfolio['growth_percentage'],
-            'total_dividends': float(total_dividends),
-            'member_count': Member.objects.filter(is_active=True).count(),
-        }
-    )
+    snapshot, created = PortfolioService.save_current_snapshot()
 
     action = 'Created' if created else 'Updated'
-    logger.info(f'{action} portfolio snapshot for {today}')
-    return f'{action} snapshot for {today}: ₹{portfolio["current_value"]}'
+    logger.info(f'{action} portfolio snapshot for {snapshot.date}')
+    return f'{action} snapshot for {snapshot.date}: ₹{snapshot.total_current_value}'

@@ -4,48 +4,50 @@ import Svg, { Circle, Line, Path } from 'react-native-svg';
 import { AppIcon } from './Icon';
 import { COLORS, RADIUS, SPACING, TYPE, themedStyles } from '../theme/colors';
 import { fmtFull } from '../utils/currency';
-import { dateLabel } from '../utils/portfolioHistory';
+import { chartGeometry, dateLabel } from '../utils/portfolioHistory';
 
 const INSET = 8;
 
-export function GrowthChart({ data, height = 120 }) {
+export function GrowthChart({ data = [], height = 120 }) {
   const [width, setWidth] = useState(0);
   const [selectedDate, setSelectedDate] = useState(null);
   const selected = selectedDate && data.find((point) => point.date === selectedDate);
   const point = selected || data[data.length - 1];
   const index = data.indexOf(point);
 
-  const points = useMemo(() => {
-    if (!data.length || width <= 2 * INSET) return [];
-    const values = data.map((entry) => entry.value);
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const start = Date.parse(data[0].date);
-    const span = Date.parse(data[data.length - 1].date) - start;
-    return data.map(({ date, value }) => ({
-      date,
-      x: span ? INSET + (Date.parse(date) - start) / span * (width - 2 * INSET) : width / 2,
-      y: max === min ? height / 2 : INSET + (max - value) / (max - min) * (height - 2 * INSET),
-    }));
-  }, [data, width, height]);
+  const points = useMemo(() => chartGeometry(data, width, height, INSET), [data, width, height]);
 
   const responder = useMemo(() => {
     const pick = (event) => {
       if (!points.length) return;
       const x = event.nativeEvent.locationX;
+      if (!Number.isFinite(x)) return;
       const nearest = points.reduce((a, b) => Math.abs(a.x - x) <= Math.abs(b.x - x) ? a : b);
       setSelectedDate(nearest.date);
     };
     return PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 5 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
       onPanResponderGrant: pick,
       onPanResponderMove: pick,
+      onPanResponderTerminationRequest: () => true,
     });
   }, [points]);
 
   if (!point) return <Text style={styles.empty}>No snapshots in this period.</Text>;
 
-  const line = points.map(({ x, y }, i) => (i ? 'L' : 'M') + x.toFixed(1) + ',' + y.toFixed(1)).join(' ');
+  const paths = { recorded: '', carried: '' };
+  let line = '';
+  points.forEach((point, i) => {
+    const previous = points[i - 1];
+    const move = 'M' + point.x.toFixed(1) + ',' + point.y.toFixed(1);
+    if (!previous) { line = move; return; }
+    const carried = point.carried || previous.carried;
+    const segment = carried ? 'H' + point.x.toFixed(1) + 'V' + point.y.toFixed(1)
+      : 'L' + point.x.toFixed(1) + ',' + point.y.toFixed(1);
+    line += segment;
+    paths[carried ? 'carried' : 'recorded'] += 'M' + previous.x.toFixed(1) + ',' + previous.y.toFixed(1) + segment;
+  });
   const dot = points[index];
   const moveButton = (step, label, icon) => {
     const target = data[index + step];
@@ -71,7 +73,8 @@ export function GrowthChart({ data, height = 120 }) {
               {points.length > 1 && <>
                 <Path d={line + ' L' + points[points.length - 1].x + ',' + height + ' L' + points[0].x + ',' + height + ' Z'}
                   fill={COLORS.accent} fillOpacity={0.07} />
-                <Path d={line} fill="none" stroke={COLORS.accent} strokeWidth={2.5} strokeLinejoin="round" />
+                {!!paths.recorded && <Path d={paths.recorded} fill="none" stroke={COLORS.accent} strokeWidth={2.5} strokeLinejoin="round" />}
+                {!!paths.carried && <Path d={paths.carried} fill="none" stroke={COLORS.accent} strokeWidth={2} strokeDasharray="4 4" />}
               </>}
               {dot && <>
                 {selected && <Line x1={dot.x} x2={dot.x} y1={INSET} y2={height} stroke={COLORS.textSecondary} strokeDasharray="3 4" />}
@@ -81,19 +84,26 @@ export function GrowthChart({ data, height = 120 }) {
           )}
         </View>
       </View>
+      {data.length > 1 && <View style={styles.axis}>
+        <Text style={styles.date}>{dateLabel(data[0].date)}</Text>
+        <Text style={styles.date}>{dateLabel(data[data.length - 1].date)}</Text>
+      </View>}
       <View style={styles.readout}>
-        {data.length > 1 && moveButton(-1, 'Previous snapshot', 'chevron-back')}
+        {data.length > 1 && moveButton(-1, 'Previous day', 'chevron-back')}
         <View style={styles.readoutText} accessibilityLiveRegion="polite">
           <Text style={styles.date}>{dateLabel(point.date)}</Text>
           <Text style={styles.amount}>{fmtFull(point.value)}</Text>
+          {point.carried && <Text style={styles.date}>Last recorded {dateLabel(point.sourceDate)}</Text>}
+          {data.length === 1 && <Text style={styles.date}>One recorded day</Text>}
         </View>
-        {data.length > 1 && moveButton(1, 'Next snapshot', 'chevron-forward')}
+        {data.length > 1 && moveButton(1, 'Next day', 'chevron-forward')}
       </View>
     </View>
   );
 }
 
 const styles = themedStyles(() => ({
+  axis: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: SPACING.sm, marginTop: SPACING.xs },
   readout: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: SPACING.sm },
   readoutText: { alignItems: 'center', flexShrink: 1, paddingHorizontal: SPACING.md },
   date: { ...TYPE.caption, color: COLORS.textSecondary },

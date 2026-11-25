@@ -7,6 +7,7 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { usePortfolioStore } from './portfolioStore';
 import api, { setLogoutCallback, setSessionTokens } from '../config/api';
+import { forgetRememberedMember, rememberMember } from '../utils/rememberedMember';
 
 export const useAuthStore = create((set, get) => {
   // Register the force-logout callback so the API interceptor
@@ -34,6 +35,7 @@ export const useAuthStore = create((set, get) => {
 
         if (token && refresh && userStr) {
           const user = JSON.parse(userStr);
+          await rememberMember(user);
           set({ token, refreshToken: refresh, user, isLoading: false });
 
           // Validate in the background so cold starts never block the UI.
@@ -47,7 +49,6 @@ export const useAuthStore = create((set, get) => {
     },
 
     // ── Login ──
- // ── Login ──
     login: async (phone, password, rememberMe = true) => {
       set({ isLoading: true, error: null });
       try {
@@ -56,25 +57,17 @@ export const useAuthStore = create((set, get) => {
         setSessionTokens(access, refresh);
         if (get().user?.id !== member?.id) await usePortfolioStore.getState().clearCache();
 
-       if (rememberMe) {
-        // Save session tokens
-        await AsyncStorage.setItem('access_token', access);
-        await AsyncStorage.setItem('refresh_token', refresh);
-        await AsyncStorage.setItem('user', JSON.stringify(member));
-        
-        // NEW: Save the actual text for the UI to fill in later
-        await AsyncStorage.setItem('saved_phone', phone);
-        await AsyncStorage.setItem('saved_password', password); 
-       } else {
-        // Clear everything if they don't want to be remembered
-        await AsyncStorage.multiRemove([
-            'access_token', 
-            'refresh_token', 
-            'user',
-            'saved_phone',    // NEW: Clear saved phone
-            'saved_password'  // NEW: Clear saved password
-        ]);
-       }
+        if (rememberMe) {
+          await AsyncStorage.multiSet([
+            ['access_token', access],
+            ['refresh_token', refresh],
+            ['user', JSON.stringify(member)],
+          ]);
+          await rememberMember(member);
+        } else {
+          await AsyncStorage.multiRemove(['access_token', 'refresh_token', 'user']);
+          await forgetRememberedMember();
+        }
         set({
           token: access,
           refreshToken: refresh,
@@ -83,7 +76,7 @@ export const useAuthStore = create((set, get) => {
           error: null,
         });
 
-        return { success: true };
+        return { success: true, member };
       } catch (error) {
         const message = error.response?.data?.detail || 'Invalid credentials';
         set({ isLoading: false, error: message });
@@ -112,6 +105,7 @@ export const useAuthStore = create((set, get) => {
     updateUser: async (userData) => {
       set({ user: userData });
       await AsyncStorage.setItem('user', JSON.stringify(userData));
+      await rememberMember(userData);
     },
 
     // ── Clear error ──
@@ -124,6 +118,7 @@ export const useAuthStore = create((set, get) => {
         const freshUser = response.data;
         set({ user: freshUser });
         await AsyncStorage.setItem('user', JSON.stringify(freshUser));
+        await rememberMember(freshUser);
         return freshUser;
       } catch (error) {
         console.error('Failed to fetch profile:', error);

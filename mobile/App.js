@@ -49,7 +49,7 @@ const buildPaperTheme = () => {
 const NAV_STATE_KEY = 'navigationState';
 
 export default function App() {
-  const { token, isLoading, loadToken } = useAuthStore();
+  const { token, loadToken } = useAuthStore();
   const [appReady, setAppReady] = useState(false);
   const [fontsLoaded, fontError] = useFonts(FONT_ASSETS);
   const themeVersion = useThemeStore((st) => st.version);
@@ -105,7 +105,7 @@ export default function App() {
     },
   }), []);
 
-  if (!appReady || isLoading || !(fontsLoaded || fontError)) {
+  if (!appReady || !(fontsLoaded || fontError)) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator size="large" color={COLORS.accent} />
@@ -148,7 +148,7 @@ export default function App() {
           >
             {token ? <MainNavigator /> : <AuthNavigator />}
           </NavigationContainer>
-          <StatusBar style={themeMode === 'dark' ? 'light' : 'dark'} />
+          <StatusBar style={!token || themeMode === 'dark' ? 'light' : 'dark'} />
           <Toast config={toastConfig} />
           <DialogHost />
           </View>

@@ -249,6 +249,30 @@ class PortfolioService:
     """Service for portfolio-level calculations."""
 
     @staticmethod
+    def save_current_snapshot(portfolio=None):
+        """Record the same valuation shown on the dashboard, using the club day.
+
+        Also called on reads so history does not depend on a Celery worker being
+        deployed. Never backdate today's prices to fill missing historical days.
+        """
+        from django.contrib.auth import get_user_model
+        from portfolio.models import PortfolioSnapshot
+
+        if portfolio is None:
+            portfolio = PortfolioService.get_portfolio_summary()
+        return PortfolioSnapshot.objects.update_or_create(
+            date=timezone.localdate(),
+            defaults={
+                'total_invested': portfolio['total_invested'],
+                'total_current_value': portfolio['current_value'],
+                'total_profit_loss': portfolio['profit_loss'],
+                'profit_loss_percentage': portfolio['growth_percentage'],
+                'total_dividends': portfolio['total_dividends'],
+                'member_count': get_user_model().objects.filter(is_active=True).count(),
+            },
+        )
+
+    @staticmethod
     def _money(value) -> Decimal:
         """Convert database/numeric values to Decimal without float drift."""
         return Decimal(str(value or 0))
@@ -384,7 +408,9 @@ class PortfolioService:
             stocks = active_stocks.filter(symbol=symbol)
             first = stocks.first()
             qty = sum(s.quantity for s in stocks)
-            value = float(first.current_price) * qty
+            quote = cache.get(f'stock_price_{symbol}') or {}
+            price = PortfolioService._money(quote.get('current_price'))
+            value = float(sum((price if price > 0 else s.current_price) * s.quantity for s in stocks))
             total_value += value
             allocation.append({
                 'symbol': symbol,

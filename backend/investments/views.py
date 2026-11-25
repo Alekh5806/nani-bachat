@@ -136,13 +136,13 @@ class StockSummaryView(generics.GenericAPIView):
             first_stock = stocks.first()
 
             avg_price = total_invested / total_qty if total_qty > 0 else 0
-            current_price = float(first_stock.current_price) if first_stock else 0
+            current_value = sum(float(s.current_price * s.quantity) for s in stocks)
             # Refreshes run in the background. A slow quote provider must never
             # prevent members from seeing the holdings already in the database.
             quote = cache.get(f'stock_price_{symbol}') or {}
             if quote.get('current_price', 0) > 0:
-                current_price = quote['current_price']
-            current_value = total_qty * current_price
+                current_value = total_qty * float(quote['current_price'])
+            current_price = current_value / total_qty if total_qty else 0
             pnl = current_value - total_invested
             pnl_pct = (pnl / total_invested * 100) if total_invested > 0 else 0
             day_change = quote.get('day_change', 0)

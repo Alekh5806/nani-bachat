@@ -334,7 +334,7 @@ After running `python manage.py seed_data`:
 - 5 stocks: TCS, Reliance, HDFC Bank, Infosys, Wipro
 - 6 months of contributions
 - 3 dividend entries
-- 90 days of portfolio snapshots
+- A current portfolio snapshot calculated from the seeded records
 
 ---
 
