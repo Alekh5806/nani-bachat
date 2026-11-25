@@ -1,106 +1,39 @@
-/**
- * Asset Stocks Screen
- * Opened from the Asset Allocation card: all stocks with current value,
- * invested amount and share of the stock total.
- */
 import React, { useCallback } from 'react';
-import { shortName } from '../utils/names';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { usePortfolioStore } from '../store/portfolioStore';
+import { useAuthStore } from '../store/authStore';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { CompanyLogo } from '../components/CompanyLogo';
-import { fmtFull } from '../utils/currency';
-import { COLORS, SPACING, RADIUS, themedStyles, TYPE } from '../theme/colors';
+import { StockHoldings, useStockPrices } from '../components/StockHoldings';
+import { stockStyles } from '../components/StocksUI';
 import { TabBarSpacer } from '../components/TabBarSpacer';
-import { SummaryCard } from '../components/SummaryCard';
+import { SPACING } from '../theme/colors';
 
 export const AssetStocksScreen = ({ navigation }) => {
-  const { dashboard, stockSummary, fetchDashboard, fetchStockSummary } = usePortfolioStore();
+  const { dashboard, stockSummary, fetchDashboard, holdingsFailed } = usePortfolioStore();
+  const isAdmin = useAuthStore((state) => state.user?.role === 'admin');
+  const prices = useStockPrices(isAdmin);
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchDashboard();
-      fetchStockSummary();
-    }, [fetchDashboard, fetchStockSummary])
-  );
-
-  const p = dashboard?.portfolio || {};
-  const holdings = [...(stockSummary?.stocks || [])].sort(
-    (a, b) => (Number(b.current_value) || 0) - (Number(a.current_value) || 0)
-  );
-  const current = Number(p.active_stock_value) || holdings.reduce((s, h) => s + (Number(h.current_value) || 0), 0);
-  const invested = Number(p.active_stock_invested) || holdings.reduce((s, h) => s + (Number(h.total_invested) || 0), 0);
-  const returns = current - invested;
-  const returnsPct = invested > 0 ? (returns / invested) * 100 : 0;
-  const returnsColor = returns >= 0 ? COLORS.profit : COLORS.loss;
-  const sign = returns >= 0 ? '+' : '';
+  useFocusEffect(useCallback(() => { fetchDashboard(); }, [fetchDashboard]));
 
   return (
-    <View style={styles.container}>
-      <ScreenHeader title="Stocks" showBack onBack={() => navigation.goBack()} />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <SummaryCard
-          label={`Stocks (${holdings.length})`}
-          value={`₹${current.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
-          rows={[
-            { label: 'Total returns', value: `${sign}${fmtFull(returns)} (${sign}${returnsPct.toFixed(2)}%)`, color: returnsColor },
-            { label: 'Invested', value: fmtFull(invested) },
-            { label: 'Allocation', value: '100.00%' },
-          ]}
+    <View style={stockStyles.screen}>
+      <View style={stockStyles.header}>
+        <ScreenHeader title="Stock allocation" inset={SPACING.lg} showBack hideProfile onBack={() => navigation.goBack()} />
+      </View>
+      <ScrollView contentContainerStyle={stockStyles.content} keyboardShouldPersistTaps="handled">
+        <StockHoldings
+          summary={stockSummary}
+          failed={holdingsFailed}
+          prices={prices}
+          allocation
+          portfolio={dashboard?.portfolio}
+          onOpen={(holding) => navigation.navigate('HoldingDetail', { holding })}
+          onAdd={isAdmin ? () => navigation.navigate('AddStock') : undefined}
         />
-
-        <View style={styles.listHead}>
-          <Text style={styles.headText}>Stocks ({holdings.length})</Text>
-          <Text style={styles.headText}>Current (Invested)</Text>
-        </View>
-
-        {holdings.map((h, i) => {
-          const value = Number(h.current_value) || 0;
-          const cost = Number(h.total_invested) || 0;
-          const share = current > 0 ? (value / current) * 100 : 0;
-          return (
-            <Pressable
-              key={h.symbol}
-              style={[styles.row, i < holdings.length - 1 && styles.rowDivider]}
-              onPress={() => navigation.navigate('Investments', { screen: 'HoldingDetail', params: { holding: h } })}
-            >
-              <CompanyLogo symbol={h.symbol} name={h.name} size={40} />
-              <View style={styles.rowMain}>
-                <Text style={styles.name} numberOfLines={1}>{shortName(h.name) || h.symbol}</Text>
-                <Text style={styles.sub}>{share.toFixed(2)}%</Text>
-              </View>
-              <View style={styles.right}>
-                <Text style={[styles.amount, { color: value >= cost ? COLORS.profit : COLORS.loss }]}>
-                  {fmtFull(value)}
-                </Text>
-                <Text style={styles.sub}>({fmtFull(cost)})</Text>
-              </View>
-            </Pressable>
-          );
-        })}
         <TabBarSpacer />
       </ScrollView>
     </View>
   );
 };
-
-const styles = themedStyles(() => ({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  content: { paddingHorizontal: SPACING.lg, paddingBottom: 0 },
-  right: { alignItems: 'flex-end' },
-  listHead: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: SPACING.xl,
-    marginBottom: SPACING.sm,
-  },
-  headText: { ...TYPE.infoTitle, color: COLORS.textMuted },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.md },
-  rowDivider: { borderBottomWidth: 1, borderBottomColor: COLORS.divider },
-  rowMain: { flex: 1, minWidth: 0, marginHorizontal: SPACING.md },
-  name: { ...TYPE.cardTitle, fontSize: 14, color: COLORS.textPrimary },
-  amount: { ...TYPE.smallValue, fontSize: 12 },
-  sub: { ...TYPE.caption, fontSize: 10, color: COLORS.textMuted, marginTop: 4 },
-}));

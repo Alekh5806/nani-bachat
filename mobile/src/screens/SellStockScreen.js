@@ -95,7 +95,7 @@ export const SellStockScreen = ({ navigation, route }) => {
       : await sellStock(stock.id, values);
     setLoading(false);
     if (result.success) {
-      Toast.show({ type: 'success', text1: editing ? 'Sale updated' : 'Investment sold', text2: shortName(stock.name) });
+      Toast.show({ type: 'success', text1: editing ? 'Sale updated' : 'Sale recorded', text2: shortName(stock.name) });
       navigation.goBack();
     } else {
       Toast.show({ type: 'error', text1: editing ? 'Could not update sale' : 'Could not sell', text2: result.error });
@@ -121,8 +121,7 @@ export const SellStockScreen = ({ navigation, route }) => {
 
   return (
     <FormScreen
-      title={editing ? 'Edit Sale' : 'Sell Investment'}
-      subtitle={editing ? undefined : 'Record sale transaction'}
+      title={editing ? 'Edit sale' : 'Record sale'}
       onBack={() => navigation.goBack()}
     >
       {stock && (
@@ -259,7 +258,7 @@ export const SellStockScreen = ({ navigation, route }) => {
       </PreviewCard>
 
       <PremiumButton
-        title={editing ? 'Save Sale Changes' : remainingQuantity > 0 ? 'Sell Partial Quantity' : 'Sell Full Quantity'}
+        title={editing ? 'Save sale changes' : 'Record sale'}
         onPress={handleSubmit}
         loading={loading}
         disabled={!stock || (editing && !changedFields.length)}

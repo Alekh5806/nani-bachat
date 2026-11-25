@@ -65,6 +65,12 @@ class Stock(models.Model):
         help_text='Latest market price (auto-updated)'
     )
     last_price_update = models.DateTimeField(null=True, blank=True)
+    market_quote_at = models.DateTimeField(null=True, blank=True)
+    previous_close = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    purchase_lot = models.ForeignKey(
+        'self', on_delete=models.SET_NULL, null=True, blank=True, related_name='partial_sales',
+    )
+    original_purchase = models.JSONField(null=True, blank=True)
     is_sold = models.BooleanField(default=False)
     sell_price = models.DecimalField(
         max_digits=12, decimal_places=2,

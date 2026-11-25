@@ -1,173 +1,161 @@
-/**
- * Holding Detail Screen
- * One holding in full: totals, each purchase (edit / sell), and its history.
- */
-import { shortName } from '../utils/names';
 import React, { useCallback, useState } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { Platform, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
-import { Edit2, Trash, ExportCircle } from 'iconsax-react-native';
+import { More } from 'iconsax-react-native';
 
+import { CompanyLogo } from '../components/CompanyLogo';
 import { formatDateDisplay } from '../components/DatePickerField';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { DialogCard } from '../components/DialogCard';
+import { NseQuotePreview } from '../components/NseQuotePreview';
+import { ScreenHeader } from '../components/ScreenHeader';
+import { StockAction, StockFields, StockOverview, StockState, StocksSkeleton, stockReturnColor, stockStyles } from '../components/StocksUI';
+import { TabBarSpacer } from '../components/TabBarSpacer';
 import { usePortfolioStore } from '../store/portfolioStore';
 import { useAuthStore } from '../store/authStore';
-import { ScreenHeader } from '../components/ScreenHeader';
-import { SectionHeader } from '../components/SectionHeader';
-import { COLORS, SPACING, RADIUS, themedStyles, TYPE } from '../theme/colors';
-import { TabBarSpacer } from '../components/TabBarSpacer';
+import { shortName } from '../utils/names';
+import { money, percent, priceStatus, returnText, sharesLabel, tickerLabel } from '../utils/stockDisplay';
+import { COLORS, SPACING, TYPE, themedStyles } from '../theme/colors';
 
-const money = (v) =>
-  `₹${(Number(v) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const LotCard = ({ lot, isAdmin, onSale, onMenu }) => {
+  const sale = lot.is_sold;
+  return (
+    <View style={styles.lot}>
+      <View style={styles.lotHeader}>
+        <Text accessibilityRole="header" style={stockStyles.value}>{formatDateDisplay(sale ? lot.sell_date : lot.buy_date)}</Text>
+        {isAdmin && (
+          <View style={styles.actions}>
+            {!sale && <StockAction label="Record sale" onPress={() => onSale(lot)} />}
+            <StockAction label="Options" icon={<More size={17} color={COLORS.textPrimary} />} onPress={() => onMenu(lot)} />
+          </View>
+        )}
+      </View>
+      <StockFields rows={[
+        { label: sale ? 'Shares sold' : 'Shares held', value: sharesLabel(lot.quantity) },
+        { label: sale ? 'Sale price per share' : 'Buy price per share', value: money(sale ? lot.sell_price : lot.buy_price) },
+        ...(sale ? [{ label: 'Bought on', value: formatDateDisplay(lot.buy_date) }] : []),
+        { label: 'Brokerage', value: money(sale ? lot.sell_brokerage : lot.brokerage) },
+        { label: sale ? 'Net proceeds' : 'Cost of these shares', value: money(sale ? lot.current_value : lot.total_invested) },
+        ...(sale ? [{
+          label: 'Realized return', value: returnText(lot.profit_loss, lot.profit_loss_percentage), color: stockReturnColor(lot.profit_loss),
+        }] : []),
+        { label: 'Buying member', value: lot.buyer_name || 'Not recorded' },
+      ]} />
+      {!!lot.notes && <Text style={stockStyles.muted}>{lot.notes}</Text>}
+    </View>
+  );
+};
 
 export const HoldingDetailScreen = ({ route, navigation }) => {
-  const { user } = useAuthStore();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = useAuthStore((state) => state.user?.role === 'admin');
   const {
-    stockSummary, stocks, soldStocks, deleteStock,
-    fetchStockSummary, fetchStocks, fetchSoldStocks,
+    stockSummary, holdingsFailed, stocks, soldStocks, deleteStock, fetchStockSummary, fetchStocks, fetchSoldStocks,
   } = usePortfolioStore();
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchStockSummary();
-      fetchStocks();
-      fetchSoldStocks();
-    }, [fetchStockSummary, fetchStocks, fetchSoldStocks])
-  );
-
-  const symbol = route.params?.holding?.symbol;
-  const holding =
-    (stockSummary?.stocks || []).find((s) => s.symbol === symbol) || route.params?.holding || {};
-  const lots = stocks.filter((s) => s.symbol === symbol);
-  const sales = soldStocks.filter((s) => s.symbol === symbol);
-
-  const pnl = Number(holding.profit_loss) || 0;
-  const pnlColor = pnl === 0 ? COLORS.neutral : pnl > 0 ? COLORS.profit : COLORS.loss;
-
-  // The purchase waiting for delete confirmation (null = dialog closed).
+  const [lotState, setLotState] = useState('loading');
+  const [reload, setReload] = useState(0);
+  const [menu, setMenu] = useState(null);
   const [pendingDelete, setPendingDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
-  const confirmDelete = (lot) => setPendingDelete(lot);
+
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    fetchStockSummary();
+    Promise.all([fetchStocks(), fetchSoldStocks()]).then(([purchases, sales]) => {
+      if (active) setLotState(purchases && sales ? 'ready' : 'error');
+    });
+    return () => { active = false; };
+  }, [fetchStockSummary, fetchStocks, fetchSoldStocks, reload]));
+
+  const initial = route.params?.holding;
+  const symbol = route.params?.symbol || initial?.symbol;
+  const holding = stockSummary
+    ? stockSummary.stocks.find((stock) => stock.symbol === symbol)
+    : initial?.total_quantity ? initial : null;
+  const lots = stocks.filter((lot) => lot.symbol === symbol);
+  const sales = soldStocks.filter((sale) => sale.symbol === symbol);
+  const name = shortName(holding?.name || initial?.name || lots[0]?.name || sales[0]?.name) || tickerLabel(symbol);
+  const stockTotal = stockSummary?.total_current_value;
+  const sell = (stock) => navigation.navigate('SellStock', { stock });
+
   const runDelete = async () => {
+    if (!pendingDelete || deleting) return;
     setDeleting(true);
     const result = await deleteStock(pendingDelete.id);
     setDeleting(false);
-    setPendingDelete(null);
-    if (result?.success) {
-      Toast.show({ type: 'success', text1: 'Purchase deleted' });
-      // Back to the Invest list instead of staying on this holding.
-      navigation.navigate('InvestmentsHome');
+    if (result.success) {
+      Toast.show({ type: 'success', text1: 'Purchase removed', text2: name });
+      setPendingDelete(null);
     } else {
-      Toast.show({ type: 'error', text1: 'Could not delete', text2: result?.error });
+      Toast.show({ type: 'error', text1: 'Could not remove purchase', text2: result.error });
     }
   };
 
-  const Row = ({ label, value, color }) => (
-    <View style={styles.row}>
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={[styles.rowValue, color && { color }]}>{value}</Text>
-    </View>
-  );
-
-  // Card title row: title on the left, icon-only actions (admin) on the right.
-  const CardTitle = ({ title, actions }) => (
-    <View style={styles.titleRow}>
-      <Text style={styles.cardTitle}>{title}</Text>
-      {isAdmin && (
-        <View style={styles.iconActions}>
-          {actions.map(({ key, Icon, label, onPress, danger }) => (
-            <Pressable
-              key={key}
-              onPress={onPress}
-              accessibilityRole="button"
-              accessibilityLabel={label}
-              style={[styles.iconAction, danger && styles.iconActionDanger]}
-            >
-              <Icon size={18} color={danger ? COLORS.loss : COLORS.accent} />
-            </Pressable>
-          ))}
-        </View>
-      )}
-    </View>
-  );
-
   return (
-    <View style={styles.container}>
-      <ScreenHeader
-        title={shortName(holding.name) || 'Holding'}
-        subtitle={holding.symbol}
-        showBack
-        onBack={() => navigation.goBack()}
-      />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.card}>
-          <Row label="Quantity" value={`${holding.total_quantity || 0} shares`} />
-          <Row label="Average Buy Price" value={money(holding.average_buy_price)} />
-          <Row label="Current Price" value={money(holding.current_price)} />
-          <Row label="Total Invested" value={money(holding.total_invested)} />
-          <Row label="Current Value" value={money(holding.current_value)} />
-          <Row
-            label="Current P/L"
-            value={`${pnl >= 0 ? '+' : ''}${money(pnl)} (${pnl >= 0 ? '+' : ''}${(Number(holding.profit_loss_percentage) || 0).toFixed(2)}%)`}
-            color={pnlColor}
-          />
-        </View>
-
-        <SectionHeader title="Purchases" />
-        {lots.length === 0 && <Text style={styles.empty}>No purchases</Text>}
-        {lots.map((lot) => (
-          <View key={lot.id} style={styles.card}>
-          <CardTitle
-            title={formatDateDisplay(lot.buy_date)}
-            actions={[
-              { key: 'edit', Icon: Edit2, label: 'Edit purchase', onPress: () => navigation.navigate('EditStock', { stock: lot }) },
-              { key: 'sell', Icon: ExportCircle, label: 'Sell investment', onPress: () => navigation.navigate('SellStock', { stock: lot }) },
-              { key: 'delete', Icon: Trash, label: 'Delete purchase', onPress: () => confirmDelete(lot), danger: true },
-            ]}
-          />
-            <Row label="Quantity" value={`${lot.quantity} × ₹${lot.buy_price}`} />
-            <Row label="Brokerage" value={money(lot.brokerage)} />
-            <Row label="Total" value={money(lot.total_invested)} />
-            <Row label="Buyer" value={lot.buyer_name || 'Not recorded'} />
-            {!!lot.notes && <Row label="Note" value={lot.notes} />}
+    <View style={stockStyles.screen}>
+      <View style={stockStyles.header}>
+        <ScreenHeader title="Holding details" inset={SPACING.lg} showBack hideProfile onBack={() => navigation.goBack()} />
+      </View>
+      <ScrollView contentContainerStyle={stockStyles.content}>
+        <View style={styles.company}>
+          <CompanyLogo symbol={symbol} name={name} size={48} />
+          <View style={styles.companyText}>
+            <Text accessibilityRole="header" style={styles.companyName}>{name}</Text>
+            <Text style={stockStyles.muted}>{tickerLabel(symbol)}{symbol?.endsWith('.NS') ? ' · NSE' : symbol?.endsWith('.BO') ? ' · BSE' : ''}</Text>
           </View>
-        ))}
-
-        {sales.length > 0 && <SectionHeader title="Sales" />}
-        {sales.map((sale) => {
-          const p = Number(sale.profit_loss) || 0;
-          return (
-            <View key={sale.id} style={styles.card}>
-              <CardTitle
-                title={formatDateDisplay(sale.sell_date)}
-                actions={[
-                  { key: 'edit', Icon: Edit2, label: 'Edit sale', onPress: () => navigation.navigate('SellStock', { stock: sale }) },
-                ]}
-              />
-              <Row label="Quantity" value={`${sale.quantity} × ₹${sale.sell_price}`} />
-              <Row label="Bought On" value={sale.buy_date} />
-              <Row label="Sale Brokerage" value={money(sale.sell_brokerage)} />
-              <Row label="Net Proceeds" value={money(sale.current_value)} />
-              <Row
-                label="Realized P/L"
-                value={`${p >= 0 ? '+' : ''}${money(p)}`}
-                color={p >= 0 ? COLORS.profit : COLORS.loss}
-              />
-            </View>
-          );
-        })}
+        </View>
+        {holding ? (
+          <StockOverview
+            label="Current holding value"
+            value={money(holding.current_value)}
+            rows={[
+              { label: 'Unrealized return', value: returnText(holding.profit_loss, holding.profit_loss_percentage), color: stockReturnColor(holding.profit_loss) },
+              { label: 'Quantity', value: sharesLabel(holding.total_quantity) },
+              { label: 'Average cost incl. brokerage', value: money(holding.average_buy_price) },
+              { label: holding.price_is_estimate ? 'Estimated price per share' : 'Current price per share', value: money(holding.current_price) },
+              { label: 'Invested amount', value: money(holding.total_invested) },
+              { label: 'Share of stock holdings', value: percent(stockTotal > 0 ? Number(holding.current_value) / stockTotal * 100 : null, 1) },
+            ]}
+            note={holdingsFailed ? 'Couldn’t refresh holdings. Last available values are shown.' : priceStatus([holding])}
+          />
+        ) : stockSummary && !holdingsFailed ? (
+          <StockState title="No open position" description="The group currently holds no shares of this stock." />
+        ) : holdingsFailed ? (
+          <StockState title="Couldn’t load holding value" description="Try again to check for open shares." action="Retry" onPress={fetchStockSummary} />
+        ) : <StocksSkeleton />}
+        {Platform.OS !== 'web' && symbol?.endsWith('.NS') && (
+          <View style={styles.secondary}><NseQuotePreview symbol={symbol.slice(0, -3)} /></View>
+        )}
+        {lotState === 'error' && <View style={styles.secondary}>
+          <StockState title="Couldn’t refresh purchase and sale details" description="Saved records appear below when available."
+            action="Retry" onPress={() => setReload((value) => value + 1)} />
+        </View>}
+        {lotState === 'loading' && <View style={styles.secondary}><StocksSkeleton summary={false} /></View>}
+        {!!lots.length && <View style={stockStyles.section}>
+          <Text accessibilityRole="header" style={stockStyles.heading}>Open purchase lots ({lots.length})</Text>
+          {lots.map((lot) => <LotCard key={lot.id} lot={lot} isAdmin={isAdmin} onSale={sell} onMenu={setMenu} />)}
+        </View>}
+        {!!sales.length && <View style={stockStyles.section}>
+          <Text accessibilityRole="header" style={stockStyles.heading}>Recorded sales ({sales.length})</Text>
+          {sales.map((lot) => <LotCard key={lot.id} lot={lot} isAdmin={isAdmin} onMenu={setMenu} />)}
+        </View>}
         <TabBarSpacer />
       </ScrollView>
-
+      <DialogCard visible={!!menu} title="Transaction options" onDismiss={() => setMenu(null)}>
+        {menu && <View style={styles.menu}>
+          <StockAction label={menu.is_sold ? 'Edit sale' : 'Edit purchase'} onPress={() => {
+            const stock = menu;
+            setMenu(null);
+            navigation.navigate(stock.is_sold ? 'SellStock' : 'EditStock', { stock });
+          }} />
+          {!menu.is_sold && <StockAction label="Remove purchase" danger onPress={() => { setPendingDelete(menu); setMenu(null); }} />}
+        </View>}
+      </DialogCard>
       <ConfirmDialog
         visible={!!pendingDelete}
-        title="Delete purchase?"
-        message={pendingDelete
-          ? `${pendingDelete.quantity} shares of ${shortName(pendingDelete.name)} bought on ${formatDateDisplay(pendingDelete.buy_date)} will be removed. This cannot be undone.`
-          : ''}
-        confirmText="Delete"
+        title="Remove purchase?"
+        message={pendingDelete ? `${sharesLabel(pendingDelete.quantity)} of ${name} bought on ${formatDateDisplay(pendingDelete.buy_date)} will be removed from holdings.` : ''}
+        confirmText="Remove"
         destructive
         loading={deleting}
         onConfirm={runDelete}
@@ -178,31 +166,15 @@ export const HoldingDetailScreen = ({ route, navigation }) => {
 };
 
 const styles = themedStyles(() => ({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  content: { paddingHorizontal: SPACING.lg, paddingBottom: 0 },
-  card: {
-    backgroundColor: COLORS.cardBg,
-    borderRadius: RADIUS.xl,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: SPACING.lg,
-    marginBottom: SPACING.md,
+  company: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, marginBottom: SPACING.lg },
+  companyText: { flex: 1, minWidth: 0, gap: 3 },
+  companyName: { ...TYPE.screenTitle, color: COLORS.textPrimary },
+  secondary: { marginTop: SPACING.md },
+  lot: {
+    backgroundColor: COLORS.cardBg, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12,
+    padding: SPACING.md, gap: SPACING.sm,
   },
-  // Two columns like a spec sheet: bold label on the left, value on the right half.
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
-  rowLabel: { ...TYPE.cardTitle, fontSize: 12, flex: 1, color: COLORS.textPrimary },
-  rowValue: { ...TYPE.secondary, fontSize: 12, flex: 1, color: COLORS.textSecondary },
-  empty: { ...TYPE.secondary, color: COLORS.textMuted, marginBottom: SPACING.md },
-  titleRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingBottom: SPACING.md, marginBottom: SPACING.xs,
-    borderBottomWidth: 1, borderBottomColor: COLORS.divider,
-  },
-  cardTitle: { ...TYPE.cardTitle, fontSize: 14, color: COLORS.textPrimary },
-  iconActions: { flexDirection: 'row', gap: SPACING.sm },
-  iconAction: {
-    width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: COLORS.accent + '14',
-  },
-  iconActionDanger: { backgroundColor: COLORS.loss + '14' },
+  lotHeader: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: SPACING.sm },
+  actions: { flexDirection: 'row', flexWrap: 'wrap' },
+  menu: { marginTop: SPACING.sm },
 }));

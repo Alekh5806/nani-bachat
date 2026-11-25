@@ -11,15 +11,18 @@ import { getErrorMessage } from '../utils/errors';
 // Data that is saved on the device, so screens show the last known values
 // immediately and refresh in the background.
 const CACHE_KEY = 'portfolio_cache_v1';
-const CACHED_KEYS = ['dashboard', 'stockSummary', 'stocks', 'soldStocks', 'members', 'dividends', 'dividendsLoaded'];
+const CACHED_KEYS = ['dashboard', 'stockSummary', 'stocks', 'soldStocks', 'stockTransactions', 'members', 'dividends', 'dividendsLoaded'];
 const EMPTY_CACHE = {
-  dashboard: null, stockSummary: null, stocks: [], soldStocks: [],
+  dashboard: null, stockSummary: null, stocks: [], soldStocks: [], stockTransactions: null,
   members: [], dividends: [], dividendsLoaded: false,
 };
 
 let searchRequestId = 0;
 let dashboardRequest = 0;
 let holdingsRequest = 0;
+let transactionsRequest = 0;
+let stocksRequest = 0;
+let salesRequest = 0;
 let dividendRequest = 0;
 
 export const usePortfolioStore = create((set, get) => ({
@@ -28,6 +31,9 @@ export const usePortfolioStore = create((set, get) => ({
   stocks: [],
   soldStocks: [],
   stockSummary: null,
+  stockTransactions: null,
+  transactionsFailed: false,
+  holdingsLoading: false,
   members: [],
   contributions: [],
   dividends: [],
@@ -43,8 +49,11 @@ export const usePortfolioStore = create((set, get) => ({
   clearCache: async () => {
     dashboardRequest += 1;
     holdingsRequest += 1;
+    transactionsRequest += 1;
+    stocksRequest += 1;
+    salesRequest += 1;
     dividendRequest += 1;
-    set({ ...EMPTY_CACHE, error: null, isLoading: false, holdingsFailed: false, dividendsFailed: false });
+    set({ ...EMPTY_CACHE, error: null, isLoading: false, holdingsLoading: false, holdingsFailed: false, transactionsFailed: false, dividendsFailed: false });
     await AsyncStorage.removeItem(CACHE_KEY).catch(() => {});
   },
 
@@ -65,12 +74,13 @@ export const usePortfolioStore = create((set, get) => ({
   // ── Fetch Stock Summary ──
   fetchStockSummary: async () => {
     const request = ++holdingsRequest;
+    set({ holdingsLoading: true });
     try {
       const response = await api.get('/investments/stocks/summary/');
-      if (request === holdingsRequest) set({ stockSummary: response.data, holdingsFailed: false });
+      if (request === holdingsRequest) set({ stockSummary: response.data, holdingsFailed: false, holdingsLoading: false });
       return response.data;
     } catch (error) {
-      if (request === holdingsRequest) set({ holdingsFailed: true });
+      if (request === holdingsRequest) set({ holdingsFailed: true, holdingsLoading: false });
       console.error('Failed to fetch stock summary:', error);
       return null;
     }
@@ -78,10 +88,11 @@ export const usePortfolioStore = create((set, get) => ({
 
   // ── Fetch All Stocks ──
   fetchStocks: async () => {
+    const request = ++stocksRequest;
     try {
-      const response = await api.get('/investments/stocks/?is_sold=false');
-      set({ stocks: response.data.results || response.data });
-      return response.data;
+      const stocks = await fetchPages('/investments/stocks/', { params: { is_sold: false } });
+      if (request === stocksRequest) set({ stocks });
+      return stocks;
     } catch (error) {
       console.error('Failed to fetch stocks:', error);
       return null;
@@ -92,19 +103,25 @@ export const usePortfolioStore = create((set, get) => ({
   // Selling splits a lot, so each sold row is its own realized transaction
   // carrying the sell price/date and the buyer it was held under.
   fetchSoldStocks: async () => {
+    const request = ++salesRequest;
     try {
-      const sales = [];
-      let page = 1;
-      while (true) {
-        const { data } = await api.get('/investments/stocks/', { params: { is_sold: true, page } });
-        sales.push(...(data.results || data));
-        if (!data.next) break;
-        page += 1;
-      }
-      set({ soldStocks: sales });
+      const sales = await fetchPages('/investments/stocks/', { params: { is_sold: true } });
+      if (request === salesRequest) set({ soldStocks: sales });
       return sales;
     } catch (error) {
       console.error('Failed to fetch sold stocks:', error);
+      return null;
+    }
+  },
+
+  fetchStockTransactions: async () => {
+    const request = ++transactionsRequest;
+    try {
+      const rows = await fetchPages('/investments/stocks/transactions/');
+      if (request === transactionsRequest) set({ stockTransactions: rows, transactionsFailed: false });
+      return rows;
+    } catch (error) {
+      if (request === transactionsRequest) set({ transactionsFailed: true });
       return null;
     }
   },
@@ -174,8 +191,7 @@ export const usePortfolioStore = create((set, get) => ({
   deleteStock: async (id) => {
     try {
       await api.delete(`/investments/stocks/${id}/delete/`);
-      get().fetchStocks();
-      get().fetchStockSummary();
+      await Promise.all([get().fetchStocks(), get().fetchStockSummary(), get().fetchDashboard()]);
       return { success: true };
     } catch (error) {
       return { success: false, error: 'Failed to delete stock' };
@@ -354,11 +370,16 @@ export const usePortfolioStore = create((set, get) => ({
     try {
       const response = await api.post('/portfolio/refresh-prices/');
       // Prices updated synchronously — re-fetch data immediately
-      await Promise.all([
+      const [, summary] = await Promise.all([
         get().fetchDashboard(),
         get().fetchStockSummary(),
       ]);
-      return { success: true, message: response.data?.message || 'Prices updated' };
+      return {
+        success: summary != null && response.data?.complete !== false,
+        message: response.data?.updated > 0
+          ? 'Some prices could not refresh. Last available values are shown.'
+          : 'Could not refresh prices. Last available values are shown.',
+      };
     } catch (error) {
       console.error('Refresh prices failed:', error?.response?.data || error.message);
       return { success: false, error: error?.response?.data?.error || 'Failed to refresh prices' };

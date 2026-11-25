@@ -153,8 +153,8 @@ export const AddStockScreen = ({ navigation }) => {
     setLoading(false);
 
     if (result.success) {
-      Toast.show({ type: 'success', text1: 'Stock added', text2: `${shortName(selectedStock.name)} added to portfolio` });
-      navigation.goBack();
+      Toast.show({ type: 'success', text1: 'Purchase recorded', text2: shortName(selectedStock.name) });
+      navigation.replace('HoldingDetail', { holding: result.data });
     } else {
       Toast.show({ type: 'error', text1: 'Could Not Add Investment', text2: result.error });
     }
@@ -179,8 +179,7 @@ export const AddStockScreen = ({ navigation }) => {
 
   return (
     <FormScreen
-      title="Add Investment"
-      subtitle="Search & add investment"
+      title="Record purchase"
       onBack={() => navigation.goBack()}
     >
       {/* ── Stock Search ── */}
@@ -410,7 +409,7 @@ export const AddStockScreen = ({ navigation }) => {
           )}
 
           <PremiumButton
-            title="Add Investment"
+            title="Record purchase"
             onPress={handleSubmit}
             loading={loading}
             icon="✅"

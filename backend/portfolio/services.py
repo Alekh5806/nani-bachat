@@ -4,8 +4,10 @@ Fetches real-time stock prices from Yahoo Finance.
 Supports NSE stocks with .NS suffix.
 """
 import logging
+import math
 import threading
 import time
+from datetime import datetime, timezone as utc_timezone
 from decimal import Decimal
 from django.core.cache import cache
 from django.utils import timezone
@@ -25,12 +27,18 @@ class StockPriceService:
     """Service to fetch and cache stock prices from Yahoo Finance."""
 
     @staticmethod
-    def _build_price_data(symbol: str, current_price, previous_close, name: str = None) -> dict:
+    def _build_price_data(symbol: str, current_price, previous_close, name: str = None, timestamp=None) -> dict:
         current_price = StockPriceService._to_float(current_price)
         previous_close = StockPriceService._to_float(previous_close)
 
-        if current_price <= 0:
+        if not math.isfinite(current_price) or current_price <= 0:
             return None
+        if not math.isfinite(previous_close):
+            previous_close = 0
+        try:
+            quote_at = datetime.fromtimestamp(float(timestamp), utc_timezone.utc) if timestamp else None
+        except (ValueError, TypeError, OverflowError, OSError):
+            quote_at = None
 
         day_change = current_price - previous_close if previous_close > 0 else 0
         day_change_pct = (day_change / previous_close * 100) if previous_close > 0 else 0
@@ -43,6 +51,8 @@ class StockPriceService:
             'day_change_pct': round(day_change_pct, 2),
             'day_change_percentage': round(day_change_pct, 2),
             'name': name or symbol,
+            'quote_at': quote_at,
+            'fetched_at': timezone.now(),
         }
 
     @staticmethod
@@ -85,11 +95,7 @@ class StockPriceService:
                 return None
 
             meta = result.get('meta', {})
-            current_price = (
-                meta.get('regularMarketPrice')
-                or meta.get('postMarketPrice')
-                or meta.get('preMarketPrice')
-            )
+            current_price = meta.get('regularMarketPrice')
             previous_close = meta.get('previousClose') or meta.get('chartPreviousClose')
 
             return StockPriceService._build_price_data(
@@ -97,6 +103,7 @@ class StockPriceService:
                 current_price,
                 previous_close,
                 meta.get('shortName') or meta.get('longName'),
+                timestamp=meta.get('regularMarketTime'),
             )
         except Exception as e:
             logger.warning(f'Yahoo chart price fetch failed for {symbol}: {e}')
@@ -132,6 +139,7 @@ class StockPriceService:
             previous_close = StockPriceService._to_float(
                 StockPriceService._fast_info_value(fast_info, 'previous_close')
             )
+            timestamp = None
 
             if current_price <= 0:
                 hist = ticker.history(period='5d')
@@ -146,6 +154,7 @@ class StockPriceService:
                     info.get('currentPrice') or info.get('regularMarketPrice')
                 )
                 previous_close = StockPriceService._to_float(info.get('previousClose'))
+                timestamp = info.get('regularMarketTime')
 
             if current_price <= 0:
                 logger.warning(f'No usable price returned for {symbol}')
@@ -155,8 +164,10 @@ class StockPriceService:
                 symbol,
                 current_price,
                 previous_close,
+                timestamp=timestamp,
             )
-            cache.set(cache_key, price_data, PRICE_CACHE_TIMEOUT)
+            if price_data:
+                cache.set(cache_key, price_data, PRICE_CACHE_TIMEOUT)
             return price_data
         except Exception as e:
             logger.error(f'Failed to fetch price for {symbol}: {e}')
@@ -195,6 +206,7 @@ class StockPriceService:
         This is safe to call from API requests, so production does not depend
         on a separate Celery Beat process for price updates.
         """
+        from django.db.models import Q
         from investments.models import Stock
 
         active_stocks = Stock.objects.filter(is_sold=False)
@@ -206,9 +218,20 @@ class StockPriceService:
             price_data = StockPriceService.get_stock_price(symbol)
             current_price = price_data.get('current_price') if price_data else None
             if current_price and current_price > 0:
-                count = active_stocks.filter(symbol=symbol).update(
+                fetched_at = price_data.get('fetched_at') or timezone.now()
+                quote_at = price_data.get('quote_at')
+                target = active_stocks.filter(symbol=symbol).filter(
+                    Q(last_price_update__isnull=True) | Q(last_price_update__lte=fetched_at)
+                )
+                if quote_at:
+                    target = target.filter(Q(market_quote_at__isnull=True) | Q(market_quote_at__lte=quote_at))
+                else:
+                    target = target.filter(market_quote_at__isnull=True)
+                count = target.update(
                     current_price=Decimal(str(round(float(current_price), 2))),
-                    last_price_update=timezone.now()
+                    last_price_update=fetched_at,
+                    market_quote_at=quote_at,
+                    previous_close=price_data.get('previous_close') or None,
                 )
                 updated += count
 

@@ -412,3 +412,88 @@ class StockSoftDeleteTests(TestCase):
         self.client.force_authenticate(member)
         self.assertEqual(self.delete_gone().status_code, 403)
         self.assertTrue(Stock.objects.filter(pk=self.gone.pk).exists())
+
+
+class StockTransactionHistoryTests(TestCase):
+    def setUp(self):
+        self.member = get_user_model().objects.create_user(phone='9000000003', name='Buyer')
+        self.client = APIClient()
+        self.client.force_authenticate(self.member)
+        self.url = reverse('investments:stock-transactions')
+        self.stock = Stock.objects.create(
+            symbol='POOL.NS', name='Pool', buy_date=date(2026, 1, 1),
+            quantity=6, buy_price=Decimal('12.34'), brokerage=Decimal('5.00'),
+            buyer=self.member, notes='Original contract',
+        )
+
+    def sell(self, quantity, date):
+        self.stock.refresh_from_db()
+        serializer = StockSellSerializer(self.stock, data={
+            'quantity': quantity, 'sell_price': '20.00', 'sell_date': date, 'notes': 'Sale contract',
+        }, partial=True)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        return serializer.save()
+
+    def test_partial_then_final_sale_keeps_one_original_purchase(self):
+        partial = self.sell(2, '2026-02-01')
+        rows = self.client.get(self.url).json()['results']
+        self.assertEqual(rows[0]['id'], partial.pk)
+        self.assertTrue(rows[1]['has_remaining_lot'])
+
+        final = self.sell(4, '2026-02-02')
+        rows = self.client.get(self.url).json()['results']
+        self.assertEqual([(row['type'], row['id']) for row in rows], [
+            ('sell', final.pk), ('sell', partial.pk), ('buy', self.stock.pk),
+        ])
+        self.assertEqual(rows[2]['quantity'], 6)
+        self.assertEqual(rows[2]['amount'], '79.04')
+        self.assertEqual(rows[2]['notes'], 'Original contract')
+        self.assertFalse(rows[2]['has_remaining_lot'])
+
+    def test_legacy_sale_and_buys_across_pages_remain_visible(self):
+        legacy = Stock.objects.create(
+            symbol='POOL.NS', name='Pool', buy_date=date(2026, 1, 1),
+            quantity=3, buy_price=Decimal('12.34'), is_sold=True,
+            sell_price=Decimal('20'), sell_date=date(2026, 2, 1),
+        )
+        Stock.objects.bulk_create([
+            Stock(symbol='POOL.NS', name='Pool', buy_date=date(2026, 1, 1),
+                  quantity=1, buy_price=Decimal('12.34')) for _ in range(21)
+        ])
+        first = self.client.get(self.url).json()
+        second = self.client.get(self.url, {'page': 2}).json()
+        self.assertEqual(first['count'], 24)
+        rows = first['results'] + second['results']
+        self.assertEqual(len({(row['type'], row['id']) for row in rows}), 24)
+        self.assertEqual([row['type'] for row in rows if row['id'] == legacy.pk], ['sell', 'buy'])
+        self.assertTrue(next(row['legacy'] for row in rows if row['type'] == 'buy' and row['id'] == legacy.pk))
+
+
+class StockQuoteTimeTests(TestCase):
+    @patch('investments.views.StockPriceService.refresh_in_background')
+    def test_market_time_and_session_change_use_the_quote_that_values_the_holding(self, refresh):
+        member = get_user_model().objects.create_user(phone='9000000004', name='Member')
+        client = APIClient()
+        client.force_authenticate(member)
+        url = reverse('investments:stock-summary')
+        checked = timezone.now()
+        traded = checked - timedelta(days=2)
+        stock = Stock.objects.create(
+            symbol='POOL.NS', name='Pool', buy_date=date(2026, 1, 1), quantity=3,
+            buy_price=100, current_price=120, last_price_update=checked,
+            market_quote_at=traded, previous_close=115,
+        )
+        cache.delete('stock_price_POOL.NS')
+        summary = client.get(url).json()
+        self.assertEqual(summary['total_day_change'], 15)
+        self.assertNotEqual(summary['stocks'][0]['quote_at'], summary['stocks'][0]['last_updated'])
+        cache.set('stock_price_POOL.NS', {
+            'current_price': 110, 'previous_close': 105,
+            'quote_at': traded - timedelta(days=1), 'fetched_at': checked + timedelta(minutes=1),
+        })
+        try:
+            self.assertEqual(client.get(url).json()['total_current_value'], 360)
+            Stock.objects.filter(pk=stock.pk).update(previous_close=None)
+            self.assertIsNone(client.get(url).json()['total_day_change'])
+        finally:
+            cache.delete('stock_price_POOL.NS')

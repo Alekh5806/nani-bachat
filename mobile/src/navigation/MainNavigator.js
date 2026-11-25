@@ -16,6 +16,7 @@ import { AddStockScreen } from '../screens/AddStockScreen';
 import { SellStockScreen } from '../screens/SellStockScreen';
 import { EditStockScreen } from '../screens/EditStockScreen';
 import { HoldingDetailScreen } from '../screens/HoldingDetailScreen';
+import { StockTransactionScreen } from '../screens/StockTransactionScreen';
 import { MemberDetailScreen } from '../screens/MemberDetailScreen';
 import { MembersScreen } from '../screens/MembersScreen';
 import { AddMemberScreen } from '../screens/AddMemberScreen';
@@ -47,7 +48,7 @@ const stackOptions = () => ({
 
 const TAB_LABELS = {
   Dashboard: 'Home',
-  Investments: 'Invest',
+  Investments: 'Stocks',
   Members: 'Member',
   Dividends: 'Dividend',
   Profile: 'Profile',
@@ -237,6 +238,10 @@ const DashboardStack = () => (
   <Stack.Navigator screenOptions={stackOptions()}>
     <Stack.Screen name="DashboardHome" component={DashboardScreen} />
     <Stack.Screen name="AssetStocks" component={AssetStocksScreen} />
+    <Stack.Screen name="HoldingDetail" component={HoldingDetailScreen} />
+    <Stack.Screen name="AddStock" component={AddStockScreen} />
+    <Stack.Screen name="SellStock" component={SellStockScreen} />
+    <Stack.Screen name="EditStock" component={EditStockScreen} />
   </Stack.Navigator>
 );
 
@@ -244,6 +249,7 @@ const InvestmentsStack = () => (
   <Stack.Navigator screenOptions={stackOptions()}>
     <Stack.Screen name="InvestmentsHome" component={InvestmentsScreen} />
     <Stack.Screen name="HoldingDetail" component={HoldingDetailScreen} />
+    <Stack.Screen name="StockTransaction" component={StockTransactionScreen} />
     <Stack.Screen name="StockNews" component={StockNewsScreen} />
     <Stack.Screen name="AddStock" component={AddStockScreen} />
     <Stack.Screen name="SellStock" component={SellStockScreen} />

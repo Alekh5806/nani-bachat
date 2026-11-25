@@ -3,7 +3,6 @@ Celery tasks for portfolio app.
 Handles scheduled stock price updates and daily snapshots.
 """
 from celery import shared_task
-from django.utils import timezone
 import logging
 
 logger = logging.getLogger(__name__)
@@ -28,16 +27,10 @@ def update_all_stock_prices():
 @shared_task
 def update_single_stock_price(symbol: str):
     """Update price for a single stock symbol."""
-    from investments.models import Stock
     from portfolio.services import StockPriceService
 
-    price_data = StockPriceService.get_stock_price(symbol)
-    if price_data and price_data.get('current_price', 0) > 0:
-        Stock.objects.filter(symbol=symbol, is_sold=False).update(
-            current_price=price_data['current_price'],
-            last_price_update=timezone.now()
-        )
-        return f'Updated {symbol}: ₹{price_data["current_price"]}'
+    if StockPriceService.refresh_active_stock_prices([symbol]):
+        return f'Updated {symbol}'
     return f'Failed to update {symbol}'
 
 

@@ -212,13 +212,29 @@ class StockSellSerializer(SaleDetailsSerializer):
                 })
 
             original_quantity = stock.quantity
+            if stock.original_purchase is None:
+                stock.original_purchase = {
+                    'symbol': stock.symbol,
+                    'name': stock.name,
+                    'quantity': stock.quantity,
+                    'price': str(stock.buy_price),
+                    'brokerage': str(stock.brokerage),
+                    'amount': str(stock.total_invested),
+                    'date': stock.buy_date.isoformat(),
+                    'buyer_name': stock.buyer.name if stock.buyer else None,
+                    'notes': stock.notes,
+                }
+
             if sell_quantity == original_quantity:
                 stock.sell_brokerage = sell_brokerage
                 stock.sell_price = sell_price
                 stock.sell_date = sell_date
                 stock.notes = notes
                 stock.is_sold = True
-                stock.save(update_fields=['sell_price', 'sell_brokerage', 'sell_date', 'notes', 'is_sold', 'updated_at'])
+                stock.save(update_fields=[
+                    'sell_price', 'sell_brokerage', 'sell_date', 'notes', 'is_sold',
+                    'original_purchase', 'updated_at',
+                ])
                 return stock
 
             sold_brokerage, remaining_brokerage = self._split_amount(
@@ -233,7 +249,7 @@ class StockSellSerializer(SaleDetailsSerializer):
                 )
             stock.quantity = original_quantity - sell_quantity
             stock.brokerage = remaining_brokerage
-            stock.save(update_fields=['quantity', 'brokerage', 'reported_share_amount', 'updated_at'])
+            stock.save(update_fields=['quantity', 'brokerage', 'reported_share_amount', 'original_purchase', 'updated_at'])
 
             sold_stock = Stock.objects.create(
                 symbol=stock.symbol,
@@ -247,6 +263,9 @@ class StockSellSerializer(SaleDetailsSerializer):
                 notes=notes,
                 current_price=stock.current_price,
                 last_price_update=stock.last_price_update,
+                market_quote_at=stock.market_quote_at,
+                previous_close=stock.previous_close,
+                purchase_lot=stock,
                 is_sold=True,
                 sell_price=sell_price,
                 sell_brokerage=sell_brokerage,

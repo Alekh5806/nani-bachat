@@ -37,7 +37,7 @@ const DARK = {
 
   textPrimary: '#F9FAFB',
   textSecondary: '#9CA3AF',
-  textMuted: '#6B7280',
+  textMuted: '#919BAD',
   textInverse: '#0B0F19',
 
   // Semantic: positive / negative / warning / neutral
@@ -104,12 +104,12 @@ const LIGHT = {
   gradientPink: '#1E41DB',
 
   textPrimary: '#111827',
-  textSecondary: '#6B7280',
-  textMuted: '#9CA3AF',
+  textSecondary: '#596272',
+  textMuted: '#646D7D',
   textInverse: '#FFFFFF',
 
-  profit: '#16A34A',
-  profitLight: '#16A34A',
+  profit: '#137535',
+  profitLight: '#137535',
   profitBg: '#DCFCE7',
   loss: '#DC2626',
   lossLight: '#DC2626',

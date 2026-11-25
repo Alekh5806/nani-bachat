@@ -18,19 +18,20 @@ export const ScreenHeader = ({
   onBack,
   showBack = false,
   hideProfile = false,
+  inset,
 }) => {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + SPACING.md }]}>
+    <View style={[styles.container, { paddingTop: insets.top + SPACING.md }, inset != null && { paddingHorizontal: inset }]}>
       <View style={styles.leftSection}>
         {showBack && (
-          <Pressable onPress={onBack} style={styles.backButton}>
+          <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Back" style={styles.backButton}>
             <Icon name="←" size={24} color={COLORS.textPrimary} />
           </Pressable>
         )}
         <View style={styles.titleBlock}>
-          <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit>
+          <Text accessibilityRole="header" style={styles.title} numberOfLines={inset == null ? 1 : undefined} adjustsFontSizeToFit={inset == null}>
             {title}
           </Text>
           {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
@@ -41,6 +42,7 @@ export const ScreenHeader = ({
         {rightAction && (
           <Pressable
             onPress={rightAction}
+            accessibilityRole="button"
             style={({ pressed }) => [
               styles.actionButton,
               pressed && styles.actionPressed,
@@ -62,7 +64,7 @@ const styles = themedStyles(() => ({
   container: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     paddingHorizontal: SPACING.xl,
     paddingBottom: SPACING.lg,
     backgroundColor: COLORS.background,
@@ -85,8 +87,11 @@ const styles = themedStyles(() => ({
     minWidth: 0,
   },
   backButton: {
-    marginRight: SPACING.md,
-    padding: SPACING.xs,
+    marginRight: SPACING.xs,
+    width: 48,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     ...TYPE.sectionTitle, // same as the Home header ("Portfolio")
@@ -103,6 +108,7 @@ const styles = themedStyles(() => ({
     backgroundColor: COLORS.accent,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.sm,
+    minHeight: 48,
     borderRadius: SPACING.xl,
     flexShrink: 0,
   },

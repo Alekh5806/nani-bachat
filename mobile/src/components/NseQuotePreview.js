@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppState, Pressable, Text, View } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 
 import { fetchNseQuote } from '../services/nseQuotes';
-import { COLORS, FONTS, RADIUS, SPACING } from '../theme/colors';
+import { COLORS, FONTS, SPACING, themedStyles } from '../theme/colors';
 import { GlassCard } from './GlassCard';
 
 const REFRESH_INTERVAL_MS = 60000;
@@ -70,20 +70,12 @@ function Quote({ symbol }) {
   );
 }
 
-export function NseQuotePreview({ holdings }) {
+export function NseQuotePreview({ symbol }) {
   const [expanded, setExpanded] = useState(false);
-  const [selection, setSelection] = useState(null);
   const focused = useIsFocused();
-  const tickers = [...new Set(holdings
-    .map(stock => stock.symbol?.trim().toUpperCase())
-    .filter(symbol => symbol && symbol.length > 3 && symbol.endsWith('.NS'))
-    .map(symbol => symbol.slice(0, -3)))];
-
-  if (!tickers.length) return null;
-  const selected = tickers.includes(selection) ? selection : tickers[0];
 
   return (
-    <GlassCard style={styles.card}>
+    <GlassCard>
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded }}
@@ -95,37 +87,19 @@ export function NseQuotePreview({ holdings }) {
       </Pressable>
       {expanded && (
         <View style={styles.panel}>
-          <Text style={styles.note}>NSE reports a 1–3 minute delay during trading.</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.tickers}>
-            {tickers.map(ticker => (
-              <Pressable
-                key={ticker}
-                accessibilityRole="button"
-                accessibilityState={{ selected: ticker === selected }}
-                style={[styles.ticker, ticker === selected && styles.selectedTicker]}
-                onPress={() => setSelection(ticker)}
-              >
-                <Text style={styles.tickerText}>{ticker}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-          {focused && <Quote key={selected} symbol={selected} />}
+          <Text style={styles.note}>Delayed NSE quote. Holding values use Yahoo Finance prices or saved estimates.</Text>
+          {focused && <Quote key={symbol} symbol={symbol} />}
         </View>
       )}
     </GlassCard>
   );
 }
 
-const styles = StyleSheet.create({
-  card: { marginBottom: SPACING.md },
-  heading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: SPACING.md, minHeight: 32 },
-  title: { color: COLORS.textPrimary, fontSize: FONTS.md, fontWeight: '700', flexShrink: 1 },
-  action: { color: COLORS.accent, fontWeight: '600' },
-  panel: { gap: SPACING.md, marginTop: SPACING.sm },
-  tickers: { gap: SPACING.sm },
-  ticker: { borderWidth: 1, borderColor: COLORS.borderLight, borderRadius: RADIUS.sm, padding: SPACING.sm },
-  selectedTicker: { borderColor: COLORS.accent },
-  tickerText: { color: COLORS.textPrimary, fontSize: FONTS.sm },
-  price: { color: COLORS.textPrimary, fontSize: FONTS.xxl, fontWeight: '700' },
+const styles = themedStyles(() => ({
+  heading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: SPACING.md, minHeight: 48 },
+  title: { color: COLORS.textPrimary, fontSize: FONTS.md, fontWeight: '600', flexShrink: 1 },
+  action: { color: COLORS.textPrimary, fontSize: FONTS.sm, fontWeight: '600' },
+  panel: { gap: SPACING.sm },
+  price: { color: COLORS.textPrimary, fontSize: FONTS.xxl, fontWeight: '600' },
   note: { color: COLORS.textSecondary, fontSize: FONTS.sm },
-});
+}));

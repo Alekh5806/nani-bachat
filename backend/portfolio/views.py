@@ -18,7 +18,6 @@ from .models import PortfolioSnapshot
 from .serializers import PortfolioSnapshotSerializer
 from .logos import get_logo_urls, MAX_SYMBOLS
 from .services import PortfolioService, StockPriceService
-from .tasks import update_all_stock_prices
 from accounts.permissions import IsAdmin
 
 Member = get_user_model()
@@ -162,11 +161,17 @@ class RefreshPricesView(APIView):
     permission_classes = [IsAdmin]
 
     def post(self, request):
-        # Run synchronously (no Celery/Redis needed)
-        # Call the task function directly instead of .delay()
         try:
-            result = update_all_stock_prices()
-            return Response({'message': result or 'Prices updated successfully'})
+            from investments.models import Stock
+
+            active = Stock.objects.filter(is_sold=False)
+            count = active.count()
+            updated = StockPriceService.refresh_active_stock_prices()
+            return Response({
+                'message': 'Prices checked',
+                'complete': updated >= count,
+                'updated': updated,
+            })
         except Exception as e:
             return Response(
                 {'error': f'Failed to update prices: {str(e)}'},
