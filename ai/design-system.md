@@ -102,7 +102,7 @@ Package naming differs from the Iconsax website. Tab icons in use: `Home2`, `Cha
 ## Responsive and platform
 
 - Works at phone width first (360 to 430) and stretches on a browser.
-- Web: no focus outline on inputs (the container shows focus). Stack swipe-back is off on the web because it blocks touch scrolling. Chart drag locks page scroll.
+- Web: no focus outline on inputs (the container shows focus). Stack swipe-back is off on the web because it blocks touch scrolling. Horizontal chart drags select a snapshot. Vertical swipes scroll the page.
 - Never rely on hover. Every action is a tap.
 
 ## Do not

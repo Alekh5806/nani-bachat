@@ -178,7 +178,7 @@ const FloatingTabBar = ({ state, navigation }) => {
         styles.bar,
         HAS_LIQUID_GLASS && styles.barGlass,
         Platform.OS === 'web' && styles.barWeb,
-        { bottom: Math.max(insets.bottom, 12) },
+        { bottom: Math.max(insets.bottom, 12), left: insets.left + 8, right: insets.right + 8 },
       ]}
     >
       {HAS_LIQUID_GLASS ? (
@@ -293,8 +293,6 @@ export const MainNavigator = () => {
 const styles = themedStyles(() => ({
   bar: {
     position: 'absolute',
-    left: 8,
-    right: 8,
     height: BAR_HEIGHT,
     borderRadius: BAR_HEIGHT / 2,
     overflow: 'hidden',

@@ -1,139 +1,105 @@
-/**
- * GrowthChart
- * One line over time, drawn with react-native-svg. Press and drag to read a
- * point. Drawn in the theme's primary colour.
- */
-import React, { useMemo, useRef, useState } from 'react';
-import { View, Text, PanResponder, Platform } from 'react-native';
-import Svg, { Path, Line, Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
-import { COLORS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
+import React, { useMemo, useState } from 'react';
+import { PanResponder, Platform, Pressable, Text, View } from 'react-native';
+import Svg, { Circle, Line, Path } from 'react-native-svg';
+import { AppIcon } from './Icon';
+import { COLORS, RADIUS, SPACING, TYPE, themedStyles } from '../theme/colors';
+import { fmtFull } from '../utils/currency';
+import { dateLabel } from '../utils/portfolioHistory';
 
-const PAD_X = 8;
-const PAD_Y = 16;
+const INSET = 8;
 
-// Smooth curve through the points (Catmull-Rom converted to cubic Beziers).
-const smoothPath = (pts) => {
-  if (!pts.length) return '';
-  let d = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
-  for (let i = 0; i < pts.length - 1; i += 1) {
-    const p0 = pts[i - 1] || pts[i];
-    const p1 = pts[i];
-    const p2 = pts[i + 1];
-    const p3 = pts[i + 2] || p2;
-    const c1x = p1.x + (p2.x - p0.x) / 6;
-    const c1y = p1.y + (p2.y - p0.y) / 6;
-    const c2x = p2.x - (p3.x - p1.x) / 6;
-    const c2y = p2.y - (p3.y - p1.y) / 6;
-    d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
-  }
-  return d;
-};
-
-const fmtMoney = (v) =>
-  '₹' + (Number(v) || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
-
-const fmtDate = (iso) =>
-  new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-
-export const GrowthChart = ({ data, height = 160, onScrub }) => {
+export function GrowthChart({ data, height = 120 }) {
   const [width, setWidth] = useState(0);
-  const [active, setActive] = useState(null);
-  const geometry = useRef({ points: [] });
+  const [selectedDate, setSelectedDate] = useState(null);
+  const selected = selectedDate && data.find((point) => point.date === selectedDate);
+  const point = selected || data[data.length - 1];
+  const index = data.indexOf(point);
 
   const points = useMemo(() => {
-    if (!width || data.length < 2) return [];
-    const values = data.map((d) => d.value);
+    if (!data.length || width <= 2 * INSET) return [];
+    const values = data.map((entry) => entry.value);
     const min = Math.min(...values);
     const max = Math.max(...values);
-    const span = max - min || 1;
-    return data.map((d, i) => ({
-      x: PAD_X + (i / (data.length - 1)) * (width - PAD_X * 2),
-      y: PAD_Y + (1 - (d.value - min) / span) * (height - PAD_Y * 2),
-      ...d,
+    const start = Date.parse(data[0].date);
+    const span = Date.parse(data[data.length - 1].date) - start;
+    return data.map(({ date, value }) => ({
+      date,
+      x: span ? INSET + (Date.parse(date) - start) / span * (width - 2 * INSET) : width / 2,
+      y: max === min ? height / 2 : INSET + (max - value) / (max - min) * (height - 2 * INSET),
     }));
   }, [data, width, height]);
-  geometry.current.points = points;
 
-  const pick = (x) => {
-    const pts = geometry.current.points;
-    if (!pts.length) return;
-    const i = Math.max(0, Math.min(pts.length - 1, Math.round(((x - PAD_X) / (width - PAD_X * 2)) * (pts.length - 1))));
-    setActive(i);
-    onScrub && onScrub(pts[i]);
-  };
-  const release = () => {
-    setActive(null);
-    onScrub && onScrub(null);
-  };
+  const responder = useMemo(() => {
+    const pick = (event) => {
+      if (!points.length) return;
+      const x = event.nativeEvent.locationX;
+      const nearest = points.reduce((a, b) => Math.abs(a.x - x) <= Math.abs(b.x - x) ? a : b);
+      setSelectedDate(nearest.date);
+    };
+    return PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 5 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+      onPanResponderGrant: pick,
+      onPanResponderMove: pick,
+    });
+  }, [points]);
 
-  const responder = useMemo(
-    () => PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderTerminationRequest: () => false,
-      onPanResponderGrant: (e) => pick(e.nativeEvent.locationX),
-      onPanResponderMove: (e) => pick(e.nativeEvent.locationX),
-      onPanResponderRelease: release,
-      onPanResponderTerminate: release,
-    }),
-    [width, data]
-  );
+  if (!point) return <Text style={styles.empty}>No snapshots in this period.</Text>;
 
-  if (data.length < 2) {
+  const line = points.map(({ x, y }, i) => (i ? 'L' : 'M') + x.toFixed(1) + ',' + y.toFixed(1)).join(' ');
+  const dot = points[index];
+  const moveButton = (step, label, icon) => {
+    const target = data[index + step];
     return (
-      <View style={[styles.empty, { height }]}>
-        <Text style={styles.emptyText}>Growth appears after two daily snapshots</Text>
-      </View>
+      <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: !target }}
+        disabled={!target} onPress={() => setSelectedDate(target.date)}
+        style={({ pressed }) => [styles.step, !target && styles.disabled, pressed && styles.pressed]}>
+        <AppIcon name={icon} size={16} color={COLORS.textSecondary} />
+      </Pressable>
     );
-  }
-
-  const color = COLORS.accent; // theme primary, whatever the direction
-  const line = smoothPath(points);
-  const last = points[points.length - 1];
-  const first = points[0];
-  const area = points.length ? `${line} L${last.x.toFixed(1)},${height} L${first.x.toFixed(1)},${height} Z` : '';
-  const dot = active !== null ? points[active] : last;
+  };
 
   return (
-    <View
-      // On the web the browser scrolls the page on touch unless told not to.
-      style={[{ height }, Platform.OS === 'web' && { touchAction: 'none', userSelect: 'none' }]}
-      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-      {...responder.panHandlers}
-    >
-      {width > 0 && (
-        <Svg width={width} height={height}>
-          <Defs>
-            <LinearGradient id="growthFill" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor={color} stopOpacity={0.35} />
-              <Stop offset="1" stopColor={color} stopOpacity={0} />
-            </LinearGradient>
-          </Defs>
-          <Path d={area} fill="url(#growthFill)" />
-          <Path d={line} stroke={color} strokeWidth={2.5} fill="none" strokeLinejoin="round" strokeLinecap="round" />
-          {active !== null && (
-            <Line x1={dot.x} x2={dot.x} y1={0} y2={height} stroke={COLORS.textMuted} strokeWidth={1} strokeDasharray="3,3" />
+    <View>
+      <View style={[{ height }, Platform.OS === 'web' && { touchAction: 'pan-y', userSelect: 'none' }]}
+        onLayout={(e) => setWidth(e.nativeEvent.layout.width)} {...responder.panHandlers}>
+        <View pointerEvents="none">
+          {points.length > 0 && (
+            <Svg width={width} height={height} accessible={false}>
+              {[INSET, height / 2, height - INSET].map((y) => (
+                <Line key={y} x1={INSET} x2={width - INSET} y1={y} y2={y} stroke={COLORS.border} strokeDasharray="3 5" />
+              ))}
+              {points.length > 1 && <>
+                <Path d={line + ' L' + points[points.length - 1].x + ',' + height + ' L' + points[0].x + ',' + height + ' Z'}
+                  fill={COLORS.accent} fillOpacity={0.07} />
+                <Path d={line} fill="none" stroke={COLORS.accent} strokeWidth={2.5} strokeLinejoin="round" />
+              </>}
+              {dot && <>
+                {selected && <Line x1={dot.x} x2={dot.x} y1={INSET} y2={height} stroke={COLORS.textSecondary} strokeDasharray="3 4" />}
+                <Circle cx={dot.x} cy={dot.y} r={4.5} fill={COLORS.accent} stroke={COLORS.cardBg} strokeWidth={2} />
+              </>}
+            </Svg>
           )}
-          {dot && (
-            <Circle cx={dot.x} cy={dot.y} r={5} fill={color} stroke={COLORS.cardBg} strokeWidth={2.5} />
-          )}
-        </Svg>
-      )}
+        </View>
+      </View>
+      <View style={styles.readout}>
+        {data.length > 1 && moveButton(-1, 'Previous snapshot', 'chevron-back')}
+        <View style={styles.readoutText} accessibilityLiveRegion="polite">
+          <Text style={styles.date}>{dateLabel(point.date)}</Text>
+          <Text style={styles.amount}>{fmtFull(point.value)}</Text>
+        </View>
+        {data.length > 1 && moveButton(1, 'Next snapshot', 'chevron-forward')}
+      </View>
     </View>
   );
-};
-
-export const formatChartPoint = (p) => ({ value: fmtMoney(p.value), date: fmtDate(p.date) });
+}
 
 const styles = themedStyles(() => ({
-  empty: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyText: {
-    ...TYPE.cardTitle,
-    color: COLORS.textMuted,
-    paddingHorizontal: SPACING.lg,
-    textAlign: 'center',
-  },
+  readout: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: SPACING.sm },
+  readoutText: { alignItems: 'center', flexShrink: 1, paddingHorizontal: SPACING.md },
+  date: { ...TYPE.caption, color: COLORS.textSecondary },
+  amount: { ...TYPE.smallValue, color: COLORS.textPrimary, marginTop: SPACING.xs, fontVariant: ['tabular-nums'] },
+  step: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: RADIUS.full },
+  disabled: { opacity: 0.35 },
+  pressed: { backgroundColor: COLORS.surface },
+  empty: { ...TYPE.secondary, textAlign: 'center', color: COLORS.textSecondary, paddingVertical: SPACING.xxl },
 }));

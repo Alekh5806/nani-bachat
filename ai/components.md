@@ -10,7 +10,7 @@ All shared components live in `mobile/src/components`. Reuse these before writin
 | `SummaryCard` | Top card of a screen | Label, one big value, optional round action button, dashed line, label/value rows, optional footnote. Props: `label`, `value`, `valueColor`, `action {icon,onPress,loading,label}`, `rows [{label,value,color}]`, `note`. |
 | `GlassCard` | A plain card | Filled surface and hairline border. |
 | `PressCard` | A card that opens something | Paper `Card` with press feedback (shrinks to 97%, dims to 85%). Pass `onPress`. |
-| Paper `Card` (outlined) | Home cards | Use style `paperCard` (radius 18, border `border`, bottom margin 20) and `Card.Content` with padding 20. |
+| Home cards | Portfolio overview and breakdowns | Use a flat surface, radius 18, a one-pixel border and 20px padding. |
 | `SectionHeader` | Title above a group | |
 | `TabBarSpacer` | End of every scrolling screen | Height = tab bar + its offset + 16. |
 
@@ -38,8 +38,9 @@ All shared components live in `mobile/src/components`. Reuse these before writin
 
 | Component | Use it for | Notes |
 |---|---|---|
-| `GrowthChart` | Home line chart | Height 120. Drag to read a point. Drag locks page scroll. |
-| `AllocationDonut` | Top Holdings and Asset Allocation | `half` prop draws a half ring. |
+| `PortfolioHistory` | Home value history | Selects the date window and loads additional snapshot pages as needed. |
+| `GrowthChart` | Home line chart | Receives ascending dated values. Horizontal drag or the previous and next buttons select a snapshot. Vertical swipes scroll the page. |
+| `AllocationDonut` | Holding allocation | `half` draws a half ring. The caption moves below the ring when the text exceeds the space in its center. |
 | `LoadingSkeleton` | Loading state | |
 | `StatCard` | Small stat | Older. Prefer `SummaryCard`. |
 
@@ -61,7 +62,7 @@ Rules: every control is full width, one per line, with an Iconsax icon through t
 
 ## React Native Paper
 
-Installed and themed from the app colors (`PaperProvider` in `App.js`). Use for: `Card`, `Chip` (range filter), `Button` (text button such as "View all"), `Divider`, `IconButton`, `ProgressBar` (dividend bars), `Dialog`. Style them with tokens, never with Paper defaults.
+Installed and themed from the app colors (`PaperProvider` in `App.js`). Use for: `Card`, `Chip`, `Button` (text button such as "View all"), `Divider`, `IconButton`, `ProgressBar`, `Dialog`. Style them with tokens, never with Paper defaults.
 
 ## Feedback
 

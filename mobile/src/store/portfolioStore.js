@@ -5,18 +5,22 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../config/api';
+import { fetchPages } from '../config/fetchPages';
 import { getErrorMessage } from '../utils/errors';
 
 // Data that is saved on the device, so screens show the last known values
 // immediately and refresh in the background.
 const CACHE_KEY = 'portfolio_cache_v1';
-const CACHED_KEYS = ['dashboard', 'stockSummary', 'stocks', 'soldStocks', 'members', 'dividends', 'growthData'];
+const CACHED_KEYS = ['dashboard', 'stockSummary', 'stocks', 'soldStocks', 'members', 'dividends', 'dividendsLoaded'];
 const EMPTY_CACHE = {
   dashboard: null, stockSummary: null, stocks: [], soldStocks: [],
-  members: [], dividends: [], growthData: [],
+  members: [], dividends: [], dividendsLoaded: false,
 };
 
 let searchRequestId = 0;
+let dashboardRequest = 0;
+let holdingsRequest = 0;
+let dividendRequest = 0;
 
 export const usePortfolioStore = create((set, get) => ({
   // ── State ──
@@ -29,36 +33,44 @@ export const usePortfolioStore = create((set, get) => ({
   dividends: [],
   searchResults: [],
   isSearching: false,
-  growthData: [],
+  dividendsLoaded: false,
+  dividendsFailed: false,
+  holdingsFailed: false,
   isLoading: false,
   error: null,
 
   // ── Forget saved data (logout, or a different user signs in) ──
   clearCache: async () => {
-    set({ ...EMPTY_CACHE, error: null });
+    dashboardRequest += 1;
+    holdingsRequest += 1;
+    dividendRequest += 1;
+    set({ ...EMPTY_CACHE, error: null, isLoading: false, holdingsFailed: false, dividendsFailed: false });
     await AsyncStorage.removeItem(CACHE_KEY).catch(() => {});
   },
 
   // ── Fetch Dashboard Data ──
   fetchDashboard: async () => {
+    const request = ++dashboardRequest;
     set({ isLoading: true });
     try {
       const response = await api.get('/portfolio/dashboard/');
-      set({ dashboard: response.data, isLoading: false, error: null });
+      if (request === dashboardRequest) set({ dashboard: response.data, isLoading: false, error: null });
       return response.data;
     } catch (error) {
-      set({ isLoading: false, error: 'Failed to load dashboard' });
+      if (request === dashboardRequest) set({ isLoading: false, error: 'Failed to load dashboard' });
       return null;
     }
   },
 
   // ── Fetch Stock Summary ──
   fetchStockSummary: async () => {
+    const request = ++holdingsRequest;
     try {
       const response = await api.get('/investments/stocks/summary/');
-      set({ stockSummary: response.data });
+      if (request === holdingsRequest) set({ stockSummary: response.data, holdingsFailed: false });
       return response.data;
     } catch (error) {
+      if (request === holdingsRequest) set({ holdingsFailed: true });
       console.error('Failed to fetch stock summary:', error);
       return null;
     }
@@ -251,11 +263,13 @@ export const usePortfolioStore = create((set, get) => ({
 
   // ── Fetch Dividends ──
   fetchDividends: async () => {
+    const request = ++dividendRequest;
     try {
-      const response = await api.get('/dividends/');
-      set({ dividends: response.data.results || response.data });
-      return response.data;
+      const rows = await fetchPages('/dividends/');
+      if (request === dividendRequest) set({ dividends: rows, dividendsLoaded: true, dividendsFailed: false });
+      return rows;
     } catch (error) {
+      if (request === dividendRequest) set({ dividendsFailed: true });
       console.error('Failed to fetch dividends:', error);
       return null;
     }
@@ -272,18 +286,6 @@ export const usePortfolioStore = create((set, get) => ({
         success: false,
         error: getErrorMessage(error, 'Failed to add dividend'),
       };
-    }
-  },
-
-  // ── Fetch Growth Data ──
-  fetchGrowthData: async (limit = 30) => {
-    try {
-      const response = await api.get(`/portfolio/growth/?limit=${limit}`);
-      set({ growthData: response.data.results || response.data });
-      return response.data;
-    } catch (error) {
-      console.error('Failed to fetch growth data:', error);
-      return null;
     }
   },
 

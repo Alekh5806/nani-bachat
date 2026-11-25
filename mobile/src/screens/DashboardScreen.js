@@ -1,531 +1,298 @@
-/**
- * Dashboard Screen
- * Portfolio first. Flat dark surfaces with hairline borders, green and red only for gains and losses.
- */
-import React, { useCallback, useState } from 'react';
-import { shortName } from '../utils/names';
+import React, { useCallback, useRef, useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, RefreshControl,
-  Dimensions, Platform
+  ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, useWindowDimensions, View,
 } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
+import { useFocusEffect } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Refresh2, Wallet3 } from 'iconsax-react-native';
 import { usePortfolioStore } from '../store/portfolioStore';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { fmtFull, fmtShort } from '../utils/currency';
-import { Button, Card, Chip, Divider, IconButton, ProgressBar } from 'react-native-paper';
-import { Icon, AppIcon } from '../components/Icon';
 import { AllocationDonut } from '../components/AllocationDonut';
-import { GrowthChart, formatChartPoint } from '../components/GrowthChart';
 import { DashboardSkeleton } from '../components/LoadingSkeleton';
-import { CompanyLogo } from '../components/CompanyLogo';
-import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
+import { PortfolioHistory } from '../components/PortfolioHistory';
 import { TabBarSpacer } from '../components/TabBarSpacer';
+import { COLORS, RADIUS, SPACING, TYPE, themedStyles } from '../theme/colors';
+import { fmtFull, fmtShort } from '../utils/currency';
+import { shortName } from '../utils/names';
+import { dividendQuarters, todayInClub } from '../utils/portfolioHistory';
 
-const { width: SCREEN_W } = Dimensions.get('window');
-const PRICE_REFRESH_INTERVAL_MS = 60000;
-const RANGES = [['1W', 7], ['1M', 30], ['3M', 90], ['1Y', 365], ['ALL', 3650]];
-const RANGE_LABEL = { '1W': 'this week', '1M': 'this month', '3M': 'last 3 months', '1Y': 'this year', ALL: 'all time' };
+const PRICE_REFRESH_MS = 60000;
+// The smaller of the two columns needs at least 360 points at the default text size.
+const MIN_COLUMNS_WIDTH = 360 * (1.2 + 1) + SPACING.lg;
+const SIDE_EDGES = ['left', 'right'];
+const CHART_COLORS = ['#4D6BFF', '#7C93FF', '#A9B8FF', '#64748B', '#8793A6', '#C5CCD8'];
+const hasAmount = (value) => value != null && value !== '' && Number.isFinite(Number(value));
+const money = (value) => hasAmount(value) ? fmtFull(value) : '—';
+const signedMoney = (value) => (Number(value) > 0 ? '+' : '') + money(value);
+const returnColor = (value) => value > 0 ? COLORS.profit : value < 0 ? COLORS.loss : COLORS.textSecondary;
 
-// Categorical colours for the allocation donut (not P/L colours).
-// One blue for the biggest holding, then quieter blues and greys, so the chart does not read as a rainbow.
-const CHART_COLORS = ['#4D6BFF', '#7C93FF', '#A9B8FF', '#64748B', '#8793A6', '#AAB4C3', '#C5CCD8', '#D9DEE6'];
+function CardHeading({ title, action, onPress }) {
+  return (
+    <View style={styles.heading}>
+      <Text accessibilityRole="header" style={styles.title}>{title}</Text>
+      {action && <Pressable accessibilityRole="button" onPress={onPress}
+        style={({ pressed }) => [styles.link, pressed && styles.pressed]}>
+        <Text style={styles.linkText}>{action}</Text>
+      </Pressable>}
+    </View>
+  );
+}
 
+function AmountRow({ label, value, color, swatch }) {
+  return (
+    <View style={styles.amountRow}>
+      <View style={styles.rowLabel}>
+        {swatch && <View style={[styles.swatch, { backgroundColor: swatch }]} />}
+        <Text style={styles.rowText}>{label}</Text>
+      </View>
+      <Text style={[styles.amount, color && { color }]}>{value}</Text>
+    </View>
+  );
+}
 
-// Component
-export const DashboardScreen = () => {
-  const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
-  const {
-    dashboard, fetchDashboard,
-    stockSummary, fetchStockSummary,
-    dividends, fetchDividends,
-    growthData, fetchGrowthData,
-    isLoading, error,
-  } = usePortfolioStore();
+function BalanceBreakdown({ portfolio: p, onStocks }) {
+  const balances = [
+    { label: 'Stock holdings', value: p.active_stock_value, color: COLORS.accent },
+    { label: 'Club cash', value: p.cash_balance, color: COLORS.neutral },
+    { label: 'Dividends', value: p.total_dividends, color: CHART_COLORS[2] },
+  ];
+  // A signed balance cannot be represented as a slice of a positive whole.
+  const showBar = balances.every((b) => hasAmount(b.value) && b.value >= 0) && balances.some((b) => b.value > 0);
+  return (
+    <View style={styles.card}>
+      <CardHeading title="Balance Breakdown" action="View stocks" onPress={onStocks} />
+      {showBar && <View style={styles.allocationBar}>
+        {balances.filter((b) => b.value > 0).map((b) => (
+          <View key={b.label} style={{ flex: Number(b.value), backgroundColor: b.color }} />
+        ))}
+      </View>}
+      {balances.map((b) => <AmountRow key={b.label} label={b.label} value={money(b.value)} swatch={showBar && b.color} />)}
+      <View style={styles.divider} />
+      <Text accessibilityRole="header" style={styles.title}>Return Breakdown</Text>
+      {[
+        ['Realized stock P&L', p.realized_profit_loss], ['Unrealized stock P&L', p.unrealized_profit_loss],
+        ['Dividend income', p.total_dividends],
+      ].map(([label, value]) => <AmountRow key={label} label={label} value={signedMoney(value)} color={returnColor(value)} />)}
+    </View>
+  );
+}
+
+function HoldingsCard({ summary, failed, onOpen }) {
+  const { fontScale } = useWindowDimensions();
+  const holdings = [...(summary?.stocks || [])].sort((a, b) => Number(b.current_value) - Number(a.current_value));
+  const total = holdings.reduce((sum, h) => sum + Math.round(Number(h.current_value) * 100), 0) / 100;
+  const slices = holdings.slice(0, 5).map((h, i) => ({
+    label: shortName(h.name) || h.symbol, key: h.symbol, value: Number(h.current_value), color: CHART_COLORS[i],
+  }));
+  if (holdings.length > 5) {
+    const rest = holdings.slice(5);
+    slices.push({
+      key: 'other-holdings', label: 'Other holdings (' + rest.length + ')',
+      value: rest.reduce((sum, h) => sum + Math.round(Number(h.current_value) * 100), 0) / 100,
+      color: CHART_COLORS[5],
+    });
+  }
+  return (
+    <View style={styles.card}>
+      <CardHeading title="Top Holdings" action="View investments" onPress={onOpen} />
+      {failed && <Text style={styles.notice}>{summary ? 'Showing saved holdings.' : 'Holdings couldn’t load. Refresh to retry.'}</Text>}
+      {summary ? holdings.length ? <View style={styles.holdingsLayout}>
+        {total > 0 && <View style={styles.ring}>
+          <AllocationDonut slices={slices} size={164} thickness={22} label="Stock value" value={fmtShort(total)} />
+        </View>}
+        <View style={[styles.holdingsList, { flexBasis: 240 * Math.max(1, fontScale) }]}>{slices.map((s) => <AmountRow key={s.key} label={s.label} swatch={s.color}
+          value={total > 0 ? (s.value / total * 100).toFixed(1) + '%' : fmtFull(s.value)} />)}</View>
+      </View> : <Text style={styles.empty}>No stocks are currently held.</Text>
+        : !failed && <Text style={styles.empty}>Loading holdings…</Text>}
+    </View>
+  );
+}
+
+function DividendsCard({ total, dividends, loaded, failed, today, onOpen }) {
+  const quarters = dividendQuarters(dividends, today);
+  const peak = Math.max(...quarters.map((q) => q.total));
+  return (
+    <View style={styles.card}>
+      <CardHeading title="Dividends" action="View history" onPress={onOpen} />
+      <Text style={styles.caption}>All-time dividend income</Text>
+      <Text style={styles.sectionValue}>{money(total)}</Text>
+      {failed && <Text style={styles.notice}>{loaded ? 'Showing saved dividend history.' : 'Dividend history couldn’t load. Refresh to retry.'}</Text>}
+      {loaded ? dividends.length ? <>
+        <View style={styles.divider} />
+        <Text style={styles.caption}>Last four quarters · by ex-dividend date</Text>
+        {quarters.map((q) => (
+          <View key={q.label} style={styles.quarter}>
+            <AmountRow label={q.label} value={fmtFull(q.total)} />
+            <View style={styles.track}>
+              {q.total > 0 && <View style={[styles.fill, { width: (q.total / peak * 100) + '%' }]} />}
+            </View>
+          </View>
+        ))}
+      </> : <Text style={styles.empty}>No dividends recorded yet.</Text>
+        : !failed && <Text style={styles.empty}>Loading dividend history…</Text>}
+    </View>
+  );
+}
+
+function PortfolioValueCard({ dashboard, refreshing, refresh, today, refreshKey }) {
+  const p = dashboard.portfolio;
+  const gain = p.profit_loss;
+  const pct = Number(p.growth_percentage);
+  return (
+    <View style={styles.card}>
+      <View style={styles.heroHeading}>
+        <View style={styles.heroLabel}>
+          <Wallet3 size={18} color={COLORS.textSecondary} />
+          <Text style={styles.caption}>Club portfolio value</Text>
+        </View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Refresh portfolio"
+          accessibilityState={{ busy: refreshing, disabled: refreshing }} disabled={refreshing}
+          onPress={refresh} style={({ pressed }) => [styles.refresh, pressed && styles.pressed]}>
+          {refreshing ? <ActivityIndicator size="small" color={COLORS.accent} /> : <Refresh2 size={18} color={COLORS.textPrimary} />}
+        </Pressable>
+      </View>
+      <Text style={styles.heroValue} selectable>{money(p.current_value)}</Text>
+      <View style={styles.heroStats}>
+        <View style={styles.metric}>
+          <Text style={styles.caption}>Invested capital</Text>
+          <Text style={styles.metricValue}>{money(p.total_invested)}</Text>
+        </View>
+        <View style={styles.metric}>
+          <Text style={styles.caption}>All-time return</Text>
+          <Text style={[styles.metricValue, { color: returnColor(gain) }]}>{signedMoney(gain)}</Text>
+          {Number(p.total_invested) > 0 && hasAmount(p.growth_percentage) && <Text style={[styles.caption, { color: returnColor(gain) }]}>
+            {(pct > 0 ? '+' : '') + pct.toFixed(2) + '%'}
+          </Text>}
+        </View>
+      </View>
+      <PortfolioHistory recent={dashboard.growth_data} today={today} refreshKey={refreshKey} />
+    </View>
+  );
+}
+
+export function DashboardScreen({ navigation }) {
+  const { fontScale } = useWindowDimensions();
+  const [contentWidth, setContentWidth] = useState(0);
+  const wide = contentWidth >= MIN_COLUMNS_WIDTH * Math.max(1, fontScale);
+  const { dashboard, stockSummary, dividends, dividendsLoaded, holdingsFailed, dividendsFailed, error, isLoading,
+    fetchDashboard, fetchStockSummary, fetchDividends } = usePortfolioStore();
   const [refreshing, setRefreshing] = useState(false);
-  const [range, setRange] = useState('1M');
-  const [scrub, setScrub] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const inFlight = useRef(null);
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchGrowthData(RANGES.find(([k]) => k === range)[1]);
-    }, [range, fetchGrowthData])
-  );
-
-  const chartData = [...(growthData || [])]
-    .reverse()
-    .map((d) => ({ date: d.date, value: Number(d.total_current_value) || 0 }));
-  const scrubbed = scrub ? formatChartPoint(scrub) : null;
-
-  // Change over the selected range, taken from the same points the chart draws.
-  const rangeStart = chartData.length > 1 ? chartData[0].value : 0;
-  const rangeEnd = chartData.length > 1 ? chartData[chartData.length - 1].value : 0;
-  const rangePct = rangeStart > 0 ? ((rangeEnd - rangeStart) / rangeStart) * 100 : 0;
-  const rangeUp = rangePct >= 0;
-
-  useFocusEffect(
-    useCallback(() => {
-      const loadPrices = () => {
-        fetchDashboard();
-        fetchStockSummary();
-        fetchDividends();
-      };
-
-      loadPrices();
-      const intervalId = setInterval(loadPrices, PRICE_REFRESH_INTERVAL_MS);
-
-      return () => clearInterval(intervalId);
-    }, [fetchDashboard, fetchStockSummary, fetchDividends])
-  );
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await Promise.all([fetchDashboard(), fetchStockSummary(), fetchDividends()]);
-    setRefreshing(false);
+  const load = useCallback((includeDividends) => {
+    const requests = [fetchDashboard(), fetchStockSummary()];
+    if (includeDividends) requests.push(fetchDividends());
+    const pending = Promise.all(requests).finally(() => {
+      if (inFlight.current === pending) inFlight.current = null;
+    });
+    inFlight.current = pending;
+    return pending;
   }, [fetchDashboard, fetchStockSummary, fetchDividends]);
 
-  const p = dashboard?.portfolio || {};
-  const holdings = stockSummary?.stocks || [];
+  useFocusEffect(useCallback(() => {
+    load(true);
+    const timer = setInterval(() => { if (!inFlight.current) load(false); }, PRICE_REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [load]));
 
-
-  const totalVal = holdings.reduce((s, h) => s + (Number(h.current_value) || 0), 0) || 1;
-
-
-  // Summary grid: three columns, signed values coloured for profit and loss.
-  const pl = (v) => {
-    const n = Number(v) || 0;
-    return { value: (n >= 0 ? '+' : '') + fmtShort(n), color: n >= 0 ? COLORS.profit : COLORS.loss };
+  const refresh = async () => {
+    setRefreshing(true);
+    setRefreshKey((n) => n + 1);
+    await load(true);
+    setRefreshing(false);
   };
-  const summaryStats = [
-    { label: 'Invested', value: fmtShort(p.total_invested) },
-    { label: 'Current value', value: fmtShort(p.current_value) },
-    { label: 'Cash', value: fmtShort(p.cash_balance) },
-    { label: 'Stocks value', value: fmtShort(p.active_stock_value) },
-    { label: 'P&L', ...pl(p.profit_loss) },
-    { label: 'Total returns', ...pl(p.total_returns) },
-    { label: 'Realized P&L', ...pl(p.realized_profit_loss) },
-    { label: 'Unrealized P&L', ...pl(p.unrealized_profit_loss) },
-    { label: 'Dividends', value: fmtShort(p.total_dividends) },
-  ];
 
-  // Asset allocation: stocks and club cash.
-  const stocksValue = Number(p.active_stock_value) || 0;
-  const cashValue = Math.max(Number(p.cash_balance) || 0, 0);
-  const assetTotal = stocksValue + cashValue || 1;
-  const assets = [
-    {
-      key: 'stocks', name: 'Stocks', color: COLORS.accent, value: stocksValue,
-      invested: Number(p.active_stock_invested) || 0,
-      sub: `${holdings.length} stocks · ${((stocksValue / assetTotal) * 100).toFixed(2)}%`,
-      up: stocksValue >= (Number(p.active_stock_invested) || 0),
-    },
-    {
-      key: 'cash', name: 'Club Cash', color: COLORS.neutral, value: cashValue,
-      sub: `${((cashValue / assetTotal) * 100).toFixed(2)}%`,
-    },
-  ].filter((a) => a.value > 0);
-
-  // Dividends: the last four calendar quarters, newest first (empty ones show 0).
-  const quarterNames = ['Jan - Mar', 'Apr - Jun', 'Jul - Sep', 'Oct - Dec'];
-  const byQuarter = {};
-  (dividends || []).forEach((d) => {
-    const dt = new Date(d.ex_date);
-    if (Number.isNaN(dt.getTime())) return;
-    const idx = dt.getFullYear() * 4 + Math.floor(dt.getMonth() / 3);
-    byQuarter[idx] = (byQuarter[idx] || 0) + (Number(d.total_dividend) || 0);
-  });
-  const nowDate = new Date();
-  const currentQuarter = nowDate.getFullYear() * 4 + Math.floor(nowDate.getMonth() / 3);
-  const quarters = [0, 1, 2, 3].map((i) => {
-    const idx = currentQuarter - i;
-    const year = Math.floor(idx / 4);
-    const label = quarterNames[idx % 4] + (year === nowDate.getFullYear() ? '' : ` '${String(year).slice(2)}`);
-    return { key: idx, label, total: byQuarter[idx] || 0 };
-  });
-  const maxQuarter = Math.max(...quarters.map((x) => x.total), 1);
-  const firstDividend = (dividends || [])
-    .map((d) => new Date(d.ex_date)).filter((d) => !Number.isNaN(d.getTime()))
-    .sort((a, b) => a - b)[0];
-  const receivedSince = firstDividend
-    ? firstDividend.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' }).replace(' ', " '")
-    : null;
-
-  // Donut and legend: the five largest holdings.
-  const sorted = [...holdings].sort((a, b) => (Number(b.current_value) || 0) - (Number(a.current_value) || 0));
-  const toSlice = (h, i) => ({
-    key: h.symbol,
-    name: shortName(h.name) || (h.symbol || '').replace('.NS', ''),
-    value: Number(h.current_value) || 0,
-    invested: Number(h.total_invested) || 0,
-    pnl: (Number(h.current_value) || 0) - (Number(h.total_invested) || 0),
-    sub: `${h.total_quantity || h.quantity} shares · ${(((Number(h.current_value) || 0) / totalVal) * 100).toFixed(1)}%`,
-    color: CHART_COLORS[i % CHART_COLORS.length],
-  });
-  const slices = sorted.slice(0, 5).map(toSlice);
-
-  if (!dashboard) {
+  const today = todayInClub();
+  const month = new Date(today).toLocaleDateString('en-IN', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const header = <View style={styles.frame}><ScreenHeader title="Portfolio" subtitle={month} /></View>;
+  if (!dashboard?.portfolio) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
+      <SafeAreaView edges={SIDE_EDGES} style={styles.container}>
+        {header}
         {error && !isLoading ? (
-          <>
-            <ScreenHeader title="Portfolio" />
-            <Text style={styles.loadError}>{error}</Text>
-            <Button onPress={onRefresh}>Retry</Button>
-          </>
-        ) : <DashboardSkeleton />}
-      </View>
+          <View style={[styles.frame, styles.errorCard]}>
+            <Text style={styles.title}>Portfolio couldn’t load</Text>
+            <Text style={styles.empty}>Check your connection and try again.</Text>
+            <Pressable accessibilityRole="button" onPress={refresh} style={styles.retry}>
+              <Text style={styles.linkText}>Try again</Text>
+            </Pressable>
+          </View>
+        ) : <View style={styles.frame}><DashboardSkeleton /></View>}
+      </SafeAreaView>
     );
   }
 
+  const overview = <PortfolioValueCard dashboard={dashboard} refreshing={refreshing} refresh={refresh}
+    today={today} refreshKey={refreshKey} />;
+  const breakdown = <BalanceBreakdown portfolio={dashboard.portfolio} onStocks={() => navigation.navigate('AssetStocks')} />;
+  const holdings = <HoldingsCard summary={stockSummary} failed={holdingsFailed}
+    onOpen={() => navigation.navigate('Investments', { screen: 'InvestmentsHome' })} />;
+  const income = <DividendsCard total={dashboard.portfolio.total_dividends} dividends={dividends} loaded={dividendsLoaded}
+    failed={dividendsFailed} today={today} onOpen={() => navigation.navigate('Dividends', { screen: 'DividendsHome' })} />;
+
   return (
-    <View style={styles.container}>
-      <ScreenHeader title="Portfolio" subtitle={getMonthLabel()} />
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        scrollEnabled={!scrub}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh}
-            tintColor={COLORS.accent} colors={[COLORS.accent]} />
-        }
-      >
-        {/* PORTFOLIO VALUE CARD */}
-        <View style={styles.valueCard}>
-          <View style={styles.valueTop}>
-            <Text style={styles.valueLabel}>{scrubbed ? scrubbed.date : 'Total Balance'}</Text>
-            <Text style={styles.valueAmount} numberOfLines={1} adjustsFontSizeToFit>
-              {scrubbed ? scrubbed.value : fmtFull(p.current_value)}
-            </Text>
-            {chartData.length > 1 && (
-              <View style={styles.changeRow}>
-                <Icon name={rangeUp ? '📈' : '📉'} size={16} color={rangeUp ? COLORS.profit : COLORS.loss} />
-                <Text style={[styles.changeText, { color: rangeUp ? COLORS.profit : COLORS.loss }]}>
-                  {rangeUp ? '+' : '-'}{Math.abs(rangePct).toFixed(2)}%
-                </Text>
-                <Text style={styles.changeLabel}>{RANGE_LABEL[range]}</Text>
-              </View>
-            )}
+    <SafeAreaView edges={SIDE_EDGES} style={styles.container}>
+      {header}
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={COLORS.accent} colors={[COLORS.accent]} />}>
+        {error && <Text accessibilityLiveRegion="polite" style={styles.notice}>Couldn’t update the portfolio. Showing the last saved balance.</Text>}
+        <View onLayout={(event) => setContentWidth(event.nativeEvent.layout.width)}
+          style={[styles.group, wide && styles.columns]}>
+          <View style={[styles.group, wide && styles.primaryColumn]}>
+            {overview}
+            {wide ? holdings : breakdown}
           </View>
-
-          <GrowthChart data={chartData} height={120} onScrub={setScrub} />
-
-          <View style={styles.rangeRow}>
-            {RANGES.map(([key]) => (
-              <Chip
-                key={key}
-                compact
-                selected={range === key}
-                showSelectedCheck={false}
-                onPress={() => setRange(key)}
-                style={[styles.rangeChipPaper, range === key && styles.rangeChipActive]}
-                textStyle={[styles.rangeChipText, range === key && styles.rangeTextActive]}
-              >
-                {key}
-              </Chip>
-            ))}
+          <View style={[styles.group, wide && styles.secondaryColumn]}>
+            {wide ? breakdown : holdings}
+            {income}
           </View>
         </View>
-
-        {/* SUMMARY */}
-        {holdings.length > 0 && (
-          <Card mode="outlined" style={styles.paperCard}>
-            <View style={styles.statGrid}>
-              {summaryStats.map((st, i) => (
-                <View
-                  key={st.label}
-                  style={[
-                    styles.statCell,
-                    i % 3 !== 2 && styles.statCellRight,
-                    i < summaryStats.length - 3 && styles.statCellBottom,
-                  ]}
-                >
-                  <Text style={styles.statLabel} numberOfLines={1}>{st.label}</Text>
-                  <Text
-                    style={[styles.statValue, st.color && { color: st.color }]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                  >
-                    {st.value}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </Card>
-        )}
-
-        {/* OVERVIEW */}
-        {holdings.length > 0 && (
-          <Card mode="outlined" style={styles.paperCard}>
-            <Card.Content style={styles.paperBody}>
-            <View style={styles.overviewHeader}>
-              <Text style={styles.overviewTitle}>Top Holdings</Text>
-              <Button
-                mode="text"
-                compact
-                onPress={() => navigation.navigate('Investments')}
-                labelStyle={styles.viewAll}
-              >
-                View all
-              </Button>
-            </View>
-
-            <AllocationDonut
-              slices={slices}
-              label="Current value"
-              value={fmtShort(p.current_value)}
-            />
-            <Divider style={styles.divider} />
-
-
-            {slices.map((slice, i) => (
-              <View key={`${slice.key}-${i}`} style={styles.legendRow}>
-                <View style={[styles.legendBar, styles.legendBarShort, { backgroundColor: slice.color }]} />
-                <View style={styles.legendMain}>
-                  <Text style={styles.legendName} numberOfLines={1}>{slice.name}</Text>
-                </View>
-                <Text style={styles.legendValue}>
-                  {((slice.value / totalVal) * 100).toFixed(1)}%
-                </Text>
-              </View>
-            ))}
-
-            </Card.Content>
-          </Card>
-        )}
-
-        {/* ASSET ALLOCATION */}
-        {assets.length > 0 && (
-          <Card mode="outlined" style={styles.paperCard} onPress={() => navigation.navigate('AssetStocks')}>
-            <Card.Content style={styles.paperBody}>
-            <View style={styles.overviewHeader}>
-              <Text style={styles.overviewTitle}>Asset Allocation</Text>
-              <IconButton
-                icon={() => <AppIcon name="chevron-forward" size={18} color={COLORS.textSecondary} />}
-                size={20}
-                style={styles.chevron}
-                onPress={() => navigation.navigate('AssetStocks')}
-              />
-            </View>
-            <AllocationDonut slices={assets} half size={220} thickness={34} />
-            {assets.map((a) => (
-              <View key={a.key} style={styles.legendRow}>
-                <View style={styles.legendMain}>
-                  <Text style={styles.legendName} numberOfLines={1}>{a.name}</Text>
-                  <Text style={styles.legendSub}>{a.sub}</Text>
-                </View>
-                <View style={styles.legendRight}>
-                  <Text style={[styles.legendValue, a.invested != null && { color: a.up ? COLORS.profit : COLORS.loss }]}>
-                    {fmtFull(a.value)}
-                  </Text>
-                  {a.invested != null && <Text style={styles.legendSub}>({fmtFull(a.invested)})</Text>}
-                </View>
-              </View>
-            ))}
-            </Card.Content>
-          </Card>
-        )}
-
-        {/* DIVIDENDS */}
-        <Card mode="outlined" style={[styles.paperCard, { marginBottom: SPACING.md }]} onPress={() => navigation.navigate('Dividends')}>
-          <Card.Content style={styles.paperBody}>
-          <View style={styles.overviewHeader}>
-            <Text style={styles.overviewTitle}>Dividends</Text>
-            <IconButton
-              icon={() => <AppIcon name="chevron-forward" size={18} color={COLORS.textSecondary} />}
-              size={20}
-              style={styles.chevron}
-              onPress={() => navigation.navigate('Dividends')}
-            />
-          </View>
-          <Text style={styles.divTotal}>{fmtFull(p.total_dividends)}</Text>
-          <Text style={styles.divSub}>
-            {receivedSince ? `Received from ${receivedSince} till date` : 'No dividends received yet'}
-          </Text>
-          {quarters.length > 0 && <View style={{ marginTop: SPACING.xl }}>
-            {quarters.map((q) => (
-              <View key={q.key} style={styles.qRow}>
-                <Text style={styles.qLabel}>{q.label}</Text>
-                <View style={styles.qTrack}>
-                  <ProgressBar
-                    progress={Math.max(q.total / maxQuarter, 0.015)}
-                    color={COLORS.accent}
-                    style={styles.qBar}
-                  />
-                </View>
-                <Text style={styles.qAmount}>{fmtFull(q.total)}</Text>
-              </View>
-            ))}
-          </View>}
-          </Card.Content>
-        </Card>
-
         <TabBarSpacer />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
-};
-
-// Sub-components
-function getMonthLabel() {
-  return new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 }
 
-// Styles
 const styles = themedStyles(() => ({
-  loadError: { ...TYPE.body, color: COLORS.textSecondary, margin: SPACING.lg },
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  frame: { width: '100%', maxWidth: 1060, alignSelf: 'center' },
   scroll: { flex: 1 },
-  scrollContent: {
-    paddingHorizontal: SPACING.lg,
-  },
-
-  // Value card
-  valueCard: {
-    backgroundColor: COLORS.cardBg,
-    borderRadius: RADIUS.xl,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    overflow: 'hidden',
-    paddingTop: SPACING.xl,
-    paddingBottom: SPACING.lg,
-    marginBottom: SPACING.xl,
-  },
-  valueTop: {
-    paddingHorizontal: SPACING.xl,
-    marginBottom: SPACING.lg,
-  },
-  valueLabel: {
-    ...TYPE.secondary,
-    color: COLORS.textMuted,
-    marginBottom: SPACING.xs,
-  },
-  valueAmount: {
-    ...TYPE.portfolioValue,
-    color: COLORS.textPrimary,
-  },
-  changeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-    marginTop: SPACING.sm,
-  },
-  changeText: {
-    ...TYPE.plPercent,
-  },
-  changeLabel: {
-    ...TYPE.secondary,
-    color: COLORS.textMuted,
-  },
-  rangeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.xl,
-    marginTop: SPACING.lg,
-  },
-  rangeChipActive: {
-    backgroundColor: COLORS.surface,
-    borderColor: COLORS.border,
-  },
-  rangeTextActive: {
-    color: COLORS.textPrimary,
-  },
-
-  // Share card
-  // Section header
-
-  // Holdings card
-
-  // Holding details row
-
-  // Allocation bar inside holdings
-
-  // Empty state
-
-  // Overview card
-  paperCard: {
-    backgroundColor: COLORS.cardBg,
-    borderRadius: RADIUS.xl,
-    borderColor: COLORS.border,
-    marginBottom: SPACING.xl,
-  },
-  paperBody: { padding: SPACING.xl },
-  rangeChipPaper: { backgroundColor: 'transparent', borderColor: 'transparent' },
-  rangeChipText: { ...TYPE.secondaryMedium, color: COLORS.textMuted, marginHorizontal: SPACING.sm },
-  statGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-  statCell: { width: '33.333%', padding: SPACING.md },
-  // Hairlines between the cells, lighter than the card border.
-  statCellRight: { borderRightWidth: 1, borderRightColor: COLORS.isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.04)' },
-  statCellBottom: { borderBottomWidth: 1, borderBottomColor: COLORS.isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.04)' },
-  statLabel: { ...TYPE.secondary, fontSize: 12, color: COLORS.textMuted },
-  statValue: { ...TYPE.cardTitle, fontSize: 14, color: COLORS.textPrimary, marginTop: SPACING.xs },
-  overviewHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.xl,
-  },
-  overviewTitle: {
-    ...TYPE.sectionTitle,
-    fontSize: 16,
-    color: COLORS.textPrimary,
-  },
-  viewAll: {
-    ...TYPE.secondaryMedium,
-    fontSize: TYPE.secondaryMedium.fontSize - 2,
-    color: COLORS.accent,
-  },
-  divTotal: { ...TYPE.sectionTitle, fontSize: 28, color: COLORS.textPrimary },
-  divSub: { ...TYPE.secondary, fontSize: 12, color: COLORS.textMuted, marginTop: SPACING.xs },
-  qRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.md },
-  qLabel: { ...TYPE.secondary, fontSize: 12, color: COLORS.textMuted, minWidth: 76 },
-  qTrack: { flex: 1, marginHorizontal: SPACING.md },
-  qBar: { height: 12, borderRadius: 6, backgroundColor: COLORS.surface },
-  divider: { marginVertical: SPACING.xl, backgroundColor: COLORS.border },
-  chevron: { margin: 0 },
-  qAmount: { ...TYPE.smallValue, fontSize: 12, color: COLORS.textPrimary, minWidth: 84, textAlign: 'right' },
-  legendBarShort: { height: 16 },
-  legendRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: SPACING.md,
-  },
-  legendBar: {
-    width: 4,
-    height: 36,
-    borderRadius: 2,
-    marginRight: SPACING.md,
-  },
-  legendMain: {
-    flex: 1,
-    minWidth: 0,
-    marginRight: SPACING.md,
-  },
-  legendName: {
-    ...TYPE.cardTitle,
-    fontSize: TYPE.cardTitle.fontSize - 2,
-    color: COLORS.textPrimary,
-  },
-  legendSub: {
-    ...TYPE.caption,
-    fontSize: TYPE.caption.fontSize - 2,
-    color: COLORS.textMuted,
-    marginTop: 4,
-  },
-  legendRight: {
-    alignItems: 'flex-end',
-    flexShrink: 0,
-  },
-  legendValue: {
-    ...TYPE.smallValue,
-    fontSize: TYPE.smallValue.fontSize - 2,
-    color: COLORS.textPrimary,
-  },
-
-  // Allocation section
+  content: { width: '100%', maxWidth: 1060, alignSelf: 'center', paddingHorizontal: SPACING.lg, gap: SPACING.lg },
+  group: { gap: SPACING.lg },
+  columns: { flexDirection: 'row', alignItems: 'flex-start' },
+  primaryColumn: { flex: 1.2, minWidth: 0 },
+  secondaryColumn: { flex: 1, minWidth: 0 },
+  card: { backgroundColor: COLORS.cardBg, borderColor: COLORS.border, borderWidth: 1, borderRadius: RADIUS.xl, padding: SPACING.xl },
+  heading: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', columnGap: SPACING.sm, marginBottom: SPACING.sm },
+  title: { ...TYPE.cardTitle, maxWidth: '100%', color: COLORS.textPrimary },
+  caption: { ...TYPE.secondary, color: COLORS.textSecondary },
+  link: { maxWidth: '100%', minHeight: 44, justifyContent: 'center' },
+  linkText: { ...TYPE.button, color: COLORS.isDark ? CHART_COLORS[1] : COLORS.accent },
+  pressed: { opacity: 0.65 },
+  heroHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  heroLabel: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flexShrink: 1 },
+  refresh: { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center', borderRadius: RADIUS.full, backgroundColor: COLORS.surface },
+  heroValue: { ...TYPE.portfolioValue, color: COLORS.textPrimary, marginVertical: SPACING.sm, fontVariant: ['tabular-nums'] },
+  heroStats: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.md, marginTop: SPACING.md },
+  metric: { flexGrow: 1, flexShrink: 1, minWidth: 120, maxWidth: '100%', gap: SPACING.xs },
+  metricValue: { ...TYPE.cardTitle, color: COLORS.textPrimary, fontVariant: ['tabular-nums'] },
+  sectionValue: { ...TYPE.portfolioValue, color: COLORS.textPrimary, marginTop: SPACING.xs },
+  rowLabel: { flexShrink: 1, maxWidth: '100%', flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  rowText: { ...TYPE.body, color: COLORS.textSecondary, flexShrink: 1 },
+  amountRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', columnGap: SPACING.sm, rowGap: SPACING.xs, paddingVertical: SPACING.sm },
+  amount: { ...TYPE.smallValue, maxWidth: '100%', color: COLORS.textPrimary, fontVariant: ['tabular-nums'] },
+  swatch: { width: 8, height: 8, borderRadius: 2 },
+  allocationBar: { flexDirection: 'row', height: 12, overflow: 'hidden', borderRadius: RADIUS.sm, marginBottom: SPACING.md },
+  divider: { height: 1, backgroundColor: COLORS.border, marginVertical: SPACING.lg },
+  holdingsLayout: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', columnGap: SPACING.lg },
+  holdingsList: { flexGrow: 1, flexShrink: 1, maxWidth: '100%', minWidth: 0 },
+  ring: { maxWidth: '100%', paddingVertical: SPACING.md },
+  quarter: { paddingVertical: SPACING.xs },
+  track: { backgroundColor: COLORS.surface, height: 4, borderRadius: 2, overflow: 'hidden' },
+  fill: { height: '100%', backgroundColor: COLORS.accent, borderRadius: 2 },
+  notice: { ...TYPE.secondaryMedium, color: COLORS.textPrimary, padding: SPACING.md, borderRadius: RADIUS.md, backgroundColor: COLORS.surface },
+  empty: { ...TYPE.secondary, color: COLORS.textSecondary, paddingVertical: SPACING.md },
+  errorCard: { padding: SPACING.xl },
+  retry: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
 }));

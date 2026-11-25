@@ -5,12 +5,12 @@ Order of cards on each screen. Keep the order. Titles are Title Case.
 ## Tabs
 
 ### Home (`DashboardScreen`)
-Header "Portfolio" with the month. Cards in order:
-1. **Value card.** "Total Balance", big value, change with period, line chart (height 120), range chips (1W, 1M, 3M, 1Y, ALL).
-2. **Summary.** 3 by 3 grid with inner lines: Invested, Current value, Cash, Stocks value, P&L, Total returns, Realized P&L, Unrealized P&L, Dividends. Short rupee format. No title.
-3. **Top Holdings.** Title and "View all". Donut with the five largest holdings, then a list of name and percent only.
-4. **Asset Allocation.** Half donut, Stocks and Club Cash rows. The whole card opens the Stocks screen.
-5. **Dividends.** Total, "Received from ... till date", last four calendar quarters as bars (zero quarters show 0). The card opens Dividends.
+The Portfolio header shows the club month. Cards use one or two columns according to the available content width and system text size. Rotating or resizing preserves the selected history range and snapshot.
+
+1. **Portfolio value.** The club balance, invested capital and all-time return appear above Value History. The history compares recorded balance snapshots and offers 7-day, 30-day, 90-day, 365-day and all-history ranges. Refresh reloads Home.
+2. **Balance Breakdown.** Stock value, signed club cash and dividends make up the balance. A proportional bar appears when all balances are nonnegative. Return Breakdown shows realized stock P&L, unrealized stock P&L and dividend income. View stocks opens the stock list.
+3. **Top Holdings.** The ring and percentages use the value of stock holdings. The five largest positions are listed individually and the remainder are grouped. View investments opens Invest.
+4. **Dividends.** All-time income and the last four calendar quarters by ex-dividend date. A zero quarter has an empty track. View history opens Dividend.
 
 ### Invest (`InvestmentsScreen`)
 1. **Holdings summary** (`SummaryCard`): "Holdings (N)", current value, round refresh button (admin only, spinner while loading, result as a toast), 1D returns, Total returns, Invested.
@@ -36,7 +36,7 @@ Header action: Add (solid primary, admin only): Add Member on the Member tab, Ge
 ## Not a tab
 
 - **Profile:** blue hero card (avatar, name, phone, email, "Change avatar" button), then settings rows (40px round tinted icon, label 14, pill and/or chevron): Role (pill), Appearance (tap steps System, Light, Dark), Monthly report, then a divider and Log out (red). App version at the bottom. Opened from the header avatar. Has a back arrow.
-- **Stocks (`AssetStocksScreen`):** opened from Asset Allocation. `SummaryCard` (Stocks, current, Total returns, Invested, Allocation) and the list of all stocks. Tap a stock to open its holding detail.
+- **Stocks (`AssetStocksScreen`):** opened from Balance Breakdown. `SummaryCard` (Stocks, current, Total returns, Invested, Allocation) and the list of all stocks. Tap a stock to open its holding detail.
 - **Login:** 3D illustration, phone, password, Sign In. No remember-me box.
 
 ## States every screen needs
