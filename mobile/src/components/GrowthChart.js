@@ -95,7 +95,7 @@ export function GrowthChart({ data = [], height = 96 }) {
       </View>
       {data.length > 1 && <View style={styles.axis}>
         <Text style={styles.date}>{dateLabel(data[0].date)}</Text>
-        <Text style={styles.date}>{dateLabel(data[data.length - 1].date)}</Text>
+        <Text style={[styles.date, styles.endDate]}>{dateLabel(data[data.length - 1].date)}</Text>
       </View>}
     </View>
   );
@@ -105,9 +105,10 @@ const styles = themedStyles(() => ({
   axis: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: SPACING.sm, marginTop: SPACING.xs },
   readout: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   readoutText: { flexDirection: 'row', alignItems: 'center', flexShrink: 1, flexWrap: 'wrap', justifyContent: 'center', columnGap: SPACING.sm, paddingHorizontal: SPACING.sm },
-  date: { ...TYPE.caption, color: COLORS.textSecondary },
-  amount: { ...TYPE.smallValue, color: COLORS.textPrimary, fontVariant: ['tabular-nums'] },
-  step: { minWidth: 36, minHeight: 36, alignItems: 'center', justifyContent: 'center', borderRadius: RADIUS.full },
+  date: { ...TYPE.caption, color: COLORS.textSecondary, maxWidth: '100%' },
+  endDate: { marginLeft: 'auto', textAlign: 'right' },
+  amount: { ...TYPE.smallValue, color: COLORS.textPrimary, maxWidth: '100%' },
+  step: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: RADIUS.full },
   disabled: { opacity: 0.35 },
   pressed: { backgroundColor: COLORS.surface },
   empty: { ...TYPE.secondary, textAlign: 'center', color: COLORS.textSecondary, paddingVertical: SPACING.xxl },

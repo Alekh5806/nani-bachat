@@ -2,12 +2,12 @@
  * Screen Header Component
  * Premium styled header with gradient text option
  */
-import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Pressable, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from './Icon';
 import { ProfileButton } from './ProfileButton';
-import { COLORS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
+import { COLORS, SPACING, themedStyles, TYPE } from '../theme/colors';
 
 export const ScreenHeader = ({
   title,
@@ -21,54 +21,70 @@ export const ScreenHeader = ({
   inset,
 }) => {
   const insets = useSafeAreaInsets();
+  const { width, fontScale } = useWindowDimensions();
+  const [headerWidth, setHeaderWidth] = useState(0);
+  const horizontalPadding = inset ?? SPACING.xl;
+  // Reserve space for the title, the action label, and the non-scaling controls.
+  const titleSpace = Math.max(90, Math.min(String(title).length, 16) * 10) * Math.max(1, fontScale);
+  const actionSpace = (String(rightLabel ?? '').length * 8) * Math.max(1, fontScale)
+    + SPACING.lg * 2 + (rightIcon ? 24 : 0);
+  const controlsSpace = (showBack ? 52 : 0) + (hideProfile ? 0 : 60) + SPACING.md;
+  const stackAction = !!rightAction
+    && (headerWidth || width) - horizontalPadding * 2 < titleSpace + actionSpace + controlsSpace;
+
+  const action = rightAction && (
+    <Pressable
+      onPress={rightAction}
+      accessibilityRole="button"
+      style={({ pressed }) => [styles.actionButton, pressed && styles.actionPressed]}
+    >
+      {rightIcon && (typeof rightIcon === 'string'
+        ? <Icon name={rightIcon} size={16} color={COLORS.onAccent} style={styles.actionIcon} />
+        : <View style={styles.actionIcon}>{rightIcon}</View>)}
+      {rightLabel && <Text style={styles.actionLabel}>{rightLabel}</Text>}
+    </Pressable>
+  );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + SPACING.md }, inset != null && { paddingHorizontal: inset }]}>
-      <View style={styles.leftSection}>
-        {showBack && (
-          <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Back" style={styles.backButton}>
-            <Icon name="←" size={24} color={COLORS.textPrimary} />
-          </Pressable>
-        )}
-        <View style={styles.titleBlock}>
-          <Text accessibilityRole="header" style={styles.title} numberOfLines={inset == null ? 1 : undefined} adjustsFontSizeToFit={inset == null}>
-            {title}
-          </Text>
-          {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+    <View
+      style={[styles.container, { paddingTop: insets.top + SPACING.md, paddingHorizontal: horizontalPadding }]}
+      onLayout={({ nativeEvent }) => setHeaderWidth(nativeEvent.layout.width)}
+    >
+      <View style={styles.headingRow}>
+        <View style={styles.leftSection}>
+          {showBack && (
+            <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Back" style={styles.backButton}>
+              <Icon name="←" size={24} color={COLORS.textPrimary} />
+            </Pressable>
+          )}
+          <View style={styles.titleBlock}>
+            <Text accessibilityRole="header" style={styles.title}>{title}</Text>
+            {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+          </View>
         </View>
-      </View>
-
-      <View style={styles.rightSection}>
-        {rightAction && (
-          <Pressable
-            onPress={rightAction}
-            accessibilityRole="button"
-            style={({ pressed }) => [
-              styles.actionButton,
-              pressed && styles.actionPressed,
-            ]}
-          >
-            {rightIcon && (typeof rightIcon === 'string'
-              ? <Icon name={rightIcon} size={16} color={COLORS.onAccent} style={styles.actionIcon} />
-              : <View style={styles.actionIcon}>{rightIcon}</View>)}
-            {rightLabel && <Text style={styles.actionLabel}>{rightLabel}</Text>}
-          </Pressable>
+        {(!hideProfile || (rightAction && !stackAction)) && (
+          <View style={styles.rightSection}>
+            {!stackAction && action}
+            {!hideProfile && <ProfileButton />}
+          </View>
         )}
-        {!hideProfile && <ProfileButton />}
       </View>
+      {stackAction && <View style={styles.stackedAction}>{action}</View>}
     </View>
   );
 };
 
 const styles = themedStyles(() => ({
   container: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.xl,
     paddingBottom: SPACING.lg,
     backgroundColor: COLORS.background,
   },
+  headingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  stackedAction: { alignSelf: 'flex-start', maxWidth: '100%', marginTop: SPACING.sm },
   leftSection: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -94,7 +110,7 @@ const styles = themedStyles(() => ({
     justifyContent: 'center',
   },
   title: {
-    ...TYPE.sectionTitle, // same as the Home header ("Portfolio")
+    ...TYPE.screenTitle,
     color: COLORS.textPrimary,
   },
   subtitle: {
@@ -119,7 +135,8 @@ const styles = themedStyles(() => ({
     marginRight: SPACING.xs,
   },
   actionLabel: {
-    ...TYPE.secondaryMedium,
+    ...TYPE.button,
     color: COLORS.onAccent,
+    flexShrink: 1,
   },
 }));

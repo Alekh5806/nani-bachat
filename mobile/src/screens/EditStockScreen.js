@@ -24,7 +24,7 @@ import { BuyerPicker } from '../components/BuyerPicker';
 import { PremiumInput } from '../components/PremiumInput';
 import { PremiumButton } from '../components/PremiumButton';
 import { DatePickerField, todayString, formatDateDisplay } from '../components/DatePickerField';
-import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
+import { COLORS, SPACING, RADIUS, themedStyles, TYPE } from '../theme/colors';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -291,13 +291,12 @@ const styles = themedStyles(() => ({
     padding: SPACING.md,
     marginBottom: SPACING.xl,
   },
-  warningTitle: { ...TYPE.cardTitle, fontSize: 12, color: COLORS.warning },
-  warningText: { ...TYPE.caption, fontSize: 10, color: COLORS.textSecondary, lineHeight: 16, marginTop: 4 },
+  warningTitle: { ...TYPE.secondaryMedium, color: COLORS.warning },
+  warningText: { ...TYPE.secondary, color: COLORS.textSecondary, marginTop: SPACING.xs },
   previewCard: {},
   monthMoveNote: {
-    ...TYPE.caption,
+    ...TYPE.secondary,
     color: COLORS.warning,
-    lineHeight: 17,
     marginTop: SPACING.sm,
   },
   resettleRow: {
@@ -306,5 +305,5 @@ const styles = themedStyles(() => ({
     gap: SPACING.sm,
     marginTop: SPACING.md,
   },
-  resettleText: { ...TYPE.secondary, color: COLORS.textSecondary },
+  resettleText: { ...TYPE.secondary, color: COLORS.textSecondary, flexShrink: 1 },
 }));

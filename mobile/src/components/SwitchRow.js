@@ -35,8 +35,8 @@ const styles = themedStyles(() => ({
     marginBottom: SPACING.lg,
   },
   text: { flex: 1, minWidth: 0 },
-  label: { ...TYPE.cardTitle, fontSize: 14, color: COLORS.textPrimary },
-  hint: { ...TYPE.caption, fontSize: 10, color: COLORS.textMuted, marginTop: 4 },
+  label: { ...TYPE.rowTitle, color: COLORS.textPrimary },
+  hint: { ...TYPE.secondary, color: COLORS.textMuted, marginTop: SPACING.xs },
   track: {
     width: 44,
     height: 24,

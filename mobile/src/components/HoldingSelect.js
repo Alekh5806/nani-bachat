@@ -5,7 +5,7 @@
  */
 import React, { useState } from 'react';
 import { shortName } from '../utils/names';
-import { View, Text, Pressable, ScrollView, TextInput, Platform } from 'react-native';
+import { View, Text, Pressable, TextInput, Platform } from 'react-native';
 import { DialogCard } from './DialogCard';
 import { ArrowDown2, TickCircle, SearchNormal1 } from 'iconsax-react-native';
 import { CompanyLogo } from './CompanyLogo';
@@ -24,13 +24,16 @@ export const HoldingSelect = ({ label, holdings, selected, onSelect, emptyText, 
     <View style={styles.wrap}>
       {!!label && <Text style={styles.label}>{label}</Text>}
 
-      <Pressable onPress={() => setOpen(true)} style={[styles.field, !!error && styles.fieldError]}>
+      <Pressable accessibilityRole="button"
+        accessibilityLabel={selected ? `${label || 'Holding'}, ${selected.name}, ${selected.quantity} shares` : label || 'Select holding'}
+        accessibilityState={{ expanded: open }}
+        onPress={() => setOpen(true)} style={[styles.field, !!error && styles.fieldError]}>
         {selected ? (
           <>
             <CompanyLogo symbol={selected.symbol} name={selected.name} size={32} style={styles.logo} />
             <View style={styles.fieldText}>
-              <Text style={styles.name} numberOfLines={1}>{shortName(selected.name)}</Text>
-              <Text style={styles.sub} numberOfLines={1}>
+              <Text style={styles.name}>{shortName(selected.name)}</Text>
+              <Text style={styles.sub}>
                 {symbolOf(selected)} · {selected.quantity} shares
               </Text>
             </View>
@@ -40,12 +43,13 @@ export const HoldingSelect = ({ label, holdings, selected, onSelect, emptyText, 
         )}
         <ArrowDown2 size={18} color={COLORS.textSecondary} />
       </Pressable>
-      {!!error && <Text style={styles.error}>{error}</Text>}
+      {!!error && <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text>}
 
       <DialogCard visible={open} title="Select holding" onDismiss={() => setOpen(false)}>
         <View style={styles.searchBox}>
           <SearchNormal1 size={16} color={COLORS.textMuted} />
           <TextInput
+            accessibilityLabel="Search stock or buyer"
             value={query}
             onChangeText={setQuery}
             placeholder="Search stock or buyer"
@@ -53,7 +57,7 @@ export const HoldingSelect = ({ label, holdings, selected, onSelect, emptyText, 
             style={styles.searchInput}
           />
         </View>
-        <View style={styles.list}>
+        <View>
           {shown.length === 0 && (
             <Text style={styles.empty}>{holdings.length === 0 ? emptyText : 'No match'}</Text>
           )}
@@ -69,7 +73,7 @@ export const HoldingSelect = ({ label, holdings, selected, onSelect, emptyText, 
 };
 
 const HoldingList = ({ holdings, selected, onPick }) => (
-  <ScrollView showsVerticalScrollIndicator={false}>
+  <>
     {holdings.map((h, i) => {
       const active = selected?.id === h.id;
       return (
@@ -86,20 +90,20 @@ const HoldingList = ({ holdings, selected, onPick }) => (
           <CompanyLogo symbol={h.symbol} name={h.name} size={40} style={styles.logo} />
           <View style={styles.rowText}>
             <View style={styles.titleRow}>
-              <Text style={styles.name} numberOfLines={1}>{shortName(h.name)}</Text>
+              <Text style={styles.name}>{shortName(h.name)}</Text>
               {active && <TickCircle size={18} color={COLORS.accent} variant="Bold" />}
             </View>
             <View style={styles.chips}>
               <View style={styles.chipShares}>
                 <Text style={styles.chipSharesText}>{h.quantity} shares</Text>
               </View>
-              <Text style={styles.buyer} numberOfLines={1}>{h.buyer_name || 'Buyer not recorded'}</Text>
+              <Text style={styles.buyer}>{h.buyer_name || 'Buyer not recorded'}</Text>
             </View>
           </View>
         </Pressable>
       );
     })}
-  </ScrollView>
+  </>
 );
 
 const styles = themedStyles(() => ({
@@ -117,13 +121,12 @@ const styles = themedStyles(() => ({
     minHeight: 52,
   },
   fieldError: { borderColor: COLORS.loss },
-  error: { ...TYPE.caption, color: COLORS.loss, marginTop: SPACING.xs, marginLeft: SPACING.xs },
+  error: { ...TYPE.secondary, color: COLORS.loss, marginTop: SPACING.xs, marginLeft: SPACING.xs },
   fieldText: { flex: 1, minWidth: 0 },
   placeholder: { flex: 1, ...TYPE.inputText, color: COLORS.textMuted },
   logo: { marginRight: SPACING.md, marginTop: 2 },
-  name: { ...TYPE.cardTitle, fontSize: 14, color: COLORS.textPrimary, flexShrink: 1 },
-  sub: { ...TYPE.caption, fontSize: 10, color: COLORS.textMuted, marginTop: 2 },
-  list: { maxHeight: 360, marginHorizontal: -SPACING.xl },
+  name: { ...TYPE.rowTitle, color: COLORS.textPrimary, flexShrink: 1 },
+  sub: { ...TYPE.caption, color: COLORS.textMuted, marginTop: 2 },
   empty: { ...TYPE.secondary, color: COLORS.textMuted, padding: SPACING.lg },
   searchBox: {
     flexDirection: 'row',
@@ -139,6 +142,7 @@ const styles = themedStyles(() => ({
   searchInput: {
     ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : null),
     flex: 1,
+    minWidth: 0,
     ...TYPE.inputText,
     color: COLORS.textPrimary,
     paddingVertical: SPACING.md,
@@ -148,15 +152,15 @@ const styles = themedStyles(() => ({
     flexDirection: 'row',
     alignItems: 'flex-start',
     paddingVertical: SPACING.lg,
-    paddingHorizontal: SPACING.xl,
+    paddingHorizontal: SPACING.sm,
   },
   rowDivider: { borderTopWidth: 1, borderTopColor: COLORS.divider },
   rowActive: { backgroundColor: COLORS.accent + '14' },
   rowText: { flex: 1, minWidth: 0 },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  chips: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginTop: SPACING.sm },
-  buyer: { ...TYPE.caption, fontSize: 10, color: COLORS.textMuted, flexShrink: 1 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: SPACING.sm, marginTop: SPACING.sm },
+  buyer: { ...TYPE.caption, color: COLORS.textMuted, flexShrink: 1 },
   chipShares: { backgroundColor: COLORS.accent + '1F', borderRadius: RADIUS.full, paddingHorizontal: SPACING.sm, paddingVertical: 2 },
-  chipSharesText: { ...TYPE.captionMedium, fontSize: 10, color: COLORS.accent },
+  chipSharesText: { ...TYPE.captionMedium, color: COLORS.accent },
   pressed: { opacity: 0.8 },
 }));

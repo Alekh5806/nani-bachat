@@ -81,7 +81,7 @@ const styles = themedStyles(() => ({
     width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
     backgroundColor: COLORS.accent + '14',
   },
-  yearText: { ...TYPE.cardTitle, fontSize: 16, color: COLORS.textPrimary },
+  yearText: { ...TYPE.sectionTitle, color: COLORS.textPrimary },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
   cell: {
     width: '23%',

@@ -48,8 +48,8 @@ export const SummaryCard = ({ label, value, valueColor, action, rows = [], note,
 const styles = themedStyles(() => ({
   card: { marginBottom: SPACING.md },
   label: { ...TYPE.secondary, color: COLORS.textSecondary },
-  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: SPACING.xs },
-  big: { ...TYPE.portfolioValue, color: COLORS.textPrimary },
+  top: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: SPACING.sm, marginTop: SPACING.xs },
+  big: { ...TYPE.portfolioValue, color: COLORS.textPrimary, maxWidth: '100%' },
   round: {
     width: 40,
     height: 40,
@@ -68,8 +68,8 @@ const styles = themedStyles(() => ({
     borderStyle: 'dashed',
     borderColor: COLORS.isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)',
   },
-  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
+  row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: SPACING.sm, rowGap: SPACING.xs, paddingVertical: 6 },
   note: { ...TYPE.caption, color: COLORS.textMuted, marginTop: SPACING.sm },
-  rowLabel: { ...TYPE.secondary, fontSize: 12, color: COLORS.textSecondary },
-  rowValue: { ...TYPE.smallValue, fontSize: 12, color: COLORS.textPrimary },
+  rowLabel: { ...TYPE.secondary, color: COLORS.textSecondary, flexBasis: 100, flexGrow: 1, flexShrink: 1 },
+  rowValue: { ...TYPE.smallValue, color: COLORS.textPrimary, marginLeft: 'auto', maxWidth: '100%', textAlign: 'right' },
 }));

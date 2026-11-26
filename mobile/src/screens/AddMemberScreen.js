@@ -11,7 +11,7 @@ import { fmtFull } from '../utils/currency';
 import { AvatarSelect } from '../components/AvatarSelect';
 import { PremiumButton } from '../components/PremiumButton';
 import { PremiumInput } from '../components/PremiumInput';
-import { COLORS, FONTS, RADIUS, SPACING, themedStyles, TYPE } from '../theme/colors';
+import { SPACING, themedStyles } from '../theme/colors';
 
 const AVATAR_COLORS = ['#00D09C', '#4F46E5', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
 

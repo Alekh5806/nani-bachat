@@ -8,7 +8,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { COLORS, TYPE, themedStyles } from '../theme/colors';
 
-export const AllocationDonut = ({ slices, size = 180, thickness = 26, label, value, half = false }) => {
+export const AllocationDonut = ({ slices, size = 180, thickness = 26, label, value, fullValue, half = false }) => {
   const [renderedWidth, setRenderedWidth] = useState(size);
   const [caption, setCaption] = useState({ width: 0, height: 0 });
   const total = slices.reduce((sum, s) => sum + s.value, 0);
@@ -55,7 +55,7 @@ export const AllocationDonut = ({ slices, size = 180, thickness = 26, label, val
             ? last : { width: layout.width, height: layout.height });
         }}>
           {!!label && <Text style={styles.label}>{label}</Text>}
-          {!!value && <Text style={styles.value}>{value}</Text>}
+          {!!value && <Text style={styles.value} accessibilityLabel={fullValue}>{value}</Text>}
         </View>
       </View>}
     </View>
@@ -68,5 +68,5 @@ const styles = themedStyles(() => ({
   center: { ...StyleSheet.absoluteFillObject },
   captionText: { alignItems: 'center', maxWidth: '100%' },
   label: { ...TYPE.caption, color: COLORS.textSecondary, textAlign: 'center' },
-  value: { ...TYPE.cardTitle, color: COLORS.textPrimary, textAlign: 'center', marginTop: 2 },
+  value: { ...TYPE.listAmount, color: COLORS.textPrimary, textAlign: 'center', marginTop: 2 },
 }));

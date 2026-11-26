@@ -3,7 +3,7 @@ import { AppState, Pressable, Text, View } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 
 import { fetchNseQuote } from '../services/nseQuotes';
-import { COLORS, FONTS, SPACING, themedStyles } from '../theme/colors';
+import { COLORS, SPACING, TYPE, themedStyles } from '../theme/colors';
 import { GlassCard } from './GlassCard';
 
 const REFRESH_INTERVAL_MS = 60000;
@@ -97,9 +97,9 @@ export function NseQuotePreview({ symbol }) {
 
 const styles = themedStyles(() => ({
   heading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: SPACING.md, minHeight: 48 },
-  title: { color: COLORS.textPrimary, fontSize: FONTS.md, fontWeight: '600', flexShrink: 1 },
-  action: { color: COLORS.textPrimary, fontSize: FONTS.sm, fontWeight: '600' },
+  title: { ...TYPE.sectionTitle, color: COLORS.textPrimary, flexShrink: 1 },
+  action: { ...TYPE.button, color: COLORS.textPrimary, flexShrink: 1 },
   panel: { gap: SPACING.sm },
-  price: { color: COLORS.textPrimary, fontSize: FONTS.xxl, fontWeight: '600' },
-  note: { color: COLORS.textSecondary, fontSize: FONTS.sm },
+  price: { ...TYPE.listAmount, color: COLORS.textPrimary },
+  note: { ...TYPE.secondary, color: COLORS.textSecondary },
 }));

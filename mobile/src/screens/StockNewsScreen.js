@@ -42,7 +42,7 @@ function CompanyPicker({ stocks, symbol, onPick, onClose }) {
           </View>
         )}
         <View style={styles.grow}>
-          <Text style={styles.body} numberOfLines={2}>{stock?.name ?? 'All holdings'}</Text>
+          <Text style={styles.headline}>{stock?.name ?? 'All holdings'}</Text>
           {stock && (
             <Text style={styles.meta}>
               {stock.symbol}{stock.active ? '' : ' · Sold holding'}
@@ -55,7 +55,7 @@ function CompanyPicker({ stocks, symbol, onPick, onClose }) {
   };
 
   return (
-    <DialogCard visible title="Filter by holding" onDismiss={onClose}>
+    <DialogCard visible title="Filter by holding" onDismiss={onClose} scrollBody={false}>
       <View style={styles.search}>
         <SearchNormal1 size={16} color={COLORS.textSecondary} />
         <TextInput
@@ -71,7 +71,7 @@ function CompanyPicker({ stocks, symbol, onPick, onClose }) {
       </View>
       {renderOption(null)}
       <FlatList
-        style={{ maxHeight: Math.min(340, height * 0.42) }}
+        style={[styles.pickerList, { maxHeight: Math.min(340, height * 0.42) }]}
         data={results}
         keyExtractor={(stock) => stock.symbol}
         renderItem={({ item }) => renderOption(item)}
@@ -113,13 +113,15 @@ function Notice({ title, message, onRetry }) {
     <View style={styles.notice}>
       <InfoCircle size={19} color={COLORS.textSecondary} />
       <View style={styles.grow} aria-live="polite">
-        <Text style={styles.body}>{title}</Text>
+        <View style={styles.noticeHeader}>
+          <Text style={styles.noticeTitle}>{title}</Text>
+          {onRetry && (
+            <Pressable accessibilityRole="button" onPress={onRetry} style={styles.textButton}>
+              <Text style={styles.action}>Retry</Text>
+            </Pressable>
+          )}
+        </View>
         <Text style={styles.message}>{message}</Text>
-        {onRetry && (
-          <Pressable accessibilityRole="button" onPress={onRetry} style={styles.textButton}>
-            <Text style={styles.action}>Retry</Text>
-          </Pressable>
-        )}
       </View>
     </View>
   );
@@ -210,7 +212,7 @@ export function StockNewsScreen({ navigation }) {
               {pending === 'feed' ? <ActivityIndicator size="small" color={COLORS.accent} /> : (
                 <Refresh2 size={17} color={COLORS.textSecondary} />
               )}
-              <Text style={styles.meta}>Refresh</Text>
+              <Text style={styles.action}>Refresh</Text>
             </Pressable>
           )}
         </View>
@@ -314,23 +316,23 @@ const styles = themedStyles(() => ({
     paddingHorizontal: SPACING.lg, paddingTop: SPACING.xs,
   },
   toolbar: {
-    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
+    flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: SPACING.sm,
     paddingHorizontal: SPACING.lg, paddingBottom: SPACING.sm,
   },
   filter: {
-    flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: SPACING.sm, minWidth: 0, flexShrink: 1,
-    paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, minHeight: 44,
+    flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: SPACING.sm, minWidth: 0, maxWidth: '100%', flexShrink: 1,
+    paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, minHeight: 48,
     borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.md, backgroundColor: COLORS.cardBg,
   },
-  filterText: { ...TYPE.body, color: COLORS.textPrimary, flexShrink: 1, minWidth: 0 },
+  filterText: { ...TYPE.rowTitle, color: COLORS.textPrimary, flexShrink: 1, minWidth: 0 },
   refresh: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end',
-    gap: SPACING.sm, minHeight: 44, marginLeft: 'auto', paddingLeft: SPACING.xs,
+    gap: SPACING.sm, minHeight: 48, marginLeft: 'auto', paddingLeft: SPACING.xs,
   },
-  textButton: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start', paddingHorizontal: SPACING.xs },
-  action: { ...TYPE.secondaryMedium, color: COLORS.accent },
+  textButton: { minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center', paddingHorizontal: SPACING.xs },
+  action: { ...TYPE.button, color: COLORS.accent },
   sectionHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: SPACING.md,
+    flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', columnGap: SPACING.md,
     minHeight: 44, marginTop: SPACING.sm, paddingLeft: SPACING.xs,
   },
   sectionTitle: { ...TYPE.sectionTitle, color: COLORS.textPrimary, flexShrink: 1 },
@@ -348,11 +350,12 @@ const styles = themedStyles(() => ({
   divided: { borderBottomWidth: 1, borderBottomColor: COLORS.divider },
   pressed: { backgroundColor: COLORS.surface },
   rowText: { flex: 1, minWidth: 0, gap: SPACING.xs },
-  company: { ...TYPE.captionMedium, color: COLORS.textSecondary },
-  headline: { ...TYPE.cardTitle, color: COLORS.textPrimary },
+  company: { ...TYPE.caption, color: COLORS.textSecondary },
+  headline: { ...TYPE.rowTitle, color: COLORS.textPrimary },
   meta: { ...TYPE.caption, color: COLORS.textSecondary },
   upcomingDate: { ...TYPE.captionMedium, color: COLORS.textPrimary },
-  body: { ...TYPE.body, color: COLORS.textPrimary },
+  noticeHeader: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: SPACING.sm },
+  noticeTitle: { ...TYPE.rowTitle, color: COLORS.textPrimary, flexGrow: 1, flexShrink: 1, flexBasis: 128 },
   message: { ...TYPE.secondary, color: COLORS.textSecondary, marginTop: SPACING.xs },
   notice: {
     flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.md, marginTop: SPACING.sm,
@@ -375,8 +378,9 @@ const styles = themedStyles(() => ({
     borderRadius: RADIUS.md, borderColor: COLORS.border, backgroundColor: COLORS.inputBg,
   },
   input: {
-    ...TYPE.body, flex: 1, minWidth: 0, minHeight: 44, color: COLORS.textPrimary,
+    ...TYPE.inputText, flex: 1, minWidth: 0, minHeight: 44, color: COLORS.textPrimary,
   },
+  pickerList: { flexShrink: 1, minHeight: 0 },
   noResults: { ...TYPE.secondary, color: COLORS.textSecondary, padding: SPACING.md },
   loading: { marginTop: SPACING.lg, gap: SPACING.md },
   skeletonHeading: { width: 104, height: 14, borderRadius: RADIUS.sm, backgroundColor: COLORS.surface },

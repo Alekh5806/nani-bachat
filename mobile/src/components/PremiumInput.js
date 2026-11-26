@@ -3,9 +3,9 @@
  * Styled text input with floating label effect
  */
 import React, { useState } from 'react';
-import { View, TextInput, Text, StyleSheet, Platform, ActivityIndicator } from 'react-native';
+import { View, TextInput, Text, Platform, ActivityIndicator } from 'react-native';
 import { Icon } from './Icon';
-import { COLORS, RADIUS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
+import { COLORS, RADIUS, SPACING, themedStyles, TYPE } from '../theme/colors';
 
 export const PremiumInput = ({
   label,
@@ -41,6 +41,8 @@ export const PremiumInput = ({
       >
         {icon && <Icon name={icon} size={18} color={focused ? COLORS.accent : COLORS.textMuted} style={styles.icon} />}
         <TextInput
+          accessibilityLabel={label || placeholder}
+          aria-invalid={Boolean(error)}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -57,7 +59,7 @@ export const PremiumInput = ({
         />
         {loading && <ActivityIndicator size="small" color={COLORS.accent} style={styles.spinner} />}
       </View>
-      {error && <Text style={styles.error}>{error}</Text>}
+      {error && <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text>}
     </View>
   );
 };
@@ -97,6 +99,7 @@ const styles = themedStyles(() => ({
   input: {
     ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : null), // no browser focus box; the container shows focus
     flex: 1,
+    minWidth: 0,
     color: COLORS.textPrimary,
     ...TYPE.inputText,
     paddingVertical: SPACING.lg,
@@ -106,7 +109,7 @@ const styles = themedStyles(() => ({
     textAlignVertical: 'top',
   },
   error: {
-    ...TYPE.caption,
+    ...TYPE.secondary,
     color: COLORS.loss,
     marginTop: SPACING.xs,
     marginLeft: SPACING.xs,

@@ -95,9 +95,9 @@ export const MemberDetailScreen = ({ route, navigation }) => {
         <View style={styles.profile}>
           <UserAvatar person={member} size={56} />
           <View style={styles.profileText}>
-            <Text style={styles.profileName} numberOfLines={1}>{member.name}</Text>
-            <Text style={styles.profileSub} numberOfLines={1}>{member.phone || '—'}</Text>
-            {!!member.email && <Text style={styles.profileSub} numberOfLines={1}>{member.email}</Text>}
+            <Text style={styles.profileName}>{member.name}</Text>
+            <Text style={styles.profileSub}>{member.phone || '—'}</Text>
+            {!!member.email && <Text style={styles.profileSub}>{member.email}</Text>}
           </View>
         </View>
 
@@ -167,30 +167,30 @@ const styles = themedStyles(() => ({
     borderColor: COLORS.border, padding: SPACING.lg, marginBottom: SPACING.md,
   },
   profileText: { flex: 1, minWidth: 0 },
-  profileName: { ...TYPE.cardTitle, fontSize: 16, color: COLORS.textPrimary },
-  profileSub: { ...TYPE.caption, fontSize: 12, color: COLORS.textMuted, marginTop: 4 },
+  profileName: { ...TYPE.rowTitle, color: COLORS.textPrimary },
+  profileSub: { ...TYPE.caption, color: COLORS.textMuted, marginTop: SPACING.xs },
   card: {
     backgroundColor: COLORS.cardBg, borderRadius: RADIUS.xl, borderWidth: 1,
     borderColor: COLORS.border, padding: SPACING.lg, marginBottom: SPACING.md,
   },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
-  rowLabel: { ...TYPE.cardTitle, fontSize: 12, flex: 1, color: COLORS.textPrimary },
-  rowValue: { ...TYPE.secondaryMedium, textAlign: 'right', flex: 1, color: COLORS.textPrimary },
+  row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: SPACING.sm, rowGap: SPACING.xs, paddingVertical: 6 },
+  rowLabel: { ...TYPE.secondary, flexGrow: 1, flexShrink: 1, flexBasis: 104, color: COLORS.textSecondary },
+  rowValue: { ...TYPE.smallValue, textAlign: 'right', marginLeft: 'auto', maxWidth: '100%', color: COLORS.textPrimary },
   historyState: { minHeight: 44, justifyContent: 'center', alignItems: 'flex-start' },
-  retry: { ...TYPE.secondaryMedium, color: COLORS.accent },
+  retry: { ...TYPE.button, color: COLORS.accent },
   empty: { ...TYPE.secondary, color: COLORS.textMuted, marginBottom: SPACING.md },
   band: {
-    flexDirection: 'row', justifyContent: 'space-between', marginTop: SPACING.md,
+    flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'baseline', gap: SPACING.sm, marginTop: SPACING.md,
     marginHorizontal: -SPACING.lg, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md,
     backgroundColor: COLORS.isDark ? COLORS.surface : COLORS.surfaceLight,
   },
   bandText: { ...TYPE.secondaryMedium, color: COLORS.textSecondary },
-  bandTotal: { ...TYPE.caption, color: COLORS.textMuted },
-  hRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.md },
+  bandTotal: { ...TYPE.caption, color: COLORS.textMuted, marginLeft: 'auto' },
+  hRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.md },
   hRowDivider: { borderTopWidth: 1, borderTopColor: COLORS.divider },
-  hLeft: { flex: 1, minWidth: 0, marginRight: SPACING.md },
-  hRight: { alignItems: 'flex-end' },
-  hName: { ...TYPE.cardTitle, fontSize: 14, color: COLORS.textPrimary },
-  hAmount: { ...TYPE.smallValue, fontSize: 12, color: COLORS.textPrimary },
+  hLeft: { flexGrow: 1, flexShrink: 1, flexBasis: 112 },
+  hRight: { alignItems: 'flex-end', marginLeft: 'auto', maxWidth: '100%' },
+  hName: { ...TYPE.rowTitle, color: COLORS.textPrimary },
+  hAmount: { ...TYPE.listAmount, color: COLORS.textPrimary, textAlign: 'right' },
   hSub: { ...TYPE.caption, color: COLORS.textMuted, marginTop: 4 },
 }));

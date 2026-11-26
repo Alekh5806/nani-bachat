@@ -13,7 +13,7 @@ import { COLORS, SPACING, RADIUS, themedStyles, TYPE } from '../theme/colors';
 export const FormScreen = ({ title, subtitle, onBack, children }) => (
   <View style={styles.container}>
     <ScreenHeader title={title} subtitle={subtitle} showBack onBack={onBack} />
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.flex}>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
       <ScrollView
         style={styles.flex}
         contentContainerStyle={styles.content}
@@ -38,9 +38,9 @@ export const FormLabel = ({ children, style }) => (
 
 const styles = themedStyles(() => ({
   container: { flex: 1, backgroundColor: COLORS.background },
-  flex: { flex: 1 },
+  flex: { flex: 1, minHeight: 0 },
   endGap: { height: SPACING.md },
-  content: { paddingHorizontal: SPACING.xl, paddingBottom: 0 },
+  content: { width: '100%', maxWidth: 700, alignSelf: 'center', paddingHorizontal: SPACING.xl },
   card: {
     backgroundColor: COLORS.cardBg,
     borderRadius: RADIUS.xl,
@@ -49,7 +49,7 @@ const styles = themedStyles(() => ({
     padding: SPACING.lg,
   },
   label: {
-    ...TYPE.captionMedium,
+    ...TYPE.inputLabel,
     color: COLORS.textSecondary,
     marginBottom: SPACING.md,
   },

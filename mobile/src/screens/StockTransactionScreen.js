@@ -48,27 +48,27 @@ export const StockTransactionScreen = ({ route, navigation }) => {
   return (
     <View style={stockStyles.screen}>
       <View style={stockStyles.header}><ScreenHeader title="Transaction details" inset={SPACING.lg} showBack hideProfile onBack={() => navigation.goBack()} /></View>
-      <ScrollView contentContainerStyle={stockStyles.content}>
+      <ScrollView style={stockStyles.viewport} contentContainerStyle={stockStyles.content}>
         {event ? (
           <>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.md, marginBottom: SPACING.md }}>
               <CompanyLogo symbol={event.symbol} name={event.name} size={44} />
-              <View style={{ flex: 1, gap: 4 }}>
+              <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
                 <TransactionBadge sell={sale} />
                 <Text accessibilityRole="header" style={stockStyles.heading}>{shortName(event.name) || tickerLabel(event.symbol)}</Text>
-                <Text style={stockStyles.muted}>{tickerLabel(event.symbol)} · {formatDateDisplay(event.date)}</Text>
+                <Text style={stockStyles.meta}>{tickerLabel(event.symbol)} · {formatDateDisplay(event.date)}</Text>
               </View>
             </View>
             <StockOverview
               label={sale ? 'Net sale proceeds' : 'Purchase cost'}
               value={money(event.amount)}
               rows={[
-                { label: 'Quantity', value: sharesLabel(event.quantity) },
+                { label: 'Quantity', value: sharesLabel(event.quantity), metadata: true },
                 { label: sale ? 'Sale price per share' : 'Buy price per share', value: money(event.price) },
                 { label: 'Brokerage', value: money(event.brokerage) },
                 { label: 'Buying member', value: event.buyer_name || 'Not recorded' },
                 ...(sale ? [
-                  { label: 'Bought on', value: formatDateDisplay(event.buy_date) },
+                  { label: 'Bought on', value: formatDateDisplay(event.buy_date), metadata: true },
                   { label: 'Cost of sold shares', value: money(event.cost_basis) },
                   { label: 'Realized return', value: returnText(event.profit_loss, returnRate(event.profit_loss, event.cost_basis)), color: stockReturnColor(event.profit_loss) },
                 ] : []),

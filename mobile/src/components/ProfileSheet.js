@@ -40,7 +40,7 @@ export const ProfileSheet = ({ title, subtitle, onDismiss, expanded, children })
           </View>
           {expanded
             ? <View style={styles.expandedContent}>{children}</View>
-            : <ScrollView keyboardShouldPersistTaps="handled">{children}</ScrollView>}
+            : <ScrollView style={styles.body} keyboardShouldPersistTaps="handled">{children}</ScrollView>}
         </View>
       </View>
     </Modal>
@@ -50,15 +50,16 @@ export const ProfileSheet = ({ title, subtitle, onDismiss, expanded, children })
 const styles = themedStyles(() => ({
   overlay: { flex: 1, justifyContent: 'flex-end', alignItems: 'center', backgroundColor: COLORS.overlay },
   sheet: {
-    width: '100%', maxWidth: 520, maxHeight: '90%', padding: SPACING.xl,
+    width: '100%', maxWidth: 520, maxHeight: '90%', padding: SPACING.xl, flexShrink: 1, minHeight: 0,
     borderTopLeftRadius: 28, borderTopRightRadius: 28,
     borderWidth: 1, borderBottomWidth: 0, borderColor: COLORS.border, backgroundColor: COLORS.cardBg,
   },
   expanded: { height: '86%', maxWidth: 700 },
   expandedContent: { flex: 1, minHeight: 0 },
+  body: { flexGrow: 0, flexShrink: 1, minHeight: 0 },
   header: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, marginBottom: SPACING.md },
   headerText: { flex: 1, minWidth: 0, gap: SPACING.xs },
-  title: { ...TYPE.screenTitle, fontSize: 21, color: COLORS.textPrimary },
+  title: { ...TYPE.screenTitle, color: COLORS.textPrimary },
   subtitle: { ...TYPE.secondary, color: COLORS.textSecondary },
   close: {
     width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center',

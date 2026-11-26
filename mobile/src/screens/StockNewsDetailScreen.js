@@ -114,9 +114,9 @@ const styles = themedStyles(() => ({
   },
   identity: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
   identityText: { flex: 1, minWidth: 0, gap: SPACING.xs },
-  company: { ...TYPE.cardTitle, color: COLORS.textPrimary },
+  company: { ...TYPE.rowTitle, color: COLORS.textPrimary },
   title: { ...TYPE.screenTitle, color: COLORS.textPrimary },
-  meta: { ...TYPE.secondary, color: COLORS.textSecondary },
+  meta: { ...TYPE.caption, color: COLORS.textSecondary },
   sectionTitle: { ...TYPE.sectionTitle, color: COLORS.textPrimary, marginTop: SPACING.sm },
   card: {
     backgroundColor: COLORS.cardBg, borderWidth: 1, borderColor: COLORS.border,
@@ -124,8 +124,8 @@ const styles = themedStyles(() => ({
   },
   divider: { height: 1, backgroundColor: COLORS.divider },
   detailRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'baseline', gap: SPACING.sm },
-  detailLabel: { ...TYPE.secondary, color: COLORS.textSecondary, flexShrink: 1 },
-  detailValue: { ...TYPE.secondaryMedium, color: COLORS.textPrimary, flexShrink: 1 },
+  detailLabel: { ...TYPE.secondary, color: COLORS.textSecondary, flexGrow: 1, flexShrink: 1, flexBasis: 120 },
+  detailValue: { ...TYPE.smallValue, color: COLORS.textPrimary, marginLeft: 'auto', maxWidth: '100%', textAlign: 'right' },
   note: { ...TYPE.caption, color: COLORS.textSecondary },
   links: { gap: SPACING.sm, marginTop: SPACING.sm },
   link: {

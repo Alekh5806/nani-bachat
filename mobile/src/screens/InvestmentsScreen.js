@@ -55,27 +55,32 @@ export const InvestmentsScreen = ({ navigation }) => {
         </View>}
         <StockTabs value={tab} onChange={setTab} options={TABS} />
       </View>
-      <ScrollView
-        style={{ flex: 1, display: tab === 'holdings' ? 'flex' : 'none' }}
-        contentContainerStyle={stockStyles.content}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={refreshing && tab === 'holdings'} onRefresh={refresh} tintColor={COLORS.accent} />}
-      >
-        <StockHoldings summary={stockSummary} failed={holdingsFailed} prices={prices} onAdd={add}
-          onNews={() => navigation.navigate('News', { screen: 'NewsHome', pop: true })}
-          onOpen={(holding) => navigation.navigate('HoldingDetail', { holding })} />
-        <TabBarSpacer />
-      </ScrollView>
-      <ScrollView
-        style={{ flex: 1, display: tab === 'history' ? 'flex' : 'none' }}
-        contentContainerStyle={stockStyles.content}
-        refreshControl={<RefreshControl refreshing={refreshing && tab === 'history'} onRefresh={refresh} tintColor={COLORS.accent} />}
-      >
-        <StockHistory transactions={stockTransactions} failed={transactionsFailed} refreshing={refreshing} onRefresh={refresh}
-          onOpen={(event) => navigation.navigate('StockTransaction', { event })} />
-        <View style={{ height: SPACING.sm }} />
-        <TabBarSpacer />
-      </ScrollView>
+      {/* Android adds a native pull-to-refresh wrapper around each ScrollView. Hide the entire pane. */}
+      <View style={[stockStyles.viewport, tab !== 'holdings' && stockStyles.hidden]}>
+        <ScrollView
+          style={stockStyles.viewport}
+          contentContainerStyle={stockStyles.content}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={<RefreshControl refreshing={refreshing && tab === 'holdings'} onRefresh={refresh} tintColor={COLORS.accent} />}
+        >
+          <StockHoldings summary={stockSummary} failed={holdingsFailed} prices={prices} onAdd={add}
+            onNews={() => navigation.navigate('News', { screen: 'NewsHome', pop: true })}
+            onOpen={(holding) => navigation.navigate('HoldingDetail', { holding })} />
+          <TabBarSpacer />
+        </ScrollView>
+      </View>
+      <View style={[stockStyles.viewport, tab !== 'history' && stockStyles.hidden]}>
+        <ScrollView
+          style={stockStyles.viewport}
+          contentContainerStyle={stockStyles.content}
+          refreshControl={<RefreshControl refreshing={refreshing && tab === 'history'} onRefresh={refresh} tintColor={COLORS.accent} />}
+        >
+          <StockHistory transactions={stockTransactions} failed={transactionsFailed} refreshing={refreshing} onRefresh={refresh}
+            onOpen={(event) => navigation.navigate('StockTransaction', { event })} />
+          <View style={{ height: SPACING.sm }} />
+          <TabBarSpacer />
+        </ScrollView>
+      </View>
     </TabSwipeArea>
   );
 };

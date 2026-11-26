@@ -10,17 +10,20 @@ import Toast from 'react-native-toast-message';
 import { LoginArtwork } from '../components/LoginArtwork';
 import { UserAvatar } from '../components/UserAvatar';
 import { useAuthStore } from '../store/authStore';
-import { COLORS, themedStyles } from '../theme/colors';
+import { COLORS, TYPE, themedStyles } from '../theme/colors';
 import {
   firstName, forgetRememberedMember, greetingForHour,
   isRememberedPhone, loadRememberedMember,
 } from '../utils/rememberedMember';
 
+const PROVERB_FONT = 'NotoSerifGujarati_600SemiBold';
+
 export const LoginScreen = () => {
   const insets = useSafeAreaInsets();
-  const { width, height } = useWindowDimensions();
-  const wide = width >= 960;
+  const { width, height, fontScale } = useWindowDimensions();
+  const wide = width >= 960 && fontScale <= 1.3;
   const compact = width < 380;
+  const stackBrand = !wide && fontScale > 1.3;
   const { login, isLoading, error, clearError } = useAuthStore();
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -149,8 +152,8 @@ export const LoginScreen = () => {
               wide ? styles.heroWide : { paddingTop: insets.top + 24 },
               compact && styles.heroCompact,
             ]}>
-              <View style={[styles.heroContent, wide && styles.heroContentWide]}>
-                <View style={!wide && styles.brandMobile}>
+              <View style={[styles.heroContent, wide && styles.heroContentWide, stackBrand && styles.heroContentStacked]}>
+                <View style={!wide && !stackBrand && styles.brandMobile}>
                   <Text style={[styles.brandName, wide && styles.brandNameWide]}>Nani Bachat</Text>
                   <Text style={styles.brandCaption}>Private investment circle</Text>
                   {!wide && proverb}
@@ -279,16 +282,17 @@ const styles = themedStyles(() => ({
   heroWide: { width: '51%', padding: 44, borderRightWidth: 1, borderRightColor: '#27334A' },
   heroContent: { width: '100%', maxWidth: 410, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 2 },
   heroContentWide: { flex: 1, maxWidth: '100%', flexDirection: 'column', alignItems: 'stretch', gap: 14 },
+  heroContentStacked: { flexDirection: 'column', alignItems: 'stretch', gap: 12 },
   brandMobile: { flex: 1, minWidth: 0 },
   brandName: { color: '#F4F6FF', fontSize: 25, fontWeight: '600' },
-  brandNameWide: { fontSize: 28 },
-  brandCaption: { color: '#AEBACF', fontSize: 12, lineHeight: 18, marginTop: 4 },
+  brandNameWide: { fontSize: 28, fontWeight: '600' },
+  brandCaption: { ...TYPE.caption, color: '#AEBACF', marginTop: 4 },
   heroFeatureMobile: { width: 128, marginRight: -8 },
   heroFeatureCompact: { width: 98 },
   heroFeatureWide: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 36 },
-  proverb: { color: '#F0DAB4', fontFamily: 'NotoSerifGujarati_600SemiBold', fontSize: 22, lineHeight: 32, marginTop: 12 },
-  proverbCompact: { fontSize: 20, lineHeight: 30 },
-  proverbWide: { fontSize: 40, lineHeight: 58, textAlign: 'center', marginTop: 4 },
+  proverb: { color: '#F0DAB4', fontFamily: PROVERB_FONT, fontSize: 22, lineHeight: 32, marginTop: 12 },
+  proverbCompact: { fontFamily: PROVERB_FONT, fontSize: 20, lineHeight: 30 },
+  proverbWide: { fontFamily: PROVERB_FONT, fontSize: 40, lineHeight: 58, textAlign: 'center', marginTop: 4 },
   formSide: { backgroundColor: COLORS.isDark ? '#101725' : '#FBFCFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, marginTop: -1, paddingHorizontal: 28, paddingTop: 30, flex: 1 },
   formSideCompact: { paddingHorizontal: 22, paddingTop: 24 },
   formSideWide: { width: '49%', borderRadius: 0, borderTopLeftRadius: 0, borderTopRightRadius: 0, marginTop: 0, paddingHorizontal: 48, paddingVertical: 40, justifyContent: 'center' },
@@ -296,39 +300,39 @@ const styles = themedStyles(() => ({
   welcomeIcon: { alignSelf: 'flex-start', marginBottom: 18 },
   welcomeIconMobile: { position: 'absolute', right: 0, top: 0, marginBottom: 0 },
   greeting: { color: COLORS.isDark ? '#EEF2FC' : '#14213B', fontSize: 31, lineHeight: 40, fontWeight: '500', letterSpacing: -0.6 },
-  greetingWide: { fontSize: 42, lineHeight: 52, letterSpacing: -0.9 },
+  greetingWide: { fontSize: 42, lineHeight: 52, fontWeight: '500', letterSpacing: -0.9 },
   greetingName: { color: COLORS.isDark ? '#A8BCFF' : '#627CB7' },
-  formDescription: { color: COLORS.isDark ? '#A0ADC5' : '#5C6A80', fontSize: 14, lineHeight: 22, fontWeight: '400', marginTop: 12 },
+  formDescription: { ...TYPE.body, color: COLORS.isDark ? '#A0ADC5' : '#5C6A80', marginTop: 12 },
   form: { marginTop: 30 },
   formCompact: { marginTop: 24 },
-  labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 24, marginBottom: 8 },
-  label: { color: COLORS.isDark ? '#D4DCEE' : '#33415B', fontSize: 14, fontWeight: '500' },
+  labelRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', minHeight: 24, marginBottom: 8 },
+  label: { ...TYPE.inputLabel, flexShrink: 1, color: COLORS.isDark ? '#D4DCEE' : '#33415B' },
   passwordLabel: { marginTop: 20, marginBottom: 12 },
   inputShell: { minHeight: 56, flexDirection: 'row', alignItems: 'center', paddingLeft: 16, paddingRight: 6, gap: 12, borderWidth: 1, borderColor: COLORS.isDark ? '#2C374E' : '#DFE5EF', borderRadius: 12, backgroundColor: COLORS.isDark ? '#151F31' : '#FFFFFF' },
   inputFocused: { borderColor: COLORS.isDark ? '#8DA9FF' : '#6C85C4', backgroundColor: COLORS.isDark ? '#1B2941' : '#FFFFFF' },
   inputError: { borderColor: COLORS.loss },
-  input: { flex: 1, minWidth: 0, minHeight: 54, paddingVertical: 15, paddingRight: 8, color: COLORS.isDark ? '#F0F4FF' : '#1E2C48', fontSize: 16, fontWeight: '400', ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}) },
+  input: { ...TYPE.inputText, flex: 1, minWidth: 0, minHeight: 54, paddingVertical: 15, paddingRight: 8, color: COLORS.isDark ? '#F0F4FF' : '#1E2C48', ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}) },
   placeholder: { color: COLORS.isDark ? '#7F8EA8' : '#64748B' },
   inputIcon: { color: COLORS.isDark ? '#94A4C1' : '#7B8CA9' },
   accent: { color: COLORS.isDark ? '#A8BCFF' : '#4A67B2' },
   eyeButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
   smallAction: { paddingVertical: 4, paddingLeft: 8 },
-  smallActionText: { color: COLORS.isDark ? '#A8BCFF' : '#4A67B2', fontSize: 11, fontWeight: '500' },
-  fieldError: { color: COLORS.loss, fontSize: 12, fontWeight: '400', marginTop: 8 },
+  smallActionText: { ...TYPE.button, color: COLORS.isDark ? '#A8BCFF' : '#4A67B2' },
+  fieldError: { ...TYPE.secondary, color: COLORS.loss, marginTop: 8 },
   rememberRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 8, marginTop: 8 },
   rememberBox: { width: 20, height: 20, borderWidth: 1, borderColor: COLORS.isDark ? '#8291B0' : '#7283A6', borderRadius: 5, alignItems: 'center', justifyContent: 'center' },
   rememberBoxChecked: { borderColor: 'transparent' },
   errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.lossBg, borderRadius: 10, padding: 12, marginTop: 16 },
-  errorText: { flex: 1, color: COLORS.loss, fontSize: 12, lineHeight: 19, fontWeight: '400' },
-  signInButton: { minHeight: 56, borderRadius: 12, backgroundColor: '#4164DA', marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  errorText: { ...TYPE.secondary, flex: 1, color: COLORS.loss },
+  signInButton: { minHeight: 56, borderRadius: 12, backgroundColor: '#4164DA', marginTop: 12, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   signInHovered: { backgroundColor: '#3557CD' },
   signInPressed: { backgroundColor: '#2F50C3', transform: [{ scale: 0.99 }] },
   signInLoading: { opacity: 0.8 },
-  signInText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600', letterSpacing: 0.1 },
+  signInText: { ...TYPE.button, flexShrink: 1, color: '#FFFFFF', textAlign: 'center', letterSpacing: 0.1 },
   helpSection: { marginTop: 18, alignItems: 'center' },
   helpButton: { minHeight: 44, justifyContent: 'center' },
-  helpButtonText: { color: COLORS.isDark ? '#A8BCFF' : '#4A67B2', fontSize: 12, fontWeight: '500' },
+  helpButtonText: { ...TYPE.button, color: COLORS.isDark ? '#A8BCFF' : '#4A67B2', textAlign: 'center' },
   helpBox: { backgroundColor: COLORS.isDark ? '#1B273D' : '#EEF2FA', padding: 14, borderRadius: 10, marginTop: 4 },
-  helpText: { color: COLORS.isDark ? '#B9C6DD' : '#5F6F89', fontSize: 12, lineHeight: 20, fontWeight: '400' },
+  helpText: { ...TYPE.secondary, color: COLORS.isDark ? '#B9C6DD' : '#5F6F89' },
   pressed: { opacity: 0.65 },
 }));

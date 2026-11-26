@@ -23,7 +23,7 @@ const LotCard = ({ lot, isAdmin, onSale, onMenu }) => {
   return (
     <View style={styles.lot}>
       <View style={styles.lotHeader}>
-        <Text accessibilityRole="header" style={stockStyles.value}>{formatDateDisplay(sale ? lot.sell_date : lot.buy_date)}</Text>
+        <Text accessibilityRole="header" style={styles.lotDate}>{formatDateDisplay(sale ? lot.sell_date : lot.buy_date)}</Text>
         {isAdmin && (
           <View style={styles.actions}>
             {!sale && <StockAction label="Record sale" onPress={() => onSale(lot)} />}
@@ -32,9 +32,9 @@ const LotCard = ({ lot, isAdmin, onSale, onMenu }) => {
         )}
       </View>
       <StockFields rows={[
-        { label: sale ? 'Shares sold' : 'Shares held', value: sharesLabel(lot.quantity) },
+        { label: sale ? 'Shares sold' : 'Shares held', value: sharesLabel(lot.quantity), metadata: true },
         { label: sale ? 'Sale price per share' : 'Buy price per share', value: money(sale ? lot.sell_price : lot.buy_price) },
-        ...(sale ? [{ label: 'Bought on', value: formatDateDisplay(lot.buy_date) }] : []),
+        ...(sale ? [{ label: 'Bought on', value: formatDateDisplay(lot.buy_date), metadata: true }] : []),
         { label: 'Brokerage', value: money(sale ? lot.sell_brokerage : lot.brokerage) },
         { label: sale ? 'Net proceeds' : 'Cost of these shares', value: money(sale ? lot.current_value : lot.total_invested) },
         ...(sale ? [{
@@ -96,12 +96,12 @@ export const HoldingDetailScreen = ({ route, navigation }) => {
       <View style={stockStyles.header}>
         <ScreenHeader title="Holding details" inset={SPACING.lg} showBack hideProfile onBack={() => navigation.goBack()} />
       </View>
-      <ScrollView contentContainerStyle={stockStyles.content}>
+      <ScrollView style={stockStyles.viewport} contentContainerStyle={stockStyles.content}>
         <View style={styles.company}>
           <CompanyLogo symbol={symbol} name={name} size={48} />
           <View style={styles.companyText}>
             <Text accessibilityRole="header" style={styles.companyName}>{name}</Text>
-            <Text style={stockStyles.muted}>{tickerLabel(symbol)}{symbol?.endsWith('.NS') ? ' · NSE' : symbol?.endsWith('.BO') ? ' · BSE' : ''}</Text>
+            <Text style={stockStyles.meta}>{tickerLabel(symbol)}{symbol?.endsWith('.NS') ? ' · NSE' : symbol?.endsWith('.BO') ? ' · BSE' : ''}</Text>
           </View>
         </View>
         {holding ? (
@@ -110,7 +110,7 @@ export const HoldingDetailScreen = ({ route, navigation }) => {
             value={money(holding.current_value)}
             rows={[
               { label: 'Unrealized return', value: returnText(holding.profit_loss, holding.profit_loss_percentage), color: stockReturnColor(holding.profit_loss) },
-              { label: 'Quantity', value: sharesLabel(holding.total_quantity) },
+              { label: 'Quantity', value: sharesLabel(holding.total_quantity), metadata: true },
               { label: 'Average cost incl. brokerage', value: money(holding.average_buy_price) },
               { label: holding.price_is_estimate ? 'Estimated price per share' : 'Current price per share', value: money(holding.current_price) },
               { label: 'Invested amount', value: money(holding.total_invested) },
@@ -175,6 +175,7 @@ const styles = themedStyles(() => ({
     padding: SPACING.md, gap: SPACING.sm,
   },
   lotHeader: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: SPACING.sm },
-  actions: { flexDirection: 'row', flexWrap: 'wrap' },
+  lotDate: { ...TYPE.captionMedium, color: COLORS.textPrimary, maxWidth: '100%' },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', maxWidth: '100%' },
   menu: { marginTop: SPACING.sm },
 }));

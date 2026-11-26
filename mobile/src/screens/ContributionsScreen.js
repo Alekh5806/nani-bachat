@@ -19,7 +19,7 @@ import api from '../config/api';
 import { useAuthStore } from '../store/authStore';
 import { usePortfolioStore } from '../store/portfolioStore';
 import { getErrorMessage } from '../utils/errors';
-import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
+import { COLORS, SPACING, RADIUS, themedStyles, TYPE } from '../theme/colors';
 import { FormCard } from '../components/FormScreen';
 import { BuyerPicker } from '../components/BuyerPicker';
 import { SummaryCard } from '../components/SummaryCard';
@@ -620,7 +620,7 @@ export const ContributionsScreen = ({ route, navigation, embedded = false, view 
         <View style={styles.filterRow}>
           <Text style={styles.filterLabel}>Month</Text>
           <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Contribution month, ${filterMonthLabel}`} style={styles.monthButton} onPress={() => setShowMonthFilter(true)}>
-            <Text style={styles.monthButtonText} numberOfLines={1}>{filterMonthLabel}</Text>
+            <Text style={styles.monthButtonText}>{filterMonthLabel}</Text>
             <ArrowDown2 size={12} color={COLORS.textSecondary} />
           </TouchableOpacity>
           {isAdmin && (
@@ -891,7 +891,7 @@ export const ContributionsScreen = ({ route, navigation, embedded = false, view 
   const paidMonthKeys = activeHistory?.paidMonths || [];
   const monthPicker = histFilter === 'paid' && (
     <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Payment history month, ${histMonthLabel}`} style={styles.monthButton} onPress={() => setShowMonthPicker(true)}>
-      <Text style={styles.monthButtonText} numberOfLines={1}>{histMonthLabel}</Text>
+      <Text style={styles.monthButtonText}>{histMonthLabel}</Text>
       <ArrowDown2 size={12} color={COLORS.textSecondary} />
     </TouchableOpacity>
   );
@@ -951,19 +951,19 @@ export const ContributionsScreen = ({ route, navigation, embedded = false, view 
                   : null;
                 return (
                   <View key={contrib.id} style={[styles.hRow, i > 0 && styles.hRowDivider]}>
-                    <UserAvatar person={person} size={40} style={{ marginRight: SPACING.md }} />
-                    <View style={styles.hLeft}>
-                      <View style={styles.hNameRow}>
-                        <Text style={styles.hName} numberOfLines={1}>{contrib.member_name || 'Member'}</Text>
-                        {(parseFloat(contrib.buyer_topup) || 0) > 0 && <Text style={styles.hBuyer}>Buyer</Text>}
+                    <View style={styles.hIdentity}>
+                      <UserAvatar person={person} size={40} />
+                      <View style={styles.hLeft}>
+                        <View style={styles.hNameRow}>
+                          <Text style={styles.hName}>{contrib.member_name || 'Member'}</Text>
+                          {(parseFloat(contrib.buyer_topup) || 0) > 0 && <Text style={styles.hBuyer}>Buyer</Text>}
+                        </View>
+                        {!!sub && <Text style={styles.hSub}>{sub}</Text>}
+                        {/* payable_amount is the cash handed over, including any pool cash returned. */}
+                        {adjustmentNotes(contrib).map((note) => (
+                          <Text key={note} style={styles.adjustmentNote}>{note}</Text>
+                        ))}
                       </View>
-                      {!!sub && <Text style={styles.hSub}>{sub}</Text>}
-                      {/* payable_amount is the cash actually handed over; it
-                          differs from `amount` whenever pool cash is being
-                          returned, which is not new capital. */}
-                      {adjustmentNotes(contrib).map((note) => (
-                        <Text key={note} style={styles.adjustmentNote}>{note}</Text>
-                      ))}
                     </View>
                     <View style={styles.hRight}>
                       <Text style={styles.hAmount}>{fmtFull(contrib.payable_amount ?? contrib.amount)}</Text>
@@ -1130,7 +1130,7 @@ export const ContributionsScreen = ({ route, navigation, embedded = false, view 
               style={{ marginRight: SPACING.md }}
             />
             <View style={styles.editWhoText}>
-              <Text style={styles.editWhoName} numberOfLines={1}>{editingContribution.member_name || 'Member'}</Text>
+              <Text style={styles.editWhoName}>{editingContribution.member_name || 'Member'}</Text>
               <Text style={styles.editWhoSub}>{editingContribution.month ? formatMonth(editingContribution.month) : ''}</Text>
             </View>
           </View>
@@ -1243,114 +1243,110 @@ const styles = themedStyles(() => ({
   container: { flex: 1, backgroundColor: COLORS.background },
   scrollView: { flex: 1, paddingHorizontal: SPACING.md },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  filterLabel: { ...TYPE.secondaryMedium, color: COLORS.textSecondary, flex: 1 },
+  filterLabel: { ...TYPE.inputLabel, color: COLORS.textSecondary, flexGrow: 1, flexShrink: 1 },
   monthChip: { minHeight: 44, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: RADIUS.full, backgroundColor: COLORS.cardBg, marginRight: SPACING.sm, borderWidth: 1, borderColor: COLORS.border, flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   monthChipActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
-  monthChipText: { ...TYPE.secondaryMedium, color: COLORS.textSecondary },
+  monthChipText: { ...TYPE.tab, color: COLORS.textSecondary },
   monthChipTextActive: { color: COLORS.onAccent },
   histSpinner: { paddingVertical: SPACING.lg },
   retry: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  retryText: { ...TYPE.secondaryMedium, color: COLORS.accent },
-  filterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.md },
-  moreButton: { width: 44, height: 44, borderRadius: 22, marginLeft: SPACING.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.cardBg, borderWidth: 1, borderColor: COLORS.border },
+  retryText: { ...TYPE.button, color: COLORS.accent },
+  filterRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: SPACING.sm, marginBottom: SPACING.md },
+  moreButton: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.cardBg, borderWidth: 1, borderColor: COLORS.border },
   settleRows: { marginTop: SPACING.lg },
-  settleNote: { ...TYPE.caption, fontSize: 10, color: COLORS.textMuted, marginTop: SPACING.sm, lineHeight: 14 },
+  settleNote: { ...TYPE.secondary, color: COLORS.textSecondary, marginTop: SPACING.sm },
   toolList: { marginTop: SPACING.md },
   toolRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.md },
   toolIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.accent + '14', marginRight: SPACING.md },
   toolIconDanger: { backgroundColor: COLORS.loss + '14' },
   toolText: { flex: 1, minWidth: 0 },
-  toolHint: { ...TYPE.caption, fontSize: 10, color: COLORS.textMuted, marginTop: 4 },
+  toolHint: { ...TYPE.secondary, color: COLORS.textSecondary, marginTop: SPACING.xs },
   toolRowDivider: { borderTopWidth: 1, borderTopColor: COLORS.divider },
-  toolRowText: { ...TYPE.cardTitle, fontSize: 14, color: COLORS.textPrimary },
+  toolRowText: { ...TYPE.rowTitle, color: COLORS.textPrimary },
   buyerPick: { marginTop: SPACING.lg, borderTopWidth: 1, borderTopColor: COLORS.divider, paddingTop: SPACING.lg },
-  statusTabs: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.xs },
-  statusChips: { flexDirection: 'row' },
+  statusTabs: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: SPACING.sm, marginBottom: SPACING.xs },
+  statusChips: { flexDirection: 'row', flexWrap: 'wrap' },
   monthButton: {
-    flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, maxWidth: 180, minHeight: 44,
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, maxWidth: '100%', minHeight: 48, marginLeft: 'auto',
     paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs + 2, borderRadius: RADIUS.full,
     backgroundColor: COLORS.cardBg, borderWidth: 1, borderColor: COLORS.border,
   },
-  monthButtonText: { ...TYPE.caption, fontWeight: '500', color: COLORS.textSecondary, flexShrink: 1 },
+  monthButtonText: { ...TYPE.tab, color: COLORS.textSecondary, flexShrink: 1 },
   band: {
-    flexDirection: 'row', justifyContent: 'space-between', marginTop: SPACING.md,
+    flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'baseline', gap: SPACING.sm, marginTop: SPACING.md,
     backgroundColor: COLORS.isDark ? COLORS.surface : COLORS.surfaceLight, paddingVertical: SPACING.md,
   },
   bandText: { ...TYPE.secondaryMedium, color: COLORS.textSecondary },
-  bandTotal: { ...TYPE.caption, color: COLORS.textMuted },
-  hRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.md },
+  bandTotal: { ...TYPE.caption, color: COLORS.textMuted, marginLeft: 'auto' },
+  hRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: SPACING.sm, paddingVertical: SPACING.md },
   hRowDivider: { borderTopWidth: 1, borderTopColor: COLORS.divider },
-  hLeft: { flex: 1, minWidth: 0, marginRight: SPACING.md },
-  hRight: { alignItems: 'flex-end' },
-  hNameRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  hIdentity: { flexDirection: 'row', alignItems: 'center', flexGrow: 1, flexShrink: 1, flexBasis: 144, gap: SPACING.md },
+  hLeft: { flex: 1, minWidth: 0 },
+  hRight: { alignItems: 'flex-end', marginLeft: 'auto', maxWidth: '100%' },
+  hNameRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: SPACING.sm, rowGap: SPACING.xs },
   hBuyer: {
-    ...TYPE.captionMedium, fontSize: 10, color: COLORS.accent, backgroundColor: COLORS.accent + '14',
+    ...TYPE.captionMedium, color: COLORS.accent, backgroundColor: COLORS.accent + '14',
     paddingHorizontal: SPACING.sm, paddingVertical: 2, borderRadius: RADIUS.full, overflow: 'hidden',
   },
-  hName: { flexShrink: 1, ...TYPE.cardTitle, fontSize: 14, color: COLORS.textPrimary },
-  hAmount: { ...TYPE.smallValue, fontSize: 12, color: COLORS.textPrimary },
-  hSub: { ...TYPE.caption, fontSize: 10, color: COLORS.textMuted, marginTop: 4 },
-  hActions: { flexDirection: 'row', gap: SPACING.xs, marginLeft: SPACING.md },
-  hAction: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.textMuted + '1F' },
+  hName: { ...TYPE.rowTitle, color: COLORS.textPrimary, flexShrink: 1, maxWidth: '100%' },
+  hAmount: { ...TYPE.listAmount, color: COLORS.textPrimary, textAlign: 'right' },
+  hSub: { ...TYPE.caption, color: COLORS.textMuted, marginTop: SPACING.xs },
+  hActions: { flexDirection: 'row', gap: SPACING.xs, marginLeft: 'auto' },
+  hAction: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.textMuted + '1F' },
   hActionWarn: { backgroundColor: COLORS.warning + '1F' },
   hActionOk: { backgroundColor: COLORS.profit + '1F' },
   hActionDanger: { backgroundColor: COLORS.loss + '1F' },
-  // flex + minWidth keep the name/amount block inside the card. Without them
-  // it sizes to its content and shoves the badge and buttons off the screen.
-  // Stacked, and never shrunk: on a narrow phone a badge beside two buttons
-  // does not fit next to a member name, and the controls are what get cut.
-  // 40pt so the paid/unpaid toggle is a comfortable tap target, not an icon.
   emptyCard: { marginTop: SPACING.xl, padding: SPACING.xl, alignItems: 'center', gap: SPACING.sm },
   emptyText: { ...TYPE.cardTitle, color: COLORS.textSecondary },
   emptySubtext: { ...TYPE.secondary, color: COLORS.textMuted, textAlign: 'center' },
   // Pool settlement
   unsettledBanner: { marginTop: SPACING.md, padding: SPACING.md, borderRadius: RADIUS.md, backgroundColor: COLORS.loss + '14' },
-  unsettledTitle: { ...TYPE.cardTitle, fontSize: 12, color: COLORS.loss },
+  unsettledTitle: { ...TYPE.rowTitle, color: COLORS.loss },
   unsettledChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: SPACING.sm },
   unsettledChip: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs + 2, borderRadius: RADIUS.full, backgroundColor: COLORS.loss + '1F' },
   unsettledChipText: { ...TYPE.captionMedium, color: COLORS.loss },
-  unsettledHint: { ...TYPE.caption, fontSize: 10, color: COLORS.textSecondary, marginTop: SPACING.sm },
+  unsettledHint: { ...TYPE.secondary, color: COLORS.textSecondary, marginTop: SPACING.sm },
   poolCard: { marginTop: SPACING.md, padding: SPACING.lg },
-  poolHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, minHeight: 44 },
+  poolHeader: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: SPACING.sm, minHeight: 48 },
   cashLedger: { borderTopWidth: 1, borderTopColor: COLORS.divider, paddingTop: SPACING.sm, marginTop: SPACING.md },
-  poolTitleBlock: { flex: 1, minWidth: 0 },
-  poolTitle: { ...TYPE.cardTitle, fontSize: 14, color: COLORS.textPrimary },
-  poolMonthText: { ...TYPE.caption, fontSize: 10, color: COLORS.textMuted, marginTop: 4 },
-  settledBadge: { ...TYPE.captionMedium, fontSize: 10, paddingHorizontal: SPACING.sm, paddingVertical: 2, borderRadius: RADIUS.full, overflow: 'hidden' },
+  poolTitleBlock: { flexGrow: 1, flexShrink: 1, flexBasis: 116 },
+  poolTitle: { ...TYPE.sectionTitle, color: COLORS.textPrimary },
+  poolMonthText: { ...TYPE.caption, color: COLORS.textMuted, marginTop: SPACING.xs },
+  settledBadge: { ...TYPE.captionMedium, maxWidth: '100%', paddingHorizontal: SPACING.sm, paddingVertical: 2, borderRadius: RADIUS.full, overflow: 'hidden' },
   settledBadgePaid: { color: COLORS.profit, backgroundColor: COLORS.profit + '1F' },
   settledBadgeOpen: { color: COLORS.warning, backgroundColor: COLORS.warning + '1F' },
   handover: { marginTop: SPACING.md, paddingTop: SPACING.md, borderTopWidth: 1, borderTopColor: COLORS.divider },
   handoverHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: SPACING.sm },
   handoverTitleBlock: { flex: 1, minWidth: 0 },
-  handoverTitle: { ...TYPE.cardTitle, fontSize: 12, color: COLORS.textPrimary },
-  handoverSubtitle: { ...TYPE.caption, fontSize: 10, color: COLORS.textMuted, marginTop: 4, lineHeight: 14 },
+  handoverTitle: { ...TYPE.rowTitle, color: COLORS.textPrimary },
+  handoverSubtitle: { ...TYPE.secondary, color: COLORS.textSecondary, marginTop: SPACING.xs },
   handoverList: { marginTop: SPACING.sm, gap: 2 },
-  handoverRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: SPACING.sm, paddingVertical: 8 },
-  handoverWho: { flex: 1, minWidth: 0 },
-  handoverName: { ...TYPE.cardTitle, fontSize: 12, color: COLORS.textPrimary },
-  handoverBreakdown: { ...TYPE.caption, fontSize: 10, color: COLORS.textMuted, marginTop: 4, lineHeight: 14 },
-  handoverUnpaid: { ...TYPE.captionMedium, fontSize: 10, color: COLORS.loss, marginTop: 4 },
-  handoverAmount: { ...TYPE.secondary, fontSize: 12, color: COLORS.textSecondary },
-  handoverNote: { ...TYPE.caption, fontSize: 10, color: COLORS.textMuted, marginTop: SPACING.sm, lineHeight: 14 },
+  handoverRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: SPACING.sm, paddingVertical: SPACING.sm },
+  handoverWho: { flexGrow: 1, flexShrink: 1, flexBasis: 110 },
+  handoverName: { ...TYPE.rowTitle, color: COLORS.textPrimary },
+  handoverBreakdown: { ...TYPE.secondary, color: COLORS.textSecondary, marginTop: SPACING.xs },
+  handoverUnpaid: { ...TYPE.secondaryMedium, color: COLORS.loss, marginTop: SPACING.xs },
+  handoverAmount: { ...TYPE.listAmount, color: COLORS.textPrimary, marginLeft: 'auto', maxWidth: '100%', textAlign: 'right' },
+  handoverNote: { ...TYPE.secondary, color: COLORS.textSecondary, marginTop: SPACING.sm },
   poolNote: { marginTop: SPACING.lg, padding: SPACING.md, borderRadius: RADIUS.md },
   poolNoteWarn: { backgroundColor: COLORS.warning + '14' },
   poolNoteInfo: { backgroundColor: COLORS.accent + '14' },
-  poolNoteText: { ...TYPE.cardTitle, fontSize: 12, color: COLORS.textPrimary, lineHeight: 18 },
-  poolNoteSub: { ...TYPE.caption, fontSize: 10, color: COLORS.textSecondary, marginTop: 4, lineHeight: 16 },
-  poolWarning: { ...TYPE.captionMedium, fontSize: 10, color: COLORS.warning, marginTop: SPACING.md },
-  adjustmentNote: { ...TYPE.caption, fontSize: 10, color: COLORS.textMuted, marginTop: 4, lineHeight: 14 },
+  poolNoteText: { ...TYPE.rowTitle, color: COLORS.textPrimary },
+  poolNoteSub: { ...TYPE.secondary, color: COLORS.textSecondary, marginTop: SPACING.xs },
+  poolWarning: { ...TYPE.secondaryMedium, color: COLORS.warning, marginTop: SPACING.md },
+  adjustmentNote: { ...TYPE.secondary, color: COLORS.textSecondary, marginTop: SPACING.xs },
   editWho: { flexDirection: 'row', alignItems: 'center', marginTop: SPACING.lg },
   editWhoText: { flex: 1, minWidth: 0 },
-  editWhoName: { ...TYPE.cardTitle, fontSize: 14, color: COLORS.textPrimary },
-  editWhoSub: { ...TYPE.caption, fontSize: 10, color: COLORS.textMuted, marginTop: 4 },
+  editWhoName: { ...TYPE.rowTitle, color: COLORS.textPrimary },
+  editWhoSub: { ...TYPE.caption, color: COLORS.textMuted, marginTop: SPACING.xs },
   editWarning: { borderRadius: RADIUS.md, backgroundColor: COLORS.warning + '14', padding: SPACING.md, marginTop: SPACING.lg },
-  editWarningTitle: { ...TYPE.cardTitle, fontSize: 12, color: COLORS.warning },
-  editWarningText: { ...TYPE.caption, fontSize: 10, color: COLORS.textSecondary, lineHeight: 16, marginTop: 4 },
+  editWarningTitle: { ...TYPE.rowTitle, color: COLORS.warning },
+  editWarningText: { ...TYPE.secondary, color: COLORS.textSecondary, marginTop: SPACING.xs },
   editInput: { marginTop: SPACING.lg, marginBottom: 0 },
 
   yearSelector: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: SPACING.lg, marginBottom: SPACING.md },
   yearButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.accent + '14', justifyContent: 'center', alignItems: 'center' },
-  yearText: { ...TYPE.cardTitle, fontSize: 16, color: COLORS.textPrimary },
+  yearText: { ...TYPE.sectionTitle, color: COLORS.textPrimary },
   monthGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
   monthGridItem: { width: '23%', flexGrow: 1, paddingVertical: SPACING.md, borderRadius: RADIUS.md, backgroundColor: COLORS.inputBg, alignItems: 'center', borderWidth: 1, borderColor: COLORS.inputBorder },
   monthGridItemActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },

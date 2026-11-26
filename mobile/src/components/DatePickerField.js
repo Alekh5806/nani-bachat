@@ -7,11 +7,11 @@
  * exactly what the Django serializers expect.
  */
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { DialogCard } from './DialogCard';
 import { Icon } from './Icon';
 import { AppIcon } from './Icon';
-import { COLORS, RADIUS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
+import { COLORS, RADIUS, SPACING, themedStyles, TYPE } from '../theme/colors';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -115,6 +115,9 @@ export const DatePickerField = ({
       {label && <Text style={styles.label}>{label}</Text>}
 
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${label || 'Date'}, ${value ? formatDateDisplay(value) : placeholder}`}
+        accessibilityState={{ expanded: open }}
         onPress={openPicker}
         style={({ pressed }) => [
           styles.field,
@@ -123,11 +126,11 @@ export const DatePickerField = ({
         ]}
       >
         <Icon name={icon} size={18} color={COLORS.textMuted} style={styles.icon} />
-        <Text style={[styles.fieldText, !value && styles.placeholder]} numberOfLines={1}>
+        <Text style={[styles.fieldText, !value && styles.placeholder]}>
           {value ? formatDateDisplay(value) : placeholder}
         </Text>
         {clearable && !!value ? (
-          <Pressable onPress={() => onChange('')} hitSlop={10} style={styles.clearBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Clear date" onPress={() => onChange('')} hitSlop={10} style={styles.clearBtn}>
             <AppIcon name="close-circle" size={18} color={COLORS.textMuted} />
           </Pressable>
         ) : (
@@ -135,7 +138,7 @@ export const DatePickerField = ({
         )}
       </Pressable>
 
-      {!!error && <Text style={styles.errorText}>{error}</Text>}
+      {!!error && <Text style={styles.errorText} accessibilityLiveRegion="polite">{error}</Text>}
 
       <DialogCard
         visible={open}
@@ -172,7 +175,7 @@ export const DatePickerField = ({
           ))}
         </View>
 
-        <ScrollView style={styles.grid} contentContainerStyle={styles.gridContent}>
+        <View style={styles.grid}>
           {days.map((date, index) => {
             if (!date) return <View key={`blank-${index}`} style={styles.dayCell} />;
             const dateStr = toDateString(date);
@@ -204,7 +207,7 @@ export const DatePickerField = ({
               </Pressable>
             );
           })}
-        </ScrollView>
+        </View>
 
         </View>
       </DialogCard>
@@ -235,12 +238,13 @@ const styles = themedStyles(() => ({
   fieldText: {
     ...TYPE.inputText,
     flex: 1,
+    minWidth: 0,
     color: COLORS.textPrimary,
   },
-  placeholder: { color: COLORS.placeholder, fontWeight: '400' },
+  placeholder: { color: COLORS.placeholder },
   clearBtn: { padding: 2 },
   errorText: {
-    ...TYPE.caption,
+    ...TYPE.secondary,
     color: COLORS.loss,
     marginTop: SPACING.xs,
     marginLeft: SPACING.xs,
@@ -274,11 +278,11 @@ const styles = themedStyles(() => ({
     textAlign: 'center',
     color: COLORS.textMuted,
   },
-  grid: { maxHeight: 260 },
-  gridContent: { flexDirection: 'row', flexWrap: 'wrap' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap' },
   dayCell: {
     width: `${100 / 7}%`,
-    height: 40,
+    minHeight: 40,
+    paddingVertical: SPACING.xs,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: RADIUS.sm,

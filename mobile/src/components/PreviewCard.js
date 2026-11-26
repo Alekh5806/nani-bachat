@@ -15,14 +15,14 @@ export const PreviewCard = ({ title, style, children }) => (
   </FormCard>
 );
 
-// Bold label on the left (optional grey line under it), value in the right half.
+// The value uses its full width before wrapping onto a separate line.
 export const PreviewRow = ({ label, sub, value, color, strong }) => (
   <View style={styles.row}>
     <View style={styles.labelBlock}>
       <Text style={[styles.label, strong && styles.labelStrong]}>{label}</Text>
       {!!sub && <Text style={styles.sub}>{sub}</Text>}
     </View>
-    <Text style={[styles.value, strong && styles.valueStrong, color && { color }]} numberOfLines={1}>
+    <Text style={[styles.value, strong && styles.valueStrong, color && { color }]}>
       {value}
     </Text>
   </View>
@@ -33,21 +33,20 @@ export const PreviewTotal = ({ children }) => <View style={styles.total}>{childr
 
 const styles = themedStyles(() => ({
   title: {
-    ...TYPE.cardTitle,
-    fontSize: 14,
+    ...TYPE.sectionTitle,
     color: COLORS.textPrimary,
     paddingBottom: SPACING.md,
     marginBottom: SPACING.xs,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
   },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
-  labelBlock: { flex: 1 },
-  label: { ...TYPE.cardTitle, fontSize: 12, color: COLORS.textPrimary },
-  labelStrong: { fontSize: 14 },
-  sub: { ...TYPE.caption, fontSize: 10, color: COLORS.textMuted, marginTop: 4 },
-  value: { ...TYPE.secondary, fontSize: 12, flex: 1, color: COLORS.textSecondary },
-  valueStrong: { ...TYPE.smallValue, fontSize: 14, color: COLORS.accent },
+  row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: SPACING.sm, paddingVertical: 6 },
+  labelBlock: { flexBasis: '42%', flexGrow: 1, minWidth: 0 },
+  label: { ...TYPE.secondaryMedium, color: COLORS.textPrimary },
+  labelStrong: { ...TYPE.rowTitle },
+  sub: { ...TYPE.caption, color: COLORS.textMuted, marginTop: SPACING.xs },
+  value: { ...TYPE.smallValue, maxWidth: '100%', marginLeft: 'auto', color: COLORS.textSecondary, textAlign: 'right' },
+  valueStrong: { ...TYPE.listAmount, color: COLORS.accent },
   total: {
     borderTopWidth: 1,
     borderTopColor: COLORS.divider,

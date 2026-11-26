@@ -20,6 +20,9 @@ const PRICE_REFRESH_MS = 60000;
 // The smaller of the two columns needs at least 360 points at the default text size.
 const MIN_COLUMNS_WIDTH = 360 * (1.2 + 1) + SPACING.lg;
 const SIDE_EDGES = ['left', 'right'];
+const RING_SIZE = 164;
+const LEGEND_WIDTH = 240;
+const METRIC_WIDTH = 136;
 const CHART_COLORS = ['#4D6BFF', '#7C93FF', '#A9B8FF', '#8A8780', '#A5A39D', '#C4C1B9'];
 const hasAmount = (value) => value != null && value !== '' && Number.isFinite(Number(value));
 const money = (value) => hasAmount(value) ? fmtFull(value) : '—';
@@ -79,6 +82,8 @@ function BalanceBreakdown({ portfolio: p, onStocks }) {
 
 function HoldingsCard({ summary, failed, onOpen }) {
   const { fontScale } = useWindowDimensions();
+  const [innerWidth, setInnerWidth] = useState(0);
+  const sideBySide = innerWidth >= RING_SIZE + SPACING.lg + LEGEND_WIDTH * Math.max(1, fontScale);
   const holdings = [...(summary?.stocks || [])].sort((a, b) => Number(b.current_value) - Number(a.current_value));
   const total = holdings.reduce((sum, h) => sum + Math.round(Number(h.current_value) * 100), 0) / 100;
   const slices = holdings.slice(0, 5).map((h, i) => ({
@@ -96,12 +101,25 @@ function HoldingsCard({ summary, failed, onOpen }) {
     <View style={styles.card}>
       <CardHeading title="Top Holdings" action="View investments" onPress={onOpen} />
       {failed && <Text style={styles.notice}>{summary ? 'Showing saved holdings.' : 'Holdings couldn’t load. Refresh to retry.'}</Text>}
-      {summary ? holdings.length ? <View style={styles.holdingsLayout}>
+      {summary ? holdings.length ? <View
+        onLayout={({ nativeEvent }) => setInnerWidth(nativeEvent.layout.width)}
+        style={[styles.holdingsLayout, sideBySide && styles.holdingsSideBySide]}
+      >
         {total > 0 && <View style={styles.ring}>
-          <AllocationDonut slices={slices} size={164} thickness={22} label="Stock value" value={fmtShort(total)} />
+          <AllocationDonut slices={slices} size={RING_SIZE} thickness={22} label="Stock value"
+            value={fmtShort(total)} fullValue={fmtFull(total)} />
         </View>}
-        <View style={[styles.holdingsList, { flexBasis: 240 * Math.max(1, fontScale) }]}>{slices.map((s) => <AmountRow key={s.key} label={s.label} swatch={s.color}
-          value={total > 0 ? (s.value / total * 100).toFixed(1) + '%' : fmtFull(s.value)} />)}</View>
+        <View style={sideBySide && styles.holdingsList}>
+          {slices.map((slice) => (
+            <View key={slice.key} style={styles.legendRow}>
+              <View style={[styles.swatch, styles.legendSwatch, { backgroundColor: slice.color }]} />
+              <Text style={styles.legendLabel}>{slice.label}</Text>
+              <Text style={styles.amount}>
+                {total > 0 ? (slice.value / total * 100).toFixed(1) + '%' : fmtFull(slice.value)}
+              </Text>
+            </View>
+          ))}
+        </View>
       </View> : <Text style={styles.empty}>No stocks are currently held.</Text>
         : !failed && <Text style={styles.empty}>Loading holdings…</Text>}
     </View>
@@ -135,6 +153,9 @@ function DividendsCard({ total, dividends, loaded, failed, today, onOpen }) {
 }
 
 function PortfolioValueCard({ dashboard, refreshing, refresh, today, refreshKey }) {
+  const { fontScale } = useWindowDimensions();
+  const [metricsWidth, setMetricsWidth] = useState(0);
+  const stackMetrics = metricsWidth < 2 * METRIC_WIDTH * Math.max(1, fontScale) + SPACING.sm;
   const p = dashboard.portfolio;
   const gain = p.profit_loss;
   const pct = Number(p.growth_percentage);
@@ -150,21 +171,22 @@ function PortfolioValueCard({ dashboard, refreshing, refresh, today, refreshKey 
           {refreshing ? <ActivityIndicator size="small" color={COLORS.accent} /> : <Refresh2 size={18} color={COLORS.textPrimary} />}
         </Pressable>
       </View>
-      <Text style={styles.heroValue} selectable numberOfLines={1} adjustsFontSizeToFit>{money(p.current_value)}</Text>
-      <View style={styles.heroStats}>
-        <View style={styles.metric}>
+      <Text style={styles.heroValue} selectable>{money(p.current_value)}</Text>
+      <View style={[styles.heroStats, stackMetrics && styles.stackedMetrics]}
+        onLayout={({ nativeEvent }) => setMetricsWidth(nativeEvent.layout.width)}>
+        <View style={[styles.metric, !stackMetrics && styles.metricColumn]}>
           <Text style={styles.caption}>All-time return</Text>
           <View style={styles.metricLine}>
-            <Text style={[styles.metricValue, { color: returnColor(gain) }]} numberOfLines={1} adjustsFontSizeToFit>{signedMoney(gain)}</Text>
+            <Text style={[styles.metricValue, { color: returnColor(gain) }]}>{signedMoney(gain)}</Text>
             {Number(p.total_invested) > 0 && hasAmount(p.growth_percentage) && <Text style={[styles.metricPct, { color: returnColor(gain) }]}>
               {(pct > 0 ? '+' : '') + pct.toFixed(2) + '%'}
             </Text>}
           </View>
         </View>
-        <View style={styles.metric}>
+        <View style={[styles.metric, !stackMetrics && styles.metricColumn]}>
           <Text style={styles.caption}>Invested capital</Text>
           <View style={styles.metricLine}>
-            <Text style={styles.metricValue} numberOfLines={1} adjustsFontSizeToFit>{money(p.total_invested)}</Text>
+            <Text style={styles.metricValue}>{money(p.total_invested)}</Text>
           </View>
         </View>
       </View>
@@ -268,7 +290,7 @@ const styles = themedStyles(() => ({
   secondaryColumn: { flex: 1, minWidth: 0 },
   card: { backgroundColor: COLORS.cardBg, borderColor: COLORS.border, borderWidth: 1, borderRadius: RADIUS.xl, padding: SPACING.xl },
   heading: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', columnGap: SPACING.sm, marginBottom: SPACING.sm },
-  title: { ...TYPE.cardTitle, maxWidth: '100%', color: COLORS.textPrimary },
+  title: { ...TYPE.sectionTitle, maxWidth: '100%', color: COLORS.textPrimary },
   caption: { ...TYPE.secondary, color: COLORS.textSecondary },
   link: { maxWidth: '100%', minHeight: 44, justifyContent: 'center' },
   linkText: { ...TYPE.button, color: COLORS.isDark ? CHART_COLORS[1] : COLORS.accent },
@@ -277,23 +299,29 @@ const styles = themedStyles(() => ({
   heroHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   heroLabel: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flexShrink: 1 },
   refresh: { minHeight: 36, minWidth: 36, alignItems: 'center', justifyContent: 'center', borderRadius: RADIUS.full, backgroundColor: COLORS.surface },
-  heroValue: { ...TYPE.portfolioValue, fontSize: 36, lineHeight: 44, color: COLORS.textPrimary, marginTop: SPACING.xs, marginBottom: SPACING.sm, fontVariant: ['tabular-nums'] },
+  heroValue: { ...TYPE.portfolioValue, color: COLORS.textPrimary, marginTop: SPACING.xs, marginBottom: SPACING.sm },
   heroStats: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.xs, marginBottom: SPACING.lg },
-  metric: { flex: 1, minWidth: 0, gap: SPACING.xs, padding: SPACING.md, borderRadius: RADIUS.md, backgroundColor: COLORS.surface },
-  metricLine: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: SPACING.xs },
-  metricPct: { ...TYPE.captionMedium, fontVariant: ['tabular-nums'] },
-  metricValue: { ...TYPE.cardTitle, flexShrink: 1, fontSize: 14, color: COLORS.textPrimary, fontVariant: ['tabular-nums'] },
+  stackedMetrics: { flexDirection: 'column' },
+  metric: { minWidth: 0, gap: SPACING.xs, padding: SPACING.md, borderRadius: RADIUS.md, backgroundColor: COLORS.surface },
+  metricColumn: { flex: 1 },
+  metricLine: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', columnGap: SPACING.sm, rowGap: SPACING.xs },
+  metricPct: { ...TYPE.plPercent },
+  metricValue: { ...TYPE.listAmount, maxWidth: '100%', color: COLORS.textPrimary },
   sectionValue: { ...TYPE.portfolioValue, color: COLORS.textPrimary, marginTop: SPACING.xs },
   rowLabel: { flexShrink: 1, maxWidth: '100%', flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   rowText: { ...TYPE.body, color: COLORS.textSecondary, flexShrink: 1 },
   amountRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', columnGap: SPACING.sm, rowGap: SPACING.xs, paddingVertical: SPACING.sm },
-  amount: { ...TYPE.smallValue, maxWidth: '100%', color: COLORS.textPrimary, fontVariant: ['tabular-nums'] },
-  swatch: { width: 8, height: 8, borderRadius: 2 },
+  amount: { ...TYPE.listAmount, maxWidth: '100%', marginLeft: 'auto', textAlign: 'right', color: COLORS.textPrimary },
+  swatch: { width: 8, height: 8, flexShrink: 0, borderRadius: 2 },
   allocationBar: { flexDirection: 'row', height: 12, overflow: 'hidden', borderRadius: RADIUS.sm, marginBottom: SPACING.md },
   divider: { height: 1, backgroundColor: COLORS.border, marginVertical: SPACING.lg },
-  holdingsLayout: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', columnGap: SPACING.lg },
-  holdingsList: { flexGrow: 1, flexShrink: 1, maxWidth: '100%', minWidth: 0 },
-  ring: { maxWidth: '100%', paddingVertical: SPACING.md },
+  holdingsLayout: { alignSelf: 'stretch', gap: SPACING.md },
+  holdingsSideBySide: { flexDirection: 'row', alignItems: 'center', gap: SPACING.lg },
+  holdingsList: { flex: 1, minWidth: 0 },
+  ring: { alignSelf: 'center', width: RING_SIZE, maxWidth: '100%', paddingVertical: SPACING.sm },
+  legendRow: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm, paddingVertical: SPACING.xs },
+  legendLabel: { ...TYPE.rowTitle, color: COLORS.textSecondary, flex: 1, minWidth: 0 },
+  legendSwatch: { marginTop: 6 },
   quarter: { paddingVertical: SPACING.xs },
   track: { backgroundColor: COLORS.surface, height: 4, borderRadius: 2, overflow: 'hidden' },
   fill: { height: '100%', backgroundColor: COLORS.accent, borderRadius: 2 },

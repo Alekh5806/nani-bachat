@@ -22,7 +22,7 @@ export const AssetStocksScreen = ({ navigation }) => {
       <View style={stockStyles.header}>
         <ScreenHeader title="Stock allocation" inset={SPACING.lg} showBack hideProfile onBack={() => navigation.goBack()} />
       </View>
-      <ScrollView contentContainerStyle={stockStyles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView style={stockStyles.viewport} contentContainerStyle={stockStyles.content} keyboardShouldPersistTaps="handled">
         <StockHoldings
           summary={stockSummary}
           failed={holdingsFailed}

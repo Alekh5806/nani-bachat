@@ -38,7 +38,7 @@ const styles = themedStyles(() => ({
   body: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', minHeight: 56, gap: SPACING.sm, paddingVertical: SPACING.sm },
   divided: { borderTopWidth: 1, borderTopColor: COLORS.divider },
   info: { flex: 1, minWidth: 0 },
-  name: { ...TYPE.cardTitle, color: COLORS.textPrimary },
+  name: { ...TYPE.rowTitle, color: COLORS.textPrimary },
   metadata: {
     flexDirection: 'row',
     flexWrap: 'wrap',

@@ -6,7 +6,7 @@
 import { shortName } from '../utils/names';
 import { missingFields } from '../utils/formErrors';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, Platform, Pressable } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import Toast from 'react-native-toast-message';
 
 import { usePortfolioStore } from '../store/portfolioStore';
@@ -18,7 +18,7 @@ import { PremiumInput } from '../components/PremiumInput';
 import { PremiumButton } from '../components/PremiumButton';
 import { DatePickerField, todayString } from '../components/DatePickerField';
 import { CompanyLogo } from '../components/CompanyLogo';
-import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
+import { COLORS, SPACING, RADIUS, themedStyles, TYPE } from '../theme/colors';
 
 export const AddStockScreen = ({ navigation }) => {
   const {
@@ -215,7 +215,7 @@ export const AddStockScreen = ({ navigation }) => {
                 <View style={styles.resultLeft}>
                   <CompanyLogo symbol={stock.symbol} name={stock.name} size={40} style={{ marginRight: SPACING.md }} />
                   <View style={styles.resultInfo}>
-                    <Text style={styles.resultName} numberOfLines={1}>
+                    <Text style={styles.resultName}>
                       {shortName(stock.name)}
                     </Text>
                     <Text style={styles.resultSymbol}>
@@ -439,8 +439,10 @@ const styles = themedStyles(() => ({
   },
   resultRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: SPACING.sm,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
   },
@@ -454,47 +456,38 @@ const styles = themedStyles(() => ({
   resultLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-  },
-  symbolBadge: {
-    width: 42,
-    height: 42,
-    borderRadius: RADIUS.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.md,
-  },
-  symbolBadgeText: {
-    fontSize: FONTS.xs,
-    fontWeight: '600',
+    flexBasis: 132,
+    flexGrow: 1,
+    flexShrink: 1,
+    minWidth: 0,
   },
   resultInfo: {
     flex: 1,
+    minWidth: 0,
   },
   resultName: {
-    ...TYPE.cardTitle,
-    fontSize: 14,
+    ...TYPE.rowTitle,
     color: COLORS.textPrimary,
   },
   resultSymbol: {
     ...TYPE.caption,
-    fontSize: 10,
     color: COLORS.textMuted,
     marginTop: 4,
   },
   resultRight: {
     alignItems: 'flex-end',
-    marginLeft: SPACING.sm,
+    marginLeft: 'auto',
+    maxWidth: '100%',
   },
   resultPrice: {
-    ...TYPE.smallValue,
-    fontSize: 12,
+    ...TYPE.listAmount,
     color: COLORS.textPrimary,
+    textAlign: 'right',
   },
 
   changeText: {
-    ...TYPE.caption,
-    fontSize: 10,
+    ...TYPE.smallValue,
+    textAlign: 'right',
     marginTop: 4,
   },
   manualButton: {
@@ -519,7 +512,7 @@ const styles = themedStyles(() => ({
   manualEditBlock: {
     width: '100%',
   },
-  manualNote: { ...TYPE.caption, fontSize: 10, color: COLORS.textMuted, marginTop: -SPACING.sm },
+  manualNote: { ...TYPE.secondary, color: COLORS.textSecondary, marginTop: -SPACING.sm },
 
   // Form
 
@@ -534,21 +527,17 @@ const styles = themedStyles(() => ({
     marginTop: SPACING.sm,
   },
   shortfallTitle: {
-    ...TYPE.cardTitle,
-    fontSize: 12,
+    ...TYPE.secondaryMedium,
     color: COLORS.warning,
   },
   shortfallText: {
-    ...TYPE.caption,
-    fontSize: 10,
+    ...TYPE.secondary,
     color: COLORS.textSecondary,
-    lineHeight: 16,
     marginTop: 4,
   },
   cashError: {
-    ...TYPE.caption,
+    ...TYPE.secondary,
     color: COLORS.loss,
-    lineHeight: 17,
     marginTop: SPACING.sm,
     marginBottom: SPACING.sm,
   },

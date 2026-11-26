@@ -5,7 +5,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { Icon } from './Icon';
-import { COLORS, RADIUS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
+import { COLORS, RADIUS, SPACING, themedStyles, TYPE } from '../theme/colors';
 
 export const PremiumButton = ({
   title,
@@ -33,6 +33,9 @@ export const PremiumButton = ({
 
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
       onPress={onPress}
       disabled={isDisabled}
       style={({ pressed }) => [
@@ -106,6 +109,8 @@ const styles = themedStyles(() => ({
   text: {
     color: COLORS.onAccent,
     ...TYPE.button,
+    flexShrink: 1,
+    textAlign: 'center',
   },
   textOnDark: {
     color: COLORS.textPrimary,

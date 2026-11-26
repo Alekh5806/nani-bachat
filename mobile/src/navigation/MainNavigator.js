@@ -7,7 +7,7 @@ import { BlurView } from 'expo-blur';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Home2, Chart1, Chart21, DocumentText, Profile2User, Wallet3, Profile } from 'iconsax-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, TYPE, themedStyles } from '../theme/colors';
+import { COLORS, RADIUS, TYPE, themedStyles } from '../theme/colors';
 
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { AssetStocksScreen } from '../screens/AssetStocksScreen';
@@ -26,7 +26,7 @@ import { ContributionsScreen } from '../screens/ContributionsScreen';
 import { DividendsScreen } from '../screens/DividendsScreen';
 import { AddDividendScreen } from '../screens/AddDividendScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
-import { TAB_BAR_HEIGHT } from '../components/TabBarSpacer';
+import { getTabBarOffset, TAB_BAR_HEIGHT, TabBarHeightContext } from '../components/TabBarSpacer';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -76,15 +76,13 @@ const ACTIVE_ICONS = {
 
 const HAS_LIQUID_GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
 
-// Sizes follow Apple's tab bar: 22pt icons, 10pt labels
-const BAR_HEIGHT = TAB_BAR_HEIGHT;
 const BAR_PADDING = 5;
 
 /**
  * Floating capsule tab bar. The highlight is one capsule behind the active
  * item; it slides to the next tab with a spring when the tab changes.
  */
-const FloatingTabBar = ({ state, navigation }) => {
+const FloatingTabBar = ({ state, navigation, onHeight }) => {
   const insets = useSafeAreaInsets();
   const [rowWidth, setRowWidth] = React.useState(0);
   const [preview, setPreview] = React.useState(null); // tab under the finger while dragging
@@ -174,11 +172,12 @@ const FloatingTabBar = ({ state, navigation }) => {
 
   return (
     <View
+      onLayout={({ nativeEvent }) => onHeight(nativeEvent.layout.height)}
       style={[
         styles.bar,
         HAS_LIQUID_GLASS && styles.barGlass,
         Platform.OS === 'web' && styles.barWeb,
-        { bottom: Math.max(insets.bottom, 12), left: insets.left + 8, right: insets.right + 8 },
+        { bottom: getTabBarOffset(insets.bottom), left: insets.left + 8, right: insets.right + 8 },
       ]}
     >
       {HAS_LIQUID_GLASS ? (
@@ -225,7 +224,7 @@ const FloatingTabBar = ({ state, navigation }) => {
               onPress={() => selectTab(index)}
             >
               {Glyph && <Glyph size={24} color={color} variant={focused ? 'Bold' : 'Linear'} />}
-              <Text style={[styles.label, { color }]} numberOfLines={1} maxFontSizeMultiplier={1.3}>
+              <Text style={[styles.label, { color }]}>
                 {TAB_LABELS[route.name] || route.name}
               </Text>
             </Pressable>
@@ -288,27 +287,31 @@ const ProfileStack = () => (
 );
 
 export const MainNavigator = () => {
+  const [tabBarHeight, setTabBarHeight] = React.useState(TAB_BAR_HEIGHT);
   return (
-    <Tab.Navigator
-      tabBar={(props) => <FloatingTabBar {...props} />}
-      backBehavior="history"
-      screenOptions={{ headerShown: false }}
-    >
-      <Tab.Screen name="Dashboard" component={DashboardStack} />
-      <Tab.Screen name="Investments" component={InvestmentsStack} />
-      <Tab.Screen name="News" component={NewsStack} />
-      <Tab.Screen name="Members" component={MembersStack} />
-      <Tab.Screen name="Dividends" component={DividendsStack} />
-      <Tab.Screen name="Profile" component={ProfileStack} />
-    </Tab.Navigator>
+    <TabBarHeightContext.Provider value={tabBarHeight}>
+      <Tab.Navigator
+        tabBar={(props) => <FloatingTabBar {...props} onHeight={setTabBarHeight} />}
+        backBehavior="history"
+        screenOptions={{ headerShown: false }}
+      >
+        <Tab.Screen name="Dashboard" component={DashboardStack} />
+        <Tab.Screen name="Investments" component={InvestmentsStack} />
+        <Tab.Screen name="News" component={NewsStack} />
+        <Tab.Screen name="Members" component={MembersStack} />
+        <Tab.Screen name="Dividends" component={DividendsStack} />
+        <Tab.Screen name="Profile" component={ProfileStack} />
+      </Tab.Navigator>
+    </TabBarHeightContext.Provider>
   );
 };
 
 const styles = themedStyles(() => ({
   bar: {
     position: 'absolute',
-    height: BAR_HEIGHT,
-    borderRadius: BAR_HEIGHT / 2,
+    minHeight: TAB_BAR_HEIGHT,
+    justifyContent: 'center',
+    borderRadius: RADIUS.full,
     overflow: 'hidden',
     padding: BAR_PADDING,
     borderWidth: 1,
@@ -331,15 +334,15 @@ const styles = themedStyles(() => ({
     backgroundColor: 'transparent',
   },
   row: {
-    flex: 1,
     flexDirection: 'row',
+    minHeight: TAB_BAR_HEIGHT - BAR_PADDING * 2 - 2,
   },
   capsule: {
     position: 'absolute',
     top: 0,
     bottom: 0,
     left: 0,
-    borderRadius: (BAR_HEIGHT - BAR_PADDING * 2) / 2,
+    borderRadius: RADIUS.full,
     backgroundColor: COLORS.isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.07)',
   },
   item: {
@@ -350,9 +353,7 @@ const styles = themedStyles(() => ({
     gap: 2,
   },
   label: {
-    ...TYPE.tab,
-    fontSize: 10,
-    lineHeight: 16,
+    ...TYPE.navLabel,
     width: '100%',
     textAlign: 'center',
   },

@@ -10,6 +10,7 @@ import React from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { CompanyLogo } from './CompanyLogo';
 import { FormCard } from './FormScreen';
+import { PreviewRow } from './PreviewCard';
 import { shortName } from '../utils/names';
 import { COLORS, SPACING, RADIUS, themedStyles, TYPE } from '../theme/colors';
 
@@ -26,19 +27,14 @@ export const SelectedStockCard = ({ symbol, name, rows = [], onChange, right, st
       </View>
       {right}
       {!!onChange && (
-        <Pressable onPress={onChange} style={styles.changeBtn}>
+        <Pressable accessibilityRole="button" onPress={onChange} style={styles.changeBtn}>
           <Text style={styles.changeText}>Change</Text>
         </Pressable>
       )}
     </View>
     {children}
     {rows.map((row) => (
-      <View key={row.label} style={styles.row}>
-        <Text style={styles.label}>{row.label}</Text>
-        <Text style={[styles.value, row.color && { color: row.color }]} numberOfLines={1}>
-          {row.value}
-        </Text>
-      </View>
+      <PreviewRow key={row.label} label={row.label} value={row.value} color={row.color} />
     ))}
   </FormCard>
   );
@@ -56,16 +52,16 @@ const styles = themedStyles(() => ({
   headerAlone: { paddingBottom: 0, marginBottom: 0, borderBottomWidth: 0 },
   logo: { marginRight: SPACING.md },
   info: { flex: 1, minWidth: 0 },
-  name: { ...TYPE.cardTitle, fontSize: 14, color: COLORS.textPrimary },
-  symbol: { ...TYPE.caption, fontSize: 10, color: COLORS.textMuted, marginTop: 4 },
+  name: { ...TYPE.rowTitle, color: COLORS.textPrimary },
+  symbol: { ...TYPE.caption, color: COLORS.textMuted, marginTop: SPACING.xs },
   changeBtn: {
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     borderRadius: RADIUS.xl,
     backgroundColor: COLORS.accent + '14',
+    maxWidth: '48%',
+    minHeight: 44,
+    justifyContent: 'center',
   },
-  changeText: { ...TYPE.captionMedium, color: COLORS.accent },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
-  label: { ...TYPE.cardTitle, fontSize: 12, flex: 1, color: COLORS.textPrimary },
-  value: { ...TYPE.secondary, fontSize: 12, flex: 1, color: COLORS.textSecondary },
+  changeText: { ...TYPE.button, color: COLORS.accent, textAlign: 'center' },
 }));

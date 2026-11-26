@@ -6,7 +6,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Icon } from './Icon';
-import { COLORS, RADIUS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
+import { COLORS, RADIUS, SPACING, themedStyles, TYPE } from '../theme/colors';
 
 export const StatCard = ({
   label,

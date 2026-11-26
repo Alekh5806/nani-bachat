@@ -21,7 +21,8 @@ export const AvatarSelect = ({ value, onChange, label = 'Avatar' }) => {
     <View style={styles.wrap}>
       <Text style={styles.label}>{label}</Text>
 
-      <Pressable onPress={() => setOpen(true)} style={styles.field}>
+      <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }}
+        onPress={() => setOpen(true)} style={styles.field}>
         {value ? (
           <UserAvatar person={{ avatar: value }} size={32} style={styles.preview} />
         ) : (
@@ -29,7 +30,7 @@ export const AvatarSelect = ({ value, onChange, label = 'Avatar' }) => {
             <Shuffle size={18} color={COLORS.accent} />
           </View>
         )}
-        <Text style={value ? styles.name : styles.placeholder} numberOfLines={1}>
+        <Text style={value ? styles.name : styles.placeholder}>
           {value ? `Avatar ${value.replace('avatar-', '')}` : 'Random avatar'}
         </Text>
         <ArrowDown2 size={18} color={COLORS.textSecondary} />
@@ -81,8 +82,8 @@ const styles = themedStyles(() => ({
     backgroundColor: COLORS.accent + '14',
     marginRight: SPACING.md,
   },
-  name: { flex: 1, ...TYPE.inputText, color: COLORS.textPrimary },
-  placeholder: { flex: 1, ...TYPE.inputText, color: COLORS.textMuted },
+  name: { flex: 1, minWidth: 0, ...TYPE.inputText, color: COLORS.textPrimary },
+  placeholder: { flex: 1, minWidth: 0, ...TYPE.inputText, color: COLORS.textMuted },
   grid: { marginTop: SPACING.lg, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: SPACING.md },
   cell: {
     padding: SPACING.xs,

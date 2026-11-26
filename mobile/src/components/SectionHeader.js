@@ -3,17 +3,14 @@
  * Used to label sections within screens
  */
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { Icon } from './Icon';
-import { COLORS, SPACING, FONTS, themedStyles, TYPE } from '../theme/colors';
+import { View, Text, Pressable } from 'react-native';
+import { COLORS, SPACING, themedStyles, TYPE } from '../theme/colors';
 
-export const SectionHeader = ({ title, actionLabel, onAction, icon }) => (
+export const SectionHeader = ({ title, actionLabel, onAction }) => (
   <View style={styles.container}>
-    <View style={styles.left}>
-            <Text style={styles.title}>{title}</Text>
-    </View>
+    <Text accessibilityRole="header" style={styles.title}>{title}</Text>
     {actionLabel && (
-      <Pressable onPress={onAction}>
+      <Pressable onPress={onAction} accessibilityRole="button" style={styles.actionButton}>
         <Text style={styles.action}>{actionLabel}</Text>
       </Pressable>
     )}
@@ -25,22 +22,19 @@ const styles = themedStyles(() => ({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    columnGap: SPACING.sm,
     marginBottom: SPACING.md,
     marginTop: SPACING.xl,
   },
-  left: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  icon: {
-    marginRight: SPACING.sm,
-  },
   title: {
     ...TYPE.sectionTitle,
+    maxWidth: '100%',
     color: COLORS.textPrimary,
   },
+  actionButton: { minHeight: 44, maxWidth: '100%', justifyContent: 'center' },
   action: {
-    ...TYPE.secondaryMedium,
+    ...TYPE.button,
     color: COLORS.accent,
   },
 }));

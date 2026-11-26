@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { ArrowRight2 } from 'iconsax-react-native';
 
 import { CompanyLogo } from './CompanyLogo';
@@ -18,37 +18,35 @@ export const TransactionBadge = ({ sell }) => (
 );
 
 const TransactionRow = ({ event, separated, onPress }) => {
-  const { width, fontScale } = useWindowDimensions();
-  const stacked = Math.min(width - 32, 768) / fontScale < 350;
   const sell = event.type === 'sell';
   const name = shortName(event.name) || tickerLabel(event.symbol);
+  const date = formatDateDisplay(event.date);
+  const amount = money(event.amount);
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${sell ? 'Sold' : 'Bought'} ${sharesLabel(event.quantity)} of ${name} on ${formatDateDisplay(event.date)}, ${money(event.amount)}`}
+      accessibilityLabel={`${sell ? 'Sold' : 'Bought'} ${sharesLabel(event.quantity)} of ${name} on ${date}, ${amount}`}
       accessibilityHint="Opens transaction details"
       onPress={onPress}
       style={({ pressed, focused }) => [
-        styles.row, separated && styles.divided, stacked && styles.stacked,
+        styles.row, separated && styles.divided,
         pressed && stockStyles.pressed, focused && styles.focused,
       ]}
     >
-      <View style={styles.identity}>
-        <CompanyLogo symbol={event.symbol} name={event.name} size={34} style={styles.logo} />
-        <View style={styles.body}>
-          <View style={styles.titleLine}>
-            <TransactionBadge sell={sell} />
-            <Text style={styles.name}>{name}</Text>
-          </View>
-          <Text style={styles.meta}>{sharesLabel(event.quantity)} · {money(event.price)} per share</Text>
-          <Text style={styles.meta}>{event.buyer_name || 'Buying member not recorded'}</Text>
+      <CompanyLogo symbol={event.symbol} name={event.name} size={34} style={styles.logo} />
+      <View style={styles.body}>
+        <View style={stockStyles.line}>
+          <TransactionBadge sell={sell} />
+          <Text style={styles.name}>{name}</Text>
+          <Text style={[stockStyles.value, stockStyles.trailing]}>{amount}</Text>
         </View>
+        <View style={stockStyles.line}>
+          <Text style={styles.meta}>{sharesLabel(event.quantity)} · {money(event.price)} per share</Text>
+          <Text style={[styles.meta, stockStyles.trailing]}>{date}</Text>
+        </View>
+        <Text style={styles.meta}>{event.buyer_name || 'Buying member not recorded'}</Text>
       </View>
-      <View style={[styles.amount, stacked && styles.stackedAmount]}>
-        <Text style={stockStyles.value}>{money(event.amount)}</Text>
-        <Text style={styles.meta}>{formatDateDisplay(event.date)}</Text>
-      </View>
-      {!stacked && <ArrowRight2 size={14} color={COLORS.textSecondary} />}
+      <ArrowRight2 size={14} color={COLORS.textSecondary} />
     </Pressable>
   );
 };
@@ -132,17 +130,12 @@ const styles = themedStyles(() => ({
   badgeText: { ...TYPE.captionMedium, color: COLORS.textPrimary },
   row: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md, minHeight: 72, gap: SPACING.sm },
   body: { flex: 1, minWidth: 0, gap: 4 },
-  logo: { backgroundColor: COLORS.logoBg },
-  identity: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  titleLine: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 },
-  name: { ...TYPE.secondaryMedium, color: COLORS.textPrimary, flexShrink: 1 },
-  amount: { maxWidth: '44%', alignItems: 'flex-end', gap: 4 },
-  meta: { ...TYPE.caption, color: COLORS.textSecondary },
-  stacked: { flexDirection: 'column', alignItems: 'stretch' },
-  stackedAmount: { alignItems: 'flex-start', marginLeft: 42, maxWidth: '100%' },
+  logo: { backgroundColor: COLORS.logoBg, flexShrink: 0 },
+  name: { ...TYPE.rowTitle, color: COLORS.textPrimary, maxWidth: '100%' },
+  meta: { ...TYPE.caption, color: COLORS.textSecondary, maxWidth: '100%', fontVariant: ['tabular-nums'] },
   divided: { borderTopWidth: 1, borderTopColor: COLORS.divider },
   focused: { borderWidth: 1, borderColor: COLORS.accent },
   month: { gap: SPACING.sm, marginBottom: SPACING.sm },
-  monthLabel: { ...TYPE.secondaryMedium, color: COLORS.textSecondary },
+  monthLabel: { ...TYPE.captionMedium, color: COLORS.textSecondary },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' },
 }));

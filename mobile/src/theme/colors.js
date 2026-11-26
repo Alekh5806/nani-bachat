@@ -201,48 +201,35 @@ export const SPACING = {
   huge: 48,
 };
 
-/**
- * Font sizes
- */
-export const FONTS = {
-  xs: 12,   // caption / metadata
-  sm: 13,   // secondary text, input label, tab label
-  md: 14,   // body / primary text, input text, button
-  lg: 16,   // card / row title
-  xl: 20,   // stock price
-  xxl: 24,  // screen title
-  xxxl: 32,
-  hero: 40,
-};
+const heading = { fontSize: 16, lineHeight: 22, fontWeight: '600' };
+const metadata = { fontSize: 12, lineHeight: 18, fontWeight: '400' };
+const label = { fontSize: 13, lineHeight: 18, fontWeight: '500' };
+const control = { fontSize: 14, lineHeight: 20, fontWeight: '500' };
+const numeric = { fontVariant: ['tabular-nums'] };
 
-/**
- * Semantic typography: the single source of truth for text styles.
- * Spread one into a style: `...TYPE.cardTitle`. The font family follows the
- * weight (see theme/fonts.js). Use the token whose meaning matches the text;
- * same meaning = same token on every screen.
- */
+// Use the same role for the same kind of text across screens. themedStyles
+// supplies the Inter family for the token's weight.
 export const TYPE = {
-  screenTitle: { fontSize: 24, fontWeight: '600' },
-  sectionTitle: { fontSize: 18, fontWeight: '600' },
-  cardTitle: { fontSize: 16, fontWeight: '600' },      // names, row titles
-  body: { fontSize: 14, fontWeight: '500' },           // default primary text
-  secondary: { fontSize: 13, fontWeight: '400' },      // supporting text
-  secondaryMedium: { fontSize: 13, fontWeight: '500' },
-  // Rule: column / info titles above a list (for example "Stocks (10)" and "Current (Invested)") use infoTitle.
-  infoTitle: { fontSize: 11, fontWeight: '400' },
-  caption: { fontSize: 12, fontWeight: '400' },        // metadata: phone, date, symbol
-  captionMedium: { fontSize: 12, fontWeight: '500' },  // badges, small links
-  button: { fontSize: 14, fontWeight: '600' },
-  inputText: { fontSize: 14, fontWeight: '500' },
-  inputLabel: { fontSize: 13, fontWeight: '500' },
-  tab: { fontSize: 13, fontWeight: '600' },
-  // Financial values
-  portfolioValue: { fontSize: 28, fontWeight: '600' },
-  stockPrice: { fontSize: 20, fontWeight: '600' },
-  plAmount: { fontSize: 18, fontWeight: '600' },
-  plPercent: { fontSize: 14, fontWeight: '600' },
-  quantity: { fontSize: 14, fontWeight: '600' },
-  smallValue: { fontSize: 14, fontWeight: '600' },
+  screenTitle: { fontSize: 20, lineHeight: 26, fontWeight: '600' },
+  sectionTitle: heading,
+  cardTitle: heading,
+  rowTitle: control,
+  body: { fontSize: 14, lineHeight: 20, fontWeight: '400' },
+  secondary: { fontSize: 13, lineHeight: 18, fontWeight: '400' },
+  secondaryMedium: label,
+  infoTitle: metadata,
+  caption: metadata,
+  captionMedium: { ...metadata, fontWeight: '500' },
+  button: { ...control, fontWeight: '600' },
+  inputText: { fontSize: 16, lineHeight: 22, fontWeight: '400' },
+  inputLabel: label,
+  tab: control,
+  navLabel: { fontSize: 12, lineHeight: 16, fontWeight: '500' },
+  portfolioValue: { ...numeric, fontSize: 28, lineHeight: 34, fontWeight: '600' },
+  stockPrice: { ...numeric, fontSize: 20, lineHeight: 26, fontWeight: '600' },
+  listAmount: { ...numeric, fontSize: 15, lineHeight: 20, fontWeight: '600' },
+  smallValue: { ...numeric, ...label },
+  plPercent: { ...numeric, ...label },
 };
 
 /**

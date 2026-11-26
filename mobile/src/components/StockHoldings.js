@@ -69,7 +69,8 @@ export const StockHoldings = ({ summary, failed, prices, onOpen, onAdd, onNews, 
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState(SORTS[0]);
   const [chooseSort, setChooseSort] = useState(false);
-  const { width, fontScale } = useWindowDimensions();
+  const [sectionWidth, setSectionWidth] = useState(0);
+  const { fontScale } = useWindowDimensions();
 
   const visible = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -120,7 +121,7 @@ export const StockHoldings = ({ summary, failed, prices, onOpen, onAdd, onNews, 
           color: comparableDay ? stockReturnColor(daily) : undefined,
         },
   ];
-  const stacked = (width - 32) / fontScale < 350;
+  const stacked = sectionWidth < 400 * Math.max(1, fontScale);
   return (
     <>
       <StockOverview
@@ -131,7 +132,7 @@ export const StockHoldings = ({ summary, failed, prices, onOpen, onAdd, onNews, 
       >
         <StockPriceStatus holdings={holdings} onRefresh={prices.refresh} refreshing={prices.checking} failure={prices.failure} />
       </StockOverview>
-      <View style={stockStyles.section}>
+      <View style={stockStyles.section} onLayout={({ nativeEvent }) => setSectionWidth(nativeEvent.layout.width)}>
         <View style={styles.sectionHeader}>
           <Text accessibilityRole="header" style={stockStyles.heading}>Holdings ({holdings.length})</Text>
           {!!onNews && <StockAction label="Stock news" onPress={onNews} />}
@@ -179,7 +180,7 @@ export const StockHoldings = ({ summary, failed, prices, onOpen, onAdd, onNews, 
             <Pressable key={item[0]} accessibilityRole="radio" accessibilityState={{ checked: item[0] === sort[0] }}
               onPress={() => { setSort(item); setChooseSort(false); }}
               style={({ pressed }) => [styles.option, pressed && stockStyles.pressed]}>
-              <Text style={stockStyles.muted}>{item[1]}</Text>
+              <Text style={styles.optionLabel}>{item[1]}</Text>
               {item[0] === sort[0] && <Text style={stockStyles.value}>✓</Text>}
             </Pressable>
           ))}
@@ -197,8 +198,9 @@ const styles = themedStyles(() => ({
     flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingHorizontal: SPACING.md,
     minHeight: 48, backgroundColor: COLORS.cardBg, borderColor: COLORS.border, borderWidth: 1, borderRadius: 10,
   },
-  search: { ...TYPE.body, flex: 1, minWidth: 0, minHeight: 46, color: COLORS.textPrimary },
+  search: { ...TYPE.inputText, flex: 1, minWidth: 0, minHeight: 46, color: COLORS.textPrimary },
   sort: { backgroundColor: COLORS.surface, borderRadius: 10 },
   choices: { marginTop: SPACING.md },
-  option: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48 },
+  option: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: SPACING.sm, minHeight: 48 },
+  optionLabel: { ...TYPE.body, flexShrink: 1, color: COLORS.textPrimary },
 }));

@@ -15,7 +15,7 @@ import { PreviewCard, PreviewRow, PreviewTotal } from '../components/PreviewCard
 import { PremiumInput } from '../components/PremiumInput';
 import { PremiumButton } from '../components/PremiumButton';
 import { DatePickerField, todayString, parseDateString, formatDateDisplay } from '../components/DatePickerField';
-import { COLORS, SPACING, FONTS, RADIUS, themedStyles, TYPE } from '../theme/colors';
+import { COLORS, SPACING, RADIUS, themedStyles, TYPE } from '../theme/colors';
 
 export const SellStockScreen = ({ navigation, route }) => {
   const stock = route.params?.stock;
@@ -308,8 +308,10 @@ const styles = themedStyles(() => ({
     gap: SPACING.sm,
   },
   presetButton: {
-    height: 32,
+    minHeight: 44,
+    maxWidth: '100%',
     paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.xs,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: RADIUS.full,
@@ -325,8 +327,9 @@ const styles = themedStyles(() => ({
     opacity: 0.78,
   },
   presetText: {
-    ...TYPE.captionMedium,
+    ...TYPE.button,
     color: COLORS.accent,
+    textAlign: 'center',
   },
   presetTextActive: {
     color: COLORS.onAccent,

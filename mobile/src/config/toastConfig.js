@@ -51,8 +51,8 @@ const SileoToast = ({ text1, text2, state }) => {
         <Glyph size={18} color={color} variant="Bold" />
       </Animated.View>
       <View style={styles.text}>
-        {!!text1 && <Text style={[styles.title, { color }]} numberOfLines={1}>{text1}</Text>}
-        {!!text2 && <Text style={styles.message} numberOfLines={2}>{text2}</Text>}
+        {!!text1 && <Text style={[styles.title, { color }]}>{text1}</Text>}
+        {!!text2 && <Text style={styles.message}>{text2}</Text>}
       </View>
     </Animated.View>
   );
@@ -96,11 +96,10 @@ const styles = themedStyles(() => ({
     flexShrink: 1,
   },
   title: {
-    ...TYPE.cardTitle,
-    fontSize: 14,
+    ...TYPE.rowTitle,
   },
   message: {
-    ...TYPE.caption,
+    ...TYPE.secondary,
     color: 'rgba(255, 255, 255, 0.6)',
     marginTop: 2,
   },
