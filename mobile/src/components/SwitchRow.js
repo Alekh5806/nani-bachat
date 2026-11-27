@@ -43,9 +43,9 @@ const styles = themedStyles(() => ({
     borderRadius: 12,
     padding: 2,
     justifyContent: 'center',
-    backgroundColor: COLORS.border,
+    backgroundColor: COLORS.inputBorder,
   },
-  trackOn: { backgroundColor: COLORS.accent },
-  thumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#FFFFFF' },
+  trackOn: { backgroundColor: COLORS.buttonPrimary },
+  thumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: COLORS.onAccent },
   thumbOn: { alignSelf: 'flex-end' },
 }));

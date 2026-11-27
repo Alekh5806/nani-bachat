@@ -1,6 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { StackActions } from '@react-navigation/native';
+import { StackActions, useTheme } from '@react-navigation/native';
 import { createStackNavigator, TransitionPresets } from '@react-navigation/stack';
 import { View, Text, StyleSheet, Platform, Animated, PanResponder, Pressable } from 'react-native';
 import { BlurView } from 'expo-blur';
@@ -27,13 +27,33 @@ import { DividendsScreen } from '../screens/DividendsScreen';
 import { AddDividendScreen } from '../screens/AddDividendScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { getTabBarOffset, TAB_BAR_HEIGHT, TabBarHeightContext } from '../components/TabBarSpacer';
+import { withScreenTheme } from './withScreenTheme';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
+const screens = {
+  DashboardScreen: withScreenTheme(DashboardScreen),
+  AssetStocksScreen: withScreenTheme(AssetStocksScreen),
+  HoldingDetailScreen: withScreenTheme(HoldingDetailScreen),
+  AddStockScreen: withScreenTheme(AddStockScreen),
+  SellStockScreen: withScreenTheme(SellStockScreen),
+  EditStockScreen: withScreenTheme(EditStockScreen),
+  StockTransactionScreen: withScreenTheme(StockTransactionScreen),
+  InvestmentsScreen: withScreenTheme(InvestmentsScreen),
+  StockNewsScreen: withScreenTheme(StockNewsScreen),
+  StockNewsDetailScreen: withScreenTheme(StockNewsDetailScreen),
+  MembersScreen: withScreenTheme(MembersScreen),
+  MemberDetailScreen: withScreenTheme(MemberDetailScreen),
+  AddMemberScreen: withScreenTheme(AddMemberScreen),
+  ContributionsScreen: withScreenTheme(ContributionsScreen),
+  DividendsScreen: withScreenTheme(DividendsScreen),
+  AddDividendScreen: withScreenTheme(AddDividendScreen),
+  ProfileScreen: withScreenTheme(ProfileScreen),
+};
 
 // Screens slide in from the right and slide out on back (swipe back works too),
 // on iOS, Android and web alike.
-const stackOptions = () => ({
+const stackOptions = {
   headerShown: false,
   // The swipe gesture blocks touch scrolling on the web, so it is native-only.
   gestureEnabled: Platform.OS !== 'web',
@@ -41,12 +61,9 @@ const stackOptions = () => ({
   animation: 'slide_from_right',
   // On the web the stack card grows with its content, which stops inner scrolling.
   // Pinning it to the screen height lets each screen's ScrollView scroll.
-  cardStyle: {
-    backgroundColor: COLORS.background,
-    ...(Platform.OS === 'web' ? { flex: 1, minHeight: 0, height: '100%' } : null),
-  },
+  cardStyle: Platform.OS === 'web' ? { flex: 1, minHeight: 0, height: '100%' } : undefined,
   ...TransitionPresets.SlideFromRightIOS,
-});
+};
 
 const TAB_LABELS = {
   Dashboard: 'Home',
@@ -76,13 +93,19 @@ const ACTIVE_ICONS = {
 
 const HAS_LIQUID_GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
 
+const IS_ANDROID = Platform.OS === 'android';
+const ANDROID_BLUR = IS_ANDROID && Platform.Version >= 31;
 const BAR_PADDING = 5;
+const LABEL_PADDING = 2;
+// "Members" is the widest 12 dp label. Include room for native pixel rounding.
+const NAV_LABEL_WIDTH = 56;
 
 /**
  * Floating capsule tab bar. The highlight is one capsule behind the active
  * item; it slides to the next tab with a spring when the tab changes.
  */
 const FloatingTabBar = ({ state, navigation, onHeight }) => {
+  const { dark } = useTheme();
   const insets = useSafeAreaInsets();
   const [rowWidth, setRowWidth] = React.useState(0);
   const [preview, setPreview] = React.useState(null); // tab under the finger while dragging
@@ -94,6 +117,7 @@ const FloatingTabBar = ({ state, navigation, onHeight }) => {
   const activeKey = state.routes[state.index]?.key;
   const currentIndex = routes.findIndex((route) => route.key === activeKey); // -1 on Profile
   const itemWidth = rowWidth / count;
+  const labelScaleLimit = IS_ANDROID ? Math.max(1, (itemWidth - LABEL_PADDING * 2) / NAV_LABEL_WIDTH) : undefined;
   const slide = React.useRef(new Animated.Value(0)).current;
   const live = React.useRef({ itemWidth: 0, index: 0 });
   live.current = { itemWidth, index: currentIndex };
@@ -177,23 +201,25 @@ const FloatingTabBar = ({ state, navigation, onHeight }) => {
         styles.bar,
         HAS_LIQUID_GLASS && styles.barGlass,
         Platform.OS === 'web' && styles.barWeb,
+        IS_ANDROID && !ANDROID_BLUR && styles.barSolid,
         { bottom: getTabBarOffset(insets.bottom), left: insets.left + 8, right: insets.right + 8 },
       ]}
     >
       {HAS_LIQUID_GLASS ? (
         <GlassView
           glassEffectStyle="regular"
-          colorScheme={COLORS.isDark ? 'dark' : 'light'}
+          colorScheme={dark ? 'dark' : 'light'}
           isInteractive
           style={StyleSheet.absoluteFill}
         />
-      ) : Platform.OS === 'web' ? null : (
+      ) : Platform.OS === 'ios' || ANDROID_BLUR ? (
         <BlurView
+          experimentalBlurMethod={ANDROID_BLUR ? 'dimezisBlurView' : undefined}
           intensity={70}
-          tint={COLORS.isDark ? 'dark' : 'light'}
+          tint={dark ? 'dark' : 'light'}
           style={StyleSheet.absoluteFill}
         />
-      )}
+      ) : null}
       <View
         ref={rowRef}
         accessibilityRole="tablist"
@@ -213,7 +239,7 @@ const FloatingTabBar = ({ state, navigation, onHeight }) => {
         {routes.map((route, index) => {
           const focused = activeIndex === index;
           const Glyph = (focused && ACTIVE_ICONS[route.name]) || TAB_ICONS[route.name];
-          const color = focused ? COLORS.accent : COLORS.textPrimary;
+          const color = focused ? COLORS.tabBarActive : COLORS.tabBarInactive;
           return (
             <Pressable
               key={route.key}
@@ -224,7 +250,12 @@ const FloatingTabBar = ({ state, navigation, onHeight }) => {
               onPress={() => selectTab(index)}
             >
               {Glyph && <Glyph size={24} color={color} variant={focused ? 'Bold' : 'Linear'} />}
-              <Text style={[styles.label, { color }]}>
+              <Text
+                style={[styles.label, { color }]}
+                maxFontSizeMultiplier={labelScaleLimit}
+                numberOfLines={IS_ANDROID ? 1 : undefined}
+                adjustsFontSizeToFit={IS_ANDROID}
+              >
                 {TAB_LABELS[route.name] || route.name}
               </Text>
             </Pressable>
@@ -236,53 +267,53 @@ const FloatingTabBar = ({ state, navigation, onHeight }) => {
 };
 
 const DashboardStack = () => (
-  <Stack.Navigator screenOptions={stackOptions()}>
-    <Stack.Screen name="DashboardHome" component={DashboardScreen} />
-    <Stack.Screen name="AssetStocks" component={AssetStocksScreen} />
-    <Stack.Screen name="HoldingDetail" component={HoldingDetailScreen} />
-    <Stack.Screen name="AddStock" component={AddStockScreen} />
-    <Stack.Screen name="SellStock" component={SellStockScreen} />
-    <Stack.Screen name="EditStock" component={EditStockScreen} />
+  <Stack.Navigator screenOptions={stackOptions}>
+    <Stack.Screen name="DashboardHome" component={screens.DashboardScreen} />
+    <Stack.Screen name="AssetStocks" component={screens.AssetStocksScreen} />
+    <Stack.Screen name="HoldingDetail" component={screens.HoldingDetailScreen} />
+    <Stack.Screen name="AddStock" component={screens.AddStockScreen} />
+    <Stack.Screen name="SellStock" component={screens.SellStockScreen} />
+    <Stack.Screen name="EditStock" component={screens.EditStockScreen} />
   </Stack.Navigator>
 );
 
 const InvestmentsStack = () => (
-  <Stack.Navigator screenOptions={stackOptions()}>
-    <Stack.Screen name="InvestmentsHome" component={InvestmentsScreen} />
-    <Stack.Screen name="HoldingDetail" component={HoldingDetailScreen} />
-    <Stack.Screen name="StockTransaction" component={StockTransactionScreen} />
-    <Stack.Screen name="AddStock" component={AddStockScreen} />
-    <Stack.Screen name="SellStock" component={SellStockScreen} />
-    <Stack.Screen name="EditStock" component={EditStockScreen} />
+  <Stack.Navigator screenOptions={stackOptions}>
+    <Stack.Screen name="InvestmentsHome" component={screens.InvestmentsScreen} />
+    <Stack.Screen name="HoldingDetail" component={screens.HoldingDetailScreen} />
+    <Stack.Screen name="StockTransaction" component={screens.StockTransactionScreen} />
+    <Stack.Screen name="AddStock" component={screens.AddStockScreen} />
+    <Stack.Screen name="SellStock" component={screens.SellStockScreen} />
+    <Stack.Screen name="EditStock" component={screens.EditStockScreen} />
   </Stack.Navigator>
 );
 
 const NewsStack = () => (
-  <Stack.Navigator screenOptions={stackOptions()}>
-    <Stack.Screen name="NewsHome" component={StockNewsScreen} />
-    <Stack.Screen name="NewsDetail" component={StockNewsDetailScreen} />
+  <Stack.Navigator screenOptions={stackOptions}>
+    <Stack.Screen name="NewsHome" component={screens.StockNewsScreen} />
+    <Stack.Screen name="NewsDetail" component={screens.StockNewsDetailScreen} />
   </Stack.Navigator>
 );
 
 const MembersStack = () => (
-  <Stack.Navigator screenOptions={stackOptions()}>
-    <Stack.Screen name="MembersHome" component={MembersScreen} />
-    <Stack.Screen name="MemberDetail" component={MemberDetailScreen} />
-    <Stack.Screen name="AddMember" component={AddMemberScreen} />
-    <Stack.Screen name="Contributions" component={ContributionsScreen} />
+  <Stack.Navigator screenOptions={stackOptions}>
+    <Stack.Screen name="MembersHome" component={screens.MembersScreen} />
+    <Stack.Screen name="MemberDetail" component={screens.MemberDetailScreen} />
+    <Stack.Screen name="AddMember" component={screens.AddMemberScreen} />
+    <Stack.Screen name="Contributions" component={screens.ContributionsScreen} />
   </Stack.Navigator>
 );
 
 const DividendsStack = () => (
-  <Stack.Navigator screenOptions={stackOptions()}>
-    <Stack.Screen name="DividendsHome" component={DividendsScreen} />
-    <Stack.Screen name="AddDividend" component={AddDividendScreen} />
+  <Stack.Navigator screenOptions={stackOptions}>
+    <Stack.Screen name="DividendsHome" component={screens.DividendsScreen} />
+    <Stack.Screen name="AddDividend" component={screens.AddDividendScreen} />
   </Stack.Navigator>
 );
 
 const ProfileStack = () => (
-  <Stack.Navigator screenOptions={stackOptions()}>
-    <Stack.Screen name="ProfileHome" component={ProfileScreen} />
+  <Stack.Navigator screenOptions={stackOptions}>
+    <Stack.Screen name="ProfileHome" component={screens.ProfileScreen} />
   </Stack.Navigator>
 );
 
@@ -318,10 +349,11 @@ const styles = themedStyles(() => ({
     borderColor: COLORS.divider,
     backgroundColor: COLORS.isDark ? 'rgba(30, 30, 30, 0.72)' : 'rgba(255, 255, 255, 0.78)',
   },
+  barSolid: { backgroundColor: COLORS.cardElevated },
   // Web has no native glass, so the material is built with a backdrop filter,
-  // a bright top rim and a soft shadow. Android and older iOS use BlurView.
+  // a bright top rim and a soft shadow. Newer Android and older iOS use BlurView.
   barWeb: {
-    backgroundColor: COLORS.isDark ? 'rgba(40, 40, 42, 0.45)' : 'rgba(255, 255, 255, 0.5)',
+    backgroundColor: COLORS.isDark ? 'rgba(40, 40, 42, 0.78)' : 'rgba(255, 255, 255, 0.84)',
     borderColor: COLORS.isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(255, 255, 255, 0.8)',
     backdropFilter: 'blur(28px) saturate(180%)',
     WebkitBackdropFilter: 'blur(28px) saturate(180%)',
@@ -343,7 +375,7 @@ const styles = themedStyles(() => ({
     bottom: 0,
     left: 0,
     borderRadius: RADIUS.full,
-    backgroundColor: COLORS.isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.07)',
+    backgroundColor: COLORS.surfaceLight,
   },
   item: {
     flex: 1,
@@ -355,6 +387,7 @@ const styles = themedStyles(() => ({
   label: {
     ...TYPE.navLabel,
     width: '100%',
+    paddingHorizontal: IS_ANDROID ? LABEL_PADDING : 0,
     textAlign: 'center',
   },
 }));

@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Refresh2 } from 'iconsax-react-native';
 import { usePortfolioStore } from '../store/portfolioStore';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { AmountText } from '../components/AmountText';
 import { AllocationDonut } from '../components/AllocationDonut';
 import { DashboardSkeleton } from '../components/LoadingSkeleton';
 import { PortfolioHistory } from '../components/PortfolioHistory';
@@ -22,8 +23,6 @@ const MIN_COLUMNS_WIDTH = 360 * (1.2 + 1) + SPACING.lg;
 const SIDE_EDGES = ['left', 'right'];
 const RING_SIZE = 164;
 const LEGEND_WIDTH = 240;
-const METRIC_WIDTH = 136;
-const CHART_COLORS = ['#4D6BFF', '#7C93FF', '#A9B8FF', '#8A8780', '#A5A39D', '#C4C1B9'];
 const hasAmount = (value) => value != null && value !== '' && Number.isFinite(Number(value));
 const money = (value) => hasAmount(value) ? fmtFull(value) : '—';
 const signedMoney = (value) => (Number(value) > 0 ? '+' : '') + money(value);
@@ -57,7 +56,7 @@ function BalanceBreakdown({ portfolio: p, onStocks }) {
   const balances = [
     { label: 'Stock holdings', value: p.active_stock_value, color: COLORS.accent },
     { label: 'Club cash', value: p.cash_balance, color: COLORS.neutral },
-    { label: 'Dividends', value: p.total_dividends, color: CHART_COLORS[2] },
+    { label: 'Dividends', value: p.total_dividends, color: COLORS.chartCategories[2] },
   ];
   // A signed balance cannot be represented as a slice of a positive whole.
   const showBar = balances.every((b) => hasAmount(b.value) && b.value >= 0) && balances.some((b) => b.value > 0);
@@ -87,14 +86,14 @@ function HoldingsCard({ summary, failed, onOpen }) {
   const holdings = [...(summary?.stocks || [])].sort((a, b) => Number(b.current_value) - Number(a.current_value));
   const total = holdings.reduce((sum, h) => sum + Math.round(Number(h.current_value) * 100), 0) / 100;
   const slices = holdings.slice(0, 5).map((h, i) => ({
-    label: shortName(h.name) || h.symbol, key: h.symbol, value: Number(h.current_value), color: CHART_COLORS[i],
+    label: shortName(h.name) || h.symbol, key: h.symbol, value: Number(h.current_value), color: COLORS.chartCategories[i],
   }));
   if (holdings.length > 5) {
     const rest = holdings.slice(5);
     slices.push({
       key: 'other-holdings', label: 'Other holdings (' + rest.length + ')',
       value: rest.reduce((sum, h) => sum + Math.round(Number(h.current_value) * 100), 0) / 100,
-      color: CHART_COLORS[5],
+      color: COLORS.chartCategories[5],
     });
   }
   return (
@@ -133,7 +132,7 @@ function DividendsCard({ total, dividends, loaded, failed, today, onOpen }) {
     <View style={styles.card}>
       <CardHeading title="Dividends" action="View history" onPress={onOpen} />
       <Text style={styles.caption}>All-time dividend income</Text>
-      <Text style={styles.sectionValue}>{money(total)}</Text>
+      <AmountText style={styles.sectionValue}>{money(total)}</AmountText>
       {failed && <Text style={styles.notice}>{loaded ? 'Showing saved dividend history.' : 'Dividend history couldn’t load. Refresh to retry.'}</Text>}
       {loaded ? dividends.length ? <>
         <View style={styles.divider} />
@@ -153,9 +152,6 @@ function DividendsCard({ total, dividends, loaded, failed, today, onOpen }) {
 }
 
 function PortfolioValueCard({ dashboard, refreshing, refresh, today, refreshKey }) {
-  const { fontScale } = useWindowDimensions();
-  const [metricsWidth, setMetricsWidth] = useState(0);
-  const stackMetrics = metricsWidth < 2 * METRIC_WIDTH * Math.max(1, fontScale) + SPACING.sm;
   const p = dashboard.portfolio;
   const gain = p.profit_loss;
   const pct = Number(p.growth_percentage);
@@ -171,22 +167,21 @@ function PortfolioValueCard({ dashboard, refreshing, refresh, today, refreshKey 
           {refreshing ? <ActivityIndicator size="small" color={COLORS.accent} /> : <Refresh2 size={18} color={COLORS.textPrimary} />}
         </Pressable>
       </View>
-      <Text style={styles.heroValue} selectable>{money(p.current_value)}</Text>
-      <View style={[styles.heroStats, stackMetrics && styles.stackedMetrics]}
-        onLayout={({ nativeEvent }) => setMetricsWidth(nativeEvent.layout.width)}>
-        <View style={[styles.metric, !stackMetrics && styles.metricColumn]}>
+      <AmountText style={styles.heroValue} selectable>{money(p.current_value)}</AmountText>
+      <View style={styles.heroStats}>
+        <View style={styles.metric}>
           <Text style={styles.caption}>All-time return</Text>
           <View style={styles.metricLine}>
-            <Text style={[styles.metricValue, { color: returnColor(gain) }]}>{signedMoney(gain)}</Text>
+            <AmountText style={[styles.metricValue, { color: returnColor(gain) }]}>{signedMoney(gain)}</AmountText>
             {Number(p.total_invested) > 0 && hasAmount(p.growth_percentage) && <Text style={[styles.metricPct, { color: returnColor(gain) }]}>
               {(pct > 0 ? '+' : '') + pct.toFixed(2) + '%'}
             </Text>}
           </View>
         </View>
-        <View style={[styles.metric, !stackMetrics && styles.metricColumn]}>
+        <View style={styles.metric}>
           <Text style={styles.caption}>Invested capital</Text>
           <View style={styles.metricLine}>
-            <Text style={styles.metricValue}>{money(p.total_invested)}</Text>
+            <AmountText style={styles.metricValue}>{money(p.total_invested)}</AmountText>
           </View>
         </View>
       </View>
@@ -293,17 +288,15 @@ const styles = themedStyles(() => ({
   title: { ...TYPE.sectionTitle, maxWidth: '100%', color: COLORS.textPrimary },
   caption: { ...TYPE.secondary, color: COLORS.textSecondary },
   link: { maxWidth: '100%', minHeight: 44, justifyContent: 'center' },
-  linkText: { ...TYPE.button, color: COLORS.isDark ? CHART_COLORS[1] : COLORS.accent },
+  linkText: { ...TYPE.button, color: COLORS.accent },
   pressed: { opacity: 0.65 },
   heroCard: { padding: SPACING.lg },
   heroHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   heroLabel: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flexShrink: 1 },
   refresh: { minHeight: 36, minWidth: 36, alignItems: 'center', justifyContent: 'center', borderRadius: RADIUS.full, backgroundColor: COLORS.surface },
   heroValue: { ...TYPE.portfolioValue, color: COLORS.textPrimary, marginTop: SPACING.xs, marginBottom: SPACING.sm },
-  heroStats: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.xs, marginBottom: SPACING.lg },
-  stackedMetrics: { flexDirection: 'column' },
-  metric: { minWidth: 0, gap: SPACING.xs, padding: SPACING.md, borderRadius: RADIUS.md, backgroundColor: COLORS.surface },
-  metricColumn: { flex: 1 },
+  heroStats: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginTop: SPACING.xs, marginBottom: SPACING.lg },
+  metric: { flexGrow: 1, maxWidth: '100%', gap: SPACING.xs, padding: SPACING.md, borderRadius: RADIUS.md, backgroundColor: COLORS.surface },
   metricLine: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', columnGap: SPACING.sm, rowGap: SPACING.xs },
   metricPct: { ...TYPE.plPercent },
   metricValue: { ...TYPE.listAmount, maxWidth: '100%', color: COLORS.textPrimary },

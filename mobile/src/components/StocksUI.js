@@ -4,6 +4,7 @@ import { InfoCircle, Refresh2 } from 'iconsax-react-native';
 
 import { COLORS, RADIUS, SPACING, TYPE, themedStyles } from '../theme/colors';
 import { priceStatus } from '../utils/stockDisplay';
+import { AmountText } from './AmountText';
 import { DialogCard } from './DialogCard';
 import { LoadingSkeleton } from './LoadingSkeleton';
 
@@ -65,7 +66,7 @@ export const StockOverview = ({ label, value, rows, description, note, children 
   // Leave enough room for the full balance alongside the info control.
   const balanceWidth = 214 * Math.max(1, fontScale);
   const fullWidthBalance = !!description && headerWidth < balanceWidth + INFO_SIZE + SPACING.sm;
-  const balance = <Text style={stockStyles.heroValue}>{value}</Text>;
+  const balance = <AmountText style={stockStyles.heroValue}>{value}</AmountText>;
   return (
     <View style={stockStyles.overview}>
       <View style={stockStyles.overviewHeader} onLayout={({ nativeEvent }) => setHeaderWidth(nativeEvent.layout.width)}>
@@ -178,11 +179,11 @@ export const stockStyles = themedStyles(() => ({
     alignSelf: 'flex-start', maxWidth: '100%', paddingHorizontal: SPACING.sm, paddingVertical: 6, borderRadius: RADIUS.md,
     borderWidth: 1, borderColor: 'transparent',
   },
-  actionPrimary: { backgroundColor: COLORS.accent },
+  actionPrimary: { backgroundColor: COLORS.buttonPrimary },
   actionText: { ...TYPE.button, color: COLORS.textPrimary, flexShrink: 1 },
   onAccent: { color: COLORS.onAccent },
   focused: { borderColor: COLORS.accent },
-  pressed: { opacity: 0.72 },
+  pressed: { opacity: 0.9 },
   state: {
     alignItems: 'flex-start', padding: SPACING.lg, gap: SPACING.sm,
     backgroundColor: COLORS.cardBg, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.border,

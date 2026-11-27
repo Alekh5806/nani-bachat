@@ -93,7 +93,7 @@ const styles = themedStyles(() => ({
     borderWidth: 1,
     borderColor: COLORS.inputBorder,
   },
-  cellActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
+  cellActive: { backgroundColor: COLORS.buttonPrimary, borderColor: COLORS.accent },
   cellText: { ...TYPE.secondaryMedium, color: COLORS.textPrimary },
   cellTextActive: { color: COLORS.onAccent },
   disabled: { opacity: 0.35 },

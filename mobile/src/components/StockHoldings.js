@@ -143,6 +143,7 @@ export const StockHoldings = ({ summary, failed, prices, onOpen, onAdd, onNews, 
             <TextInput
               accessibilityLabel="Search holdings"
               placeholder="Search name or symbol"
+              keyboardAppearance={COLORS.isDark ? 'dark' : 'light'}
               placeholderTextColor={COLORS.textSecondary}
               value={query}
               onChangeText={setQuery}
@@ -196,7 +197,7 @@ const styles = themedStyles(() => ({
   stacked: { flexDirection: 'column', alignItems: 'stretch' },
   searchBox: {
     flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingHorizontal: SPACING.md,
-    minHeight: 48, backgroundColor: COLORS.cardBg, borderColor: COLORS.border, borderWidth: 1, borderRadius: 10,
+    minHeight: 48, backgroundColor: COLORS.inputBg, borderColor: COLORS.inputBorder, borderWidth: 1, borderRadius: 10,
   },
   search: { ...TYPE.inputText, flex: 1, minWidth: 0, minHeight: 46, color: COLORS.textPrimary },
   sort: { backgroundColor: COLORS.surface, borderRadius: 10 },

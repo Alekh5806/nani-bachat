@@ -220,7 +220,7 @@ const styles = themedStyles(() => ({
   },
   editBadge: {
     position: 'absolute', right: 0, bottom: 0, width: 26, height: 26, borderRadius: 13,
-    alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.accent,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.buttonPrimary,
     borderWidth: 2, borderColor: COLORS.cardBg,
   },
   dim: { opacity: 0.65 },

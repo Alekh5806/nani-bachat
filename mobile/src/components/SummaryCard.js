@@ -9,6 +9,7 @@
  */
 import React from 'react';
 import { View, Text, Pressable, ActivityIndicator } from 'react-native';
+import { AmountText } from './AmountText';
 import { GlassCard } from './GlassCard';
 import { COLORS, SPACING, themedStyles, TYPE } from '../theme/colors';
 
@@ -16,7 +17,7 @@ export const SummaryCard = ({ label, value, valueColor, action, rows = [], note,
   <GlassCard style={[styles.card, style]}>
     <Text style={styles.label}>{label}</Text>
     <View style={styles.top}>
-      <Text style={[styles.big, valueColor && { color: valueColor }]}>{value}</Text>
+      <AmountText style={[styles.big, valueColor && { color: valueColor }]}>{value}</AmountText>
       {action && (
         <Pressable
           onPress={action.onPress}

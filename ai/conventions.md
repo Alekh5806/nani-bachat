@@ -38,7 +38,7 @@ ai/                      this guide
 
 ## Theme
 
-Light and dark are both required. Switching theme remounts the app tree. If you read `COLORS` outside `themedStyles`, it will not update on a theme change.
+Light and dark are both required. The app follows the device by default, with a saved override in Profile → Appearance. Read `COLORS` during render or inside `themedStyles`. Register navigation screens with `withScreenTheme` so they update without losing navigation or form state. Run `node scripts/check-theme.cjs` from `mobile` to check palette contrast and preference handling.
 
 ## Backend
 

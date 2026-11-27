@@ -8,7 +8,8 @@
 
     <!-- PWA / Add to Home Screen support -->
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#121212" />
+    <meta name="theme-color" content="#F6F5F2" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#111213" media="(prefers-color-scheme: dark)" />
 
     <!-- iOS "Add to Home Screen" behaves like a native app (hides Safari UI) -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -21,6 +22,14 @@
       /* These styles make the body full-height */
       html {
         height: 100%;
+        color-scheme: light;
+        background-color: #F6F5F2;
+      }
+      @media (prefers-color-scheme: dark) {
+        html {
+          color-scheme: dark;
+          background-color: #111213;
+        }
       }
       /* Pin the body to the real screen. On iOS home-screen apps, height:100% can start
          shorter than the screen (white band at the bottom, extra space at the top)

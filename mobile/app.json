@@ -2,16 +2,11 @@
   "expo": {
     "name": "Nani Bachat",
     "slug": "nani-bachat",
-    "version": "1.0.1",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "nanibachat",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#121212"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -21,7 +16,7 @@
       "icon": "./assets/icon.png"
     },
     "android": {
-      "versionCode": 2,
+      "versionCode": 4,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "monochromeImage": "./assets/adaptive-monochrome.png",
@@ -36,6 +31,17 @@
     "plugins": [
       "expo-font",
       "expo-asset",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/adaptive-icon.png",
+          "backgroundColor": "#F6F5F2",
+          "dark": {
+            "image": "./assets/adaptive-icon.png",
+            "backgroundColor": "#111213"
+          }
+        }
+      ],
       [
         "expo-notifications",
         {

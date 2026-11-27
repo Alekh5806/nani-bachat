@@ -20,22 +20,25 @@
   },
   "color": {
     "dark": {
-      "background": "#0B0F19", "card": "#111827", "surface": "#172033", "surfaceLight": "#263244",
-      "accent": "#4D6BFF", "onAccent": "#FFFFFF",
-      "textPrimary": "#F9FAFB", "textSecondary": "#9CA3AF", "textMuted": "#6B7280",
+      "background": "#111213", "card": "#18191B", "surface": "#1F2023", "surfaceLight": "#2A2B2F",
+      "accent": "#879DFF", "onAccent": "#FFFFFF",
+      "buttonPrimary": "#465FE2", "buttonPrimaryPressed": "#3954D0", "buttonDanger": "#BD2737",
+      "textPrimary": "#F3F2EF", "textSecondary": "#A5A39D", "textMuted": "#9A9690",
       "profit": "#22C55E", "profitBg": "#12351F", "loss": "#F87171", "lossBg": "#3A171B",
-      "warning": "#F59E0B", "neutral": "#9CA3AF",
-      "border": "#263244", "divider": "rgba(255,255,255,0.06)"
+      "warning": "#F59E0B", "warningBg": "#3A2A0D", "neutral": "#A5A39D",
+      "border": "#2A2B2F", "inputBorder": "#777670", "placeholder": "#9A9690", "divider": "rgba(255,255,255,0.06)",
+      "chartCategories": ["#4D6BFF", "#6E87FF", "#9BACFF", "#8A8780", "#A5A39D", "#C4C1B9"]
     },
     "light": {
-      "background": "#F5F6F8", "card": "#FFFFFF", "surface": "#F3F4F6", "surfaceLight": "#E5E7EB",
+      "background": "#F6F5F2", "card": "#FFFFFF", "surface": "#F1F0EC", "surfaceLight": "#E7E5DF",
       "accent": "#1E41DB", "onAccent": "#FFFFFF",
-      "textPrimary": "#111827", "textSecondary": "#6B7280", "textMuted": "#9CA3AF",
-      "profit": "#16A34A", "profitBg": "#DCFCE7", "loss": "#DC2626", "lossBg": "#FEE2E2",
-      "warning": "#D97706", "neutral": "#6B7280",
-      "border": "#E5E7EB", "divider": "rgba(0,0,0,0.07)"
+      "buttonPrimary": "#1E41DB", "buttonPrimaryPressed": "#1835B8", "buttonDanger": "#B91C1C",
+      "textPrimary": "#161615", "textSecondary": "#5C5A55", "textMuted": "#64615B",
+      "profit": "#137535", "profitBg": "#DCFCE7", "loss": "#B91C1C", "lossBg": "#FEE2E2",
+      "warning": "#92400E", "warningBg": "#FEF3C7", "neutral": "#64615B",
+      "border": "#E7E5DF", "inputBorder": "#85827A", "placeholder": "#64615B", "divider": "rgba(0,0,0,0.07)",
+      "chartCategories": ["#2845AD", "#4964CF", "#667CDD", "#58564F", "#6F6C63", "#858278"]
     },
-    "chartCategories": ["#4D6BFF", "#8B5CF6", "#06B6D4", "#F59E0B", "#EC4899", "#10B981", "#F97316", "#84CC16", "#14B8A6", "#64748B"],
     "avatarBackground": "#FFF7DA"
   },
   "sizes": {

@@ -8,6 +8,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { usePortfolioStore } from '../store/portfolioStore';
 import { useAuthStore } from '../store/authStore';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { AmountText } from '../components/AmountText';
 import { GlassCard } from '../components/GlassCard';
 import { MemberRow } from '../components/MemberRow';
 import { fmtFull } from '../utils/currency';
@@ -144,7 +145,7 @@ export const MembersScreen = ({ navigation }) => {
             <View style={[styles.directory, wide && styles.directoryWide]}>
               <GlassCard style={wide && styles.summaryWide} padding={SPACING.md}>
                 <Text style={styles.label}>Your portfolio value</Text>
-                <Text style={styles.value}>{my ? fmtFull(my.current_value) : '—'}</Text>
+                <AmountText style={styles.value}>{my ? fmtFull(my.current_value) : '—'}</AmountText>
                 {my && (
                   <View style={styles.metrics}>
                     <Text style={styles.label}>{Number(my.ownership_percentage || 0).toFixed(1)}% ownership</Text>

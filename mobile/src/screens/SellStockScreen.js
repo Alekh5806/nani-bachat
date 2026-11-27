@@ -318,13 +318,13 @@ const styles = themedStyles(() => ({
     backgroundColor: COLORS.accent + '14',
   },
   presetButtonActive: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: COLORS.buttonPrimary,
   },
   presetButtonDisabled: {
     opacity: 0.45,
   },
   presetPressed: {
-    opacity: 0.78,
+    opacity: 0.9,
   },
   presetText: {
     ...TYPE.button,

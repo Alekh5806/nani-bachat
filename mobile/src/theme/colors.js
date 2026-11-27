@@ -22,7 +22,7 @@ const DARK = {
   cardElevated: '#1F2023',
 
   // Primary (brand blue)
-  accent: '#4D6BFF',
+  accent: '#879DFF',
   accentLight: '#4D6BFF',
   accentDark: '#1E41DB',
   onAccent: '#FFFFFF',
@@ -37,7 +37,7 @@ const DARK = {
 
   textPrimary: '#F3F2EF',
   textSecondary: '#A5A39D',
-  textMuted: '#938F89',
+  textMuted: '#9A9690',
   textInverse: '#111213',
 
   // Semantic: positive / negative / warning / neutral
@@ -51,7 +51,8 @@ const DARK = {
   warningBg: '#3A2A0D',
   neutral: '#A5A39D',
   neutralBg: '#1F2023',
-  info: '#4D6BFF',
+  info: '#879DFF',
+  chartCategories: ['#4D6BFF', '#6E87FF', '#9BACFF', '#8A8780', '#A5A39D', '#C4C1B9'],
 
   border: '#2A2B2F',
   borderLight: '#2A2B2F',
@@ -66,17 +67,18 @@ const DARK = {
   logoBorder: '#2A2B2F',
 
   tabBarBg: '#111213',
-  tabBarActive: '#4D6BFF',
-  tabBarInactive: '#77746E',
+  tabBarActive: '#879DFF',
+  tabBarInactive: '#F3F2EF',
 
   inputBg: '#18191B',
-  inputBorder: '#2A2B2F',
-  inputFocus: '#4D6BFF',
-  placeholder: '#77746E',
+  inputBorder: '#777670',
+  inputFocus: '#879DFF',
+  placeholder: '#9A9690',
 
-  buttonPrimary: '#4D6BFF',
+  buttonPrimary: '#465FE2',
+  buttonPrimaryPressed: '#3954D0',
   buttonSecondary: '#1F2023',
-  buttonDanger: '#F87171',
+  buttonDanger: '#BD2737',
   buttonDisabled: '#2A2B2F',
 };
 
@@ -105,20 +107,21 @@ const LIGHT = {
 
   textPrimary: '#161615',
   textSecondary: '#5C5A55',
-  textMuted: '#6B6963',
+  textMuted: '#64615B',
   textInverse: '#FFFFFF',
 
   profit: '#137535',
   profitLight: '#137535',
   profitBg: '#DCFCE7',
-  loss: '#DC2626',
-  lossLight: '#DC2626',
+  loss: '#B91C1C',
+  lossLight: '#B91C1C',
   lossBg: '#FEE2E2',
-  warning: '#D97706',
+  warning: '#92400E',
   warningBg: '#FEF3C7',
-  neutral: '#6B6963',
+  neutral: '#64615B',
   neutralBg: '#F1F0EC',
   info: '#1E41DB',
+  chartCategories: ['#2845AD', '#4964CF', '#667CDD', '#58564F', '#6F6C63', '#858278'],
 
   border: '#E7E5DF',
   borderLight: '#E7E5DF',
@@ -133,33 +136,31 @@ const LIGHT = {
 
   tabBarBg: '#FFFFFF',
   tabBarActive: '#1E41DB',
-  tabBarInactive: '#8E8B85',
+  tabBarInactive: '#161615',
 
   inputBg: '#FFFFFF',
-  inputBorder: '#E7E5DF',
+  inputBorder: '#85827A',
   inputFocus: '#1E41DB',
-  placeholder: '#8E8B85',
+  placeholder: '#64615B',
 
   buttonPrimary: '#1E41DB',
+  buttonPrimaryPressed: '#1835B8',
   buttonSecondary: '#F1F0EC',
-  buttonDanger: '#DC2626',
+  buttonDanger: '#B91C1C',
   buttonDisabled: '#E7E5DF',
 };
 
 export const PALETTES = { dark: DARK, light: LIGHT };
 
-const systemMode = () => (Appearance.getColorScheme() === 'light' ? 'light' : 'dark');
+const systemMode = () => (Appearance.getColorScheme() === 'dark' ? 'dark' : 'light');
 
 export const COLORS = { ...PALETTES[systemMode()] };
 
 let themeVersion = 0;
-export const getThemeVersion = () => themeVersion;
 
-/** Swap the palette in place. Returns the new version number. */
 export const applyThemeMode = (mode) => {
   Object.assign(COLORS, PALETTES[mode] || DARK);
   themeVersion += 1;
-  return themeVersion;
 };
 
 export const resolveMode = (preference) =>

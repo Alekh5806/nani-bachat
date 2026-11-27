@@ -1245,7 +1245,7 @@ const styles = themedStyles(() => ({
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   filterLabel: { ...TYPE.inputLabel, color: COLORS.textSecondary, flexGrow: 1, flexShrink: 1 },
   monthChip: { minHeight: 44, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: RADIUS.full, backgroundColor: COLORS.cardBg, marginRight: SPACING.sm, borderWidth: 1, borderColor: COLORS.border, flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  monthChipActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
+  monthChipActive: { backgroundColor: COLORS.buttonPrimary, borderColor: COLORS.accent },
   monthChipText: { ...TYPE.tab, color: COLORS.textSecondary },
   monthChipTextActive: { color: COLORS.onAccent },
   histSpinner: { paddingVertical: SPACING.lg },
@@ -1349,7 +1349,7 @@ const styles = themedStyles(() => ({
   yearText: { ...TYPE.sectionTitle, color: COLORS.textPrimary },
   monthGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
   monthGridItem: { width: '23%', flexGrow: 1, paddingVertical: SPACING.md, borderRadius: RADIUS.md, backgroundColor: COLORS.inputBg, alignItems: 'center', borderWidth: 1, borderColor: COLORS.inputBorder },
-  monthGridItemActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
+  monthGridItemActive: { backgroundColor: COLORS.buttonPrimary, borderColor: COLORS.accent },
   monthGridText: { ...TYPE.secondaryMedium, color: COLORS.textPrimary },
   monthGridTextActive: { color: COLORS.onAccent },
 }));

@@ -5,7 +5,7 @@
  */
 import React, { useState } from 'react';
 import { shortName } from '../utils/names';
-import { View, Text, Pressable, TextInput, Platform } from 'react-native';
+import { View, Text, Pressable, TextInput } from 'react-native';
 import { DialogCard } from './DialogCard';
 import { ArrowDown2, TickCircle, SearchNormal1 } from 'iconsax-react-native';
 import { CompanyLogo } from './CompanyLogo';
@@ -53,6 +53,7 @@ export const HoldingSelect = ({ label, holdings, selected, onSelect, emptyText, 
             value={query}
             onChangeText={setQuery}
             placeholder="Search stock or buyer"
+            keyboardAppearance={COLORS.isDark ? 'dark' : 'light'}
             placeholderTextColor={COLORS.textMuted}
             style={styles.searchInput}
           />
@@ -140,7 +141,6 @@ const styles = themedStyles(() => ({
     paddingHorizontal: SPACING.md,
   },
   searchInput: {
-    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : null),
     flex: 1,
     minWidth: 0,
     ...TYPE.inputText,

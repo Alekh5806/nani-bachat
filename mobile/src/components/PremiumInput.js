@@ -46,6 +46,7 @@ export const PremiumInput = ({
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
+          keyboardAppearance={COLORS.isDark ? 'dark' : 'light'}
           placeholderTextColor={COLORS.placeholder}
           secureTextEntry={secureTextEntry}
           keyboardType={keyboardType}

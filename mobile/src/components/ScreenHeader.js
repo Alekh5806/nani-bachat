@@ -2,8 +2,8 @@
  * Screen Header Component
  * Premium styled header with gradient text option
  */
-import React, { useState } from 'react';
-import { View, Text, Pressable, useWindowDimensions } from 'react-native';
+import React from 'react';
+import { View, Text, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from './Icon';
 import { ProfileButton } from './ProfileButton';
@@ -21,16 +21,7 @@ export const ScreenHeader = ({
   inset,
 }) => {
   const insets = useSafeAreaInsets();
-  const { width, fontScale } = useWindowDimensions();
-  const [headerWidth, setHeaderWidth] = useState(0);
   const horizontalPadding = inset ?? SPACING.xl;
-  // Reserve space for the title, the action label, and the non-scaling controls.
-  const titleSpace = Math.max(90, Math.min(String(title).length, 16) * 10) * Math.max(1, fontScale);
-  const actionSpace = (String(rightLabel ?? '').length * 8) * Math.max(1, fontScale)
-    + SPACING.lg * 2 + (rightIcon ? 24 : 0);
-  const controlsSpace = (showBack ? 52 : 0) + (hideProfile ? 0 : 60) + SPACING.md;
-  const stackAction = !!rightAction
-    && (headerWidth || width) - horizontalPadding * 2 < titleSpace + actionSpace + controlsSpace;
 
   const action = rightAction && (
     <Pressable
@@ -48,28 +39,28 @@ export const ScreenHeader = ({
   return (
     <View
       style={[styles.container, { paddingTop: insets.top + SPACING.md, paddingHorizontal: horizontalPadding }]}
-      onLayout={({ nativeEvent }) => setHeaderWidth(nativeEvent.layout.width)}
     >
       <View style={styles.headingRow}>
-        <View style={styles.leftSection}>
-          {showBack && (
-            <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Back" style={styles.backButton}>
-              <Icon name="←" size={24} color={COLORS.textPrimary} />
-            </Pressable>
-          )}
-          <View style={styles.titleBlock}>
-            <Text accessibilityRole="header" style={styles.title}>{title}</Text>
-            {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+        <View style={styles.titleAndAction}>
+          <View style={styles.leftSection}>
+            {showBack && (
+              <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Back" style={styles.backButton}>
+                <Icon name="←" size={24} color={COLORS.textPrimary} />
+              </Pressable>
+            )}
+            <View style={styles.titleBlock}>
+              <Text accessibilityRole="header" style={styles.title}>{title}</Text>
+              {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+            </View>
           </View>
+          {action}
         </View>
-        {(!hideProfile || (rightAction && !stackAction)) && (
-          <View style={styles.rightSection}>
-            {!stackAction && action}
-            {!hideProfile && <ProfileButton />}
+        {!hideProfile && (
+          <View style={rightAction && styles.profileWithAction}>
+            <ProfileButton />
           </View>
         )}
       </View>
-      {stackAction && <View style={styles.stackedAction}>{action}</View>}
     </View>
   );
 };
@@ -81,26 +72,32 @@ const styles = themedStyles(() => ({
   },
   headingRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    columnGap: SPACING.md,
   },
-  stackedAction: { alignSelf: 'flex-start', maxWidth: '100%', marginTop: SPACING.sm },
+  titleAndAction: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    columnGap: SPACING.md,
+    rowGap: SPACING.sm,
+  },
   leftSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-    minWidth: 0,
-    marginRight: SPACING.md,
-  },
-  rightSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-    flexShrink: 0,
+    flexGrow: 1,
+    maxWidth: '100%',
   },
   titleBlock: {
-    flex: 1,
+    flexShrink: 1,
     minWidth: 0,
+  },
+  profileWithAction: {
+    alignSelf: 'flex-start',
+    minHeight: 48,
+    justifyContent: 'center',
   },
   backButton: {
     marginRight: SPACING.xs,
@@ -121,15 +118,15 @@ const styles = themedStyles(() => ({
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.accent,
+    backgroundColor: COLORS.buttonPrimary,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.sm,
     minHeight: 48,
     borderRadius: SPACING.xl,
-    flexShrink: 0,
+    maxWidth: '100%',
   },
   actionPressed: {
-    opacity: 0.7,
+    opacity: 0.9,
   },
   actionIcon: {
     marginRight: SPACING.xs,

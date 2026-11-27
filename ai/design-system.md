@@ -5,7 +5,7 @@ Code source of truth: `mobile/src/theme/colors.js` and `mobile/src/theme/fonts.j
 ## Principles
 
 - **Quiet chrome, content carries the color.** Surfaces, borders and text stay neutral. Blue marks the primary action and selection. Green and red mean profit and loss, nothing else.
-- **One accent.** `accent` is blue (`#4D6BFF` dark, `#1E41DB` light). No gradients, glows, colored shadows or neon borders.
+- **One accent.** Use blue `accent` for links, focus, and selected labels. Use `buttonPrimary` for solid blue controls with `onAccent` text.
 - **Flat cards.** A card is a filled surface with a hairline border. Depth comes from surface steps, not shadows.
 - **Sentence case labels, Title Case titles.** Card and screen titles are Title Case ("Top Holdings", "Asset Allocation"). Small labels are sentence case.
 - **No emoji as icons.** Use Iconsax line icons (Bold variant for the active state).
@@ -18,17 +18,19 @@ Two palettes (`dark`, `light`) share the same names. Always read `COLORS.x` insi
 
 | Role | Token | Dark | Light |
 |---|---|---|---|
-| Page | `background` | `#0B0F19` | `#F5F6F8` |
-| Card | `cardBg` | `#111827` | `#FFFFFF` |
-| Raised / chip | `surface` | `#172033` | `#F3F4F6` |
-| Raised stronger | `surfaceLight` | `#263244` | `#E5E7EB` |
-| Accent | `accent` | `#4D6BFF` | `#1E41DB` |
-| Text | `textPrimary` / `textSecondary` / `textMuted` | `#F9FAFB` / `#9CA3AF` / `#6B7280` | `#111827` / `#6B7280` / `#9CA3AF` |
-| Profit / loss | `profit` / `loss` | `#22C55E` / `#F87171` | `#16A34A` / `#DC2626` |
-| Border | `border` | `#263244` | `#E5E7EB` |
+| Page | `background` | `#111213` | `#F6F5F2` |
+| Card | `cardBg` | `#18191B` | `#FFFFFF` |
+| Raised / chip | `surface` | `#1F2023` | `#F1F0EC` |
+| Raised stronger | `surfaceLight` | `#2A2B2F` | `#E7E5DF` |
+| Accent | `accent` | `#879DFF` | `#1E41DB` |
+| Solid button | `buttonPrimary` / `buttonDanger` | `#465FE2` / `#BD2737` | `#1E41DB` / `#B91C1C` |
+| Text | `textPrimary` / `textSecondary` / `textMuted` | `#F3F2EF` / `#A5A39D` / `#9A9690` | `#161615` / `#5C5A55` / `#64615B` |
+| Profit / loss / warning | `profit` / `loss` / `warning` | `#22C55E` / `#F87171` / `#F59E0B` | `#137535` / `#B91C1C` / `#92400E` |
+| Border | `border` | `#2A2B2F` | `#E7E5DF` |
+| Input outline | `inputBorder` | `#777670` | `#85827A` |
 | Divider | `divider` | white 6% | black 7% |
 
-Three text roles only: primary, secondary, muted.
+The palette has primary, secondary, and muted text roles. Keep readable text at 4.5:1 against its surface and input outlines at 3:1. Use `inputBorder` for interactive outlines and `border` for decorative separators.
 
 **Charts.** One accent for the main series. When a chart must tell parts apart (donut), use `chartCategories` in order. Each color means one holding.
 

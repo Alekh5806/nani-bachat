@@ -7,6 +7,7 @@
  *
  * Inter has 400, 500, 600, 700 and 800: 900 maps to 800.
  */
+import { Platform } from 'react-native';
 import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
 import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
 import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
@@ -49,7 +50,15 @@ export const applyFont = (styles) => {
     const style = styles[key];
     if (style && typeof style === 'object' && ('fontSize' in style || 'fontWeight' in style)) {
       const { fontWeight, ...rest } = style;
-      result[key] = { ...rest, fontFamily: rest.fontFamily ?? fontFamilyFor(fontWeight) };
+      const fontFamily = rest.fontFamily ?? fontFamilyFor(fontWeight);
+      // The shared line height already supplies leading for Inter. Android also
+      // adds padding above the first and below the last line by default.
+      const useLineHeight = Platform.OS === 'android' && rest.lineHeight && fontFamily.startsWith('Inter_');
+      result[key] = {
+        ...(useLineHeight ? { includeFontPadding: false } : {}),
+        ...rest,
+        fontFamily,
+      };
     } else {
       result[key] = style;
     }

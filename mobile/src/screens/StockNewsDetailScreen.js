@@ -132,9 +132,9 @@ const styles = themedStyles(() => ({
     flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: SPACING.sm,
     minHeight: 48, borderRadius: RADIUS.md, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm,
   },
-  primary: { backgroundColor: COLORS.accent },
+  primary: { backgroundColor: COLORS.buttonPrimary },
   secondaryLink: { backgroundColor: COLORS.cardBg, borderWidth: 1, borderColor: COLORS.border },
   linkText: { ...TYPE.button, color: COLORS.accent, textAlign: 'center', flexShrink: 1 },
   primaryText: { color: COLORS.onAccent },
-  pressed: { opacity: 0.8 },
+  pressed: { opacity: 0.9 },
 }));

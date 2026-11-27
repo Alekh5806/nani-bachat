@@ -1,9 +1,9 @@
 /**
  * Premium Button Component
- * Solid button. Primary is the accent with dark text, no gradient
+ * Solid buttons use a dedicated fill with a readable label.
  */
 import React from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator } from 'react-native';
 import { Icon } from './Icon';
 import { COLORS, RADIUS, SPACING, themedStyles, TYPE } from '../theme/colors';
 
@@ -23,10 +23,10 @@ export const PremiumButton = ({
 
   const getBackground = () => {
     switch (variant) {
-      case 'danger': return COLORS.loss;
+      case 'danger': return COLORS.buttonDanger;
       case 'secondary': return COLORS.surface;
       case 'outline': return 'transparent';
-      default: return COLORS.accent;
+      default: return COLORS.buttonPrimary;
     }
   };
   const onSolid = variant === 'primary' || variant === 'danger';
@@ -53,7 +53,7 @@ export const PremiumButton = ({
         ]}
       >
         {loading ? (
-          <ActivityIndicator color={onSolid ? COLORS.onAccent : COLORS.textPrimary} size="small" />
+          <ActivityIndicator color={COLORS.textPrimary} size="small" />
         ) : (
           <>
             {icon && (
@@ -100,7 +100,7 @@ const styles = themedStyles(() => ({
     borderColor: COLORS.accent,
   },
   pressed: {
-    opacity: 0.85,
+    opacity: 0.9,
     transform: [{ scale: 0.98 }],
   },
   icon: {

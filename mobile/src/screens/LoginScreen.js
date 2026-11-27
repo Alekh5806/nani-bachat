@@ -196,7 +196,8 @@ export const LoginScreen = () => {
                     <Mobile size={20} color={focused === 'phone' ? styles.accent.color : styles.inputIcon.color} />
                     <TextInput
                       ref={phoneRef} value={phone} onChangeText={(value) => changeField('phone', value)}
-                      placeholder="Enter your phone number" placeholderTextColor={styles.placeholder.color}
+                      placeholder="Enter your phone number" placeholderTextColor={COLORS.placeholder}
+                      keyboardAppearance={COLORS.isDark ? 'dark' : 'light'}
                       keyboardType="phone-pad" autoComplete="username" textContentType="username"
                       autoCapitalize="none" autoCorrect={false} returnKeyType="next"
                       onSubmitEditing={() => passwordRef.current?.focus()} submitBehavior="submit"
@@ -212,7 +213,8 @@ export const LoginScreen = () => {
                     <Lock1 size={20} color={focused === 'password' ? styles.accent.color : styles.inputIcon.color} />
                     <TextInput
                       ref={passwordRef} value={password} onChangeText={(value) => changeField('password', value)}
-                      placeholder="Enter your password" placeholderTextColor={styles.placeholder.color}
+                      placeholder="Enter your password" placeholderTextColor={COLORS.placeholder}
+                      keyboardAppearance={COLORS.isDark ? 'dark' : 'light'}
                       secureTextEntry={!showPassword} autoComplete="current-password" textContentType="password"
                       autoCapitalize="none" autoCorrect={false} returnKeyType="go" onSubmitEditing={handleLogin}
                       onFocus={() => setFocused('password')} onBlur={() => setFocused(null)} editable={!isLoading}
@@ -246,7 +248,7 @@ export const LoginScreen = () => {
                     aria-busy={isLoading}
                     style={({ pressed, hovered }) => [styles.signInButton, hovered && styles.signInHovered, pressed && styles.signInPressed, isLoading && styles.signInLoading]}
                   >
-                    {isLoading && <ActivityIndicator size="small" color="#FFFFFF" />}
+                    {isLoading && <ActivityIndicator size="small" color={COLORS.onAccent} />}
                     <Text style={styles.signInText}>{isLoading ? 'Welcoming you in…' : 'Sign in'}</Text>
                   </Pressable>
                 </View>
@@ -272,67 +274,66 @@ export const LoginScreen = () => {
 
 const styles = themedStyles(() => ({
   flex: { flex: 1 },
-  screen: { flex: 1, backgroundColor: '#132033' },
-  screenWide: { backgroundColor: COLORS.isDark ? '#090F1C' : '#EEF1F7' },
+  screen: { flex: 1, backgroundColor: COLORS.surface },
+  screenWide: { backgroundColor: COLORS.background },
   scroll: { flexGrow: 1 },
   layout: { flex: 1, width: '100%', alignSelf: 'center' },
   layoutWide: { flexDirection: 'row', maxWidth: 1480, minHeight: 640, borderRadius: 28, overflow: 'hidden' },
-  hero: { backgroundColor: '#132033', paddingHorizontal: 28, paddingBottom: 24 },
+  hero: { backgroundColor: COLORS.surface, paddingHorizontal: 28, paddingBottom: 24 },
   heroCompact: { paddingHorizontal: 22 },
-  heroWide: { width: '51%', padding: 44, borderRightWidth: 1, borderRightColor: '#27334A' },
+  heroWide: { width: '51%', padding: 44, borderRightWidth: 1, borderRightColor: COLORS.border },
   heroContent: { width: '100%', maxWidth: 410, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 2 },
   heroContentWide: { flex: 1, maxWidth: '100%', flexDirection: 'column', alignItems: 'stretch', gap: 14 },
   heroContentStacked: { flexDirection: 'column', alignItems: 'stretch', gap: 12 },
   brandMobile: { flex: 1, minWidth: 0 },
-  brandName: { color: '#F4F6FF', fontSize: 25, fontWeight: '600' },
+  brandName: { color: COLORS.textPrimary, fontSize: 25, fontWeight: '600' },
   brandNameWide: { fontSize: 28, fontWeight: '600' },
-  brandCaption: { ...TYPE.caption, color: '#AEBACF', marginTop: 4 },
+  brandCaption: { ...TYPE.caption, color: COLORS.textSecondary, marginTop: 4 },
   heroFeatureMobile: { width: 128, marginRight: -8 },
   heroFeatureCompact: { width: 98 },
   heroFeatureWide: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 36 },
-  proverb: { color: '#F0DAB4', fontFamily: PROVERB_FONT, fontSize: 22, lineHeight: 32, marginTop: 12 },
+  proverb: { color: COLORS.warning, fontFamily: PROVERB_FONT, fontSize: 22, lineHeight: 32, marginTop: 12 },
   proverbCompact: { fontFamily: PROVERB_FONT, fontSize: 20, lineHeight: 30 },
   proverbWide: { fontFamily: PROVERB_FONT, fontSize: 40, lineHeight: 58, textAlign: 'center', marginTop: 4 },
-  formSide: { backgroundColor: COLORS.isDark ? '#101725' : '#FBFCFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, marginTop: -1, paddingHorizontal: 28, paddingTop: 30, flex: 1 },
+  formSide: { backgroundColor: COLORS.cardBg, borderTopLeftRadius: 28, borderTopRightRadius: 28, marginTop: -1, paddingHorizontal: 28, paddingTop: 30, flex: 1 },
   formSideCompact: { paddingHorizontal: 22, paddingTop: 24 },
   formSideWide: { width: '49%', borderRadius: 0, borderTopLeftRadius: 0, borderTopRightRadius: 0, marginTop: 0, paddingHorizontal: 48, paddingVertical: 40, justifyContent: 'center' },
   formContent: { width: '100%', maxWidth: 410, alignSelf: 'center' },
   welcomeIcon: { alignSelf: 'flex-start', marginBottom: 18 },
   welcomeIconMobile: { position: 'absolute', right: 0, top: 0, marginBottom: 0 },
-  greeting: { color: COLORS.isDark ? '#EEF2FC' : '#14213B', fontSize: 31, lineHeight: 40, fontWeight: '500', letterSpacing: -0.6 },
+  greeting: { color: COLORS.textPrimary, fontSize: 31, lineHeight: 40, fontWeight: '500', letterSpacing: -0.6 },
   greetingWide: { fontSize: 42, lineHeight: 52, fontWeight: '500', letterSpacing: -0.9 },
-  greetingName: { color: COLORS.isDark ? '#A8BCFF' : '#627CB7' },
-  formDescription: { ...TYPE.body, color: COLORS.isDark ? '#A0ADC5' : '#5C6A80', marginTop: 12 },
+  greetingName: { color: COLORS.accent },
+  formDescription: { ...TYPE.body, color: COLORS.textSecondary, marginTop: 12 },
   form: { marginTop: 30 },
   formCompact: { marginTop: 24 },
   labelRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', minHeight: 24, marginBottom: 8 },
-  label: { ...TYPE.inputLabel, flexShrink: 1, color: COLORS.isDark ? '#D4DCEE' : '#33415B' },
+  label: { ...TYPE.inputLabel, flexShrink: 1, color: COLORS.textPrimary },
   passwordLabel: { marginTop: 20, marginBottom: 12 },
-  inputShell: { minHeight: 56, flexDirection: 'row', alignItems: 'center', paddingLeft: 16, paddingRight: 6, gap: 12, borderWidth: 1, borderColor: COLORS.isDark ? '#2C374E' : '#DFE5EF', borderRadius: 12, backgroundColor: COLORS.isDark ? '#151F31' : '#FFFFFF' },
-  inputFocused: { borderColor: COLORS.isDark ? '#8DA9FF' : '#6C85C4', backgroundColor: COLORS.isDark ? '#1B2941' : '#FFFFFF' },
+  inputShell: { minHeight: 56, flexDirection: 'row', alignItems: 'center', paddingLeft: 16, paddingRight: 6, gap: 12, borderWidth: 1, borderColor: COLORS.inputBorder, borderRadius: 12, backgroundColor: COLORS.inputBg },
+  inputFocused: { borderColor: COLORS.inputFocus },
   inputError: { borderColor: COLORS.loss },
-  input: { ...TYPE.inputText, flex: 1, minWidth: 0, minHeight: 54, paddingVertical: 15, paddingRight: 8, color: COLORS.isDark ? '#F0F4FF' : '#1E2C48', ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}) },
-  placeholder: { color: COLORS.isDark ? '#7F8EA8' : '#64748B' },
-  inputIcon: { color: COLORS.isDark ? '#94A4C1' : '#7B8CA9' },
-  accent: { color: COLORS.isDark ? '#A8BCFF' : '#4A67B2' },
+  input: { ...TYPE.inputText, flex: 1, minWidth: 0, minHeight: 54, paddingVertical: 15, paddingRight: 8, color: COLORS.textPrimary, ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}) },
+  inputIcon: { color: COLORS.textSecondary },
+  accent: { color: COLORS.accent },
   eyeButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
   smallAction: { paddingVertical: 4, paddingLeft: 8 },
-  smallActionText: { ...TYPE.button, color: COLORS.isDark ? '#A8BCFF' : '#4A67B2' },
+  smallActionText: { ...TYPE.button, color: COLORS.accent },
   fieldError: { ...TYPE.secondary, color: COLORS.loss, marginTop: 8 },
   rememberRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 8, marginTop: 8 },
-  rememberBox: { width: 20, height: 20, borderWidth: 1, borderColor: COLORS.isDark ? '#8291B0' : '#7283A6', borderRadius: 5, alignItems: 'center', justifyContent: 'center' },
+  rememberBox: { width: 20, height: 20, borderWidth: 1, borderColor: COLORS.inputBorder, borderRadius: 5, alignItems: 'center', justifyContent: 'center' },
   rememberBoxChecked: { borderColor: 'transparent' },
   errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.lossBg, borderRadius: 10, padding: 12, marginTop: 16 },
   errorText: { ...TYPE.secondary, flex: 1, color: COLORS.loss },
-  signInButton: { minHeight: 56, borderRadius: 12, backgroundColor: '#4164DA', marginTop: 12, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
-  signInHovered: { backgroundColor: '#3557CD' },
-  signInPressed: { backgroundColor: '#2F50C3', transform: [{ scale: 0.99 }] },
-  signInLoading: { opacity: 0.8 },
-  signInText: { ...TYPE.button, flexShrink: 1, color: '#FFFFFF', textAlign: 'center', letterSpacing: 0.1 },
+  signInButton: { minHeight: 56, borderRadius: 12, backgroundColor: COLORS.buttonPrimary, marginTop: 12, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  signInHovered: { backgroundColor: COLORS.buttonPrimaryPressed },
+  signInPressed: { transform: [{ scale: 0.99 }] },
+  signInLoading: { opacity: 0.9 },
+  signInText: { ...TYPE.button, flexShrink: 1, color: COLORS.onAccent, textAlign: 'center', letterSpacing: 0.1 },
   helpSection: { marginTop: 18, alignItems: 'center' },
   helpButton: { minHeight: 44, justifyContent: 'center' },
-  helpButtonText: { ...TYPE.button, color: COLORS.isDark ? '#A8BCFF' : '#4A67B2', textAlign: 'center' },
-  helpBox: { backgroundColor: COLORS.isDark ? '#1B273D' : '#EEF2FA', padding: 14, borderRadius: 10, marginTop: 4 },
-  helpText: { ...TYPE.secondary, color: COLORS.isDark ? '#B9C6DD' : '#5F6F89' },
+  helpButtonText: { ...TYPE.button, color: COLORS.accent, textAlign: 'center' },
+  helpBox: { backgroundColor: COLORS.surface, padding: 14, borderRadius: 10, marginTop: 4 },
+  helpText: { ...TYPE.secondary, color: COLORS.textSecondary },
   pressed: { opacity: 0.65 },
 }));

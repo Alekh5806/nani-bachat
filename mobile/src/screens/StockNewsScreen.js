@@ -61,6 +61,7 @@ function CompanyPicker({ stocks, symbol, onPick, onClose }) {
         <TextInput
           accessibilityLabel="Search companies"
           placeholder="Search company or ticker"
+          keyboardAppearance={COLORS.isDark ? 'dark' : 'light'}
           placeholderTextColor={COLORS.textMuted}
           autoCapitalize="none"
           autoCorrect={false}
@@ -375,7 +376,7 @@ const styles = themedStyles(() => ({
   search: {
     flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingHorizontal: SPACING.md,
     marginVertical: SPACING.md, minHeight: 44, borderWidth: 1,
-    borderRadius: RADIUS.md, borderColor: COLORS.border, backgroundColor: COLORS.inputBg,
+    borderRadius: RADIUS.md, borderColor: COLORS.inputBorder, backgroundColor: COLORS.inputBg,
   },
   input: {
     ...TYPE.inputText, flex: 1, minWidth: 0, minHeight: 44, color: COLORS.textPrimary,

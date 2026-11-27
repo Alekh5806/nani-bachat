@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, ScrollView, RefreshControl, useWindowDimensions } from 'react-native';
+import { View, ScrollView, RefreshControl } from 'react-native';
 import { Add } from 'iconsax-react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -8,7 +8,7 @@ import { useAuthStore } from '../store/authStore';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { StockHoldings, useStockPrices } from '../components/StockHoldings';
 import { StockHistory } from '../components/StockHistory';
-import { StockAction, StockTabs, stockStyles } from '../components/StocksUI';
+import { StockTabs, stockStyles } from '../components/StocksUI';
 import { usePersistedState } from '../utils/usePersistedState';
 import { COLORS, SPACING } from '../theme/colors';
 import { TabBarSpacer } from '../components/TabBarSpacer';
@@ -22,7 +22,6 @@ export const InvestmentsScreen = ({ navigation }) => {
   const { stockSummary, holdingsFailed, stockTransactions, transactionsFailed, fetchStockTransactions } = usePortfolioStore();
   const [tab, setTab] = usePersistedState('tab:invest', 'holdings', TAB_KEYS);
   const [refreshing, setRefreshing] = useState(false);
-  const { width, fontScale } = useWindowDimensions();
   const prices = useStockPrices(isAdmin);
 
   useFocusEffect(useCallback(() => {
@@ -41,18 +40,14 @@ export const InvestmentsScreen = ({ navigation }) => {
   };
 
   const add = isAdmin ? () => navigation.navigate('AddStock') : undefined;
-  const separateAction = add && (width - SPACING.lg * 2) / fontScale < 340;
   return (
     <TabSwipeArea tab={tab} tabKeys={TAB_KEYS} onChange={setTab} style={stockStyles.screen}>
       <View style={stockStyles.header}>
         <ScreenHeader title="Stocks" inset={SPACING.lg}
-          rightAction={separateAction ? undefined : add} rightLabel="Record purchase"
+          rightAction={add} rightLabel="Record purchase"
           rightIcon={<Add size={16} color={COLORS.onAccent} />} />
       </View>
       <View style={stockStyles.content}>
-        {separateAction && <View style={{ marginBottom: SPACING.sm }}>
-          <StockAction primary label="Record purchase" icon={<Add size={16} color={COLORS.onAccent} />} onPress={add} />
-        </View>}
         <StockTabs value={tab} onChange={setTab} options={TABS} />
       </View>
       {/* Android adds a native pull-to-refresh wrapper around each ScrollView. Hide the entire pane. */}

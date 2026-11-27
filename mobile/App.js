@@ -2,8 +2,9 @@
  * Nani Bachat - Private Group Investment Tracker
  * Main Application Entry Point
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import * as SystemUI from 'expo-system-ui';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -34,13 +35,14 @@ const buildPaperTheme = () => {
     ...base,
     colors: {
       ...base.colors,
-      primary: COLORS.accent,
+      primary: COLORS.buttonPrimary,
+      onPrimary: COLORS.onAccent,
       background: COLORS.background,
       surface: COLORS.cardBg,
       surfaceVariant: COLORS.surface,
       onSurface: COLORS.textPrimary,
       onSurfaceVariant: COLORS.textSecondary,
-      outline: COLORS.border,
+      outline: COLORS.inputBorder,
       error: COLORS.loss,
     },
   };
@@ -52,8 +54,27 @@ export default function App() {
   const { token, loadToken } = useAuthStore();
   const [appReady, setAppReady] = useState(false);
   const [fontsLoaded, fontError] = useFonts(FONT_ASSETS);
-  const themeVersion = useThemeStore((st) => st.version);
   const themeMode = useThemeStore((st) => st.mode);
+  const backgroundColor = COLORS.background;
+  const statusBarStyle = themeMode === 'dark' ? 'light' : 'dark';
+  const paperTheme = useMemo(buildPaperTheme, [themeMode]);
+  const navigationTheme = useMemo(() => ({
+    dark: themeMode === 'dark',
+    colors: {
+      primary: COLORS.accent,
+      background: COLORS.background,
+      card: COLORS.cardBg,
+      text: COLORS.textPrimary,
+      border: COLORS.border,
+      notification: COLORS.accent,
+    },
+    fonts: {
+      regular: { fontFamily: fontFamilyFor('400'), fontWeight: '400' },
+      medium: { fontFamily: fontFamilyFor('500'), fontWeight: '500' },
+      bold: { fontFamily: fontFamilyFor('700'), fontWeight: '700' },
+      heavy: { fontFamily: fontFamilyFor('800'), fontWeight: '800' },
+    },
+  }), [themeMode]);
   const navState = useRef();
 
   useEffect(() => {
@@ -63,6 +84,17 @@ export default function App() {
     });
     return () => subscription.remove();
   }, []);
+
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      document.documentElement.style.colorScheme = themeMode;
+      document.documentElement.style.backgroundColor = backgroundColor;
+      for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
+        meta.content = backgroundColor;
+      }
+    }
+    SystemUI.setBackgroundColorAsync(backgroundColor).catch(() => {});
+  }, [themeMode, backgroundColor]);
 
   useEffect(() => {
     const init = async () => {
@@ -117,7 +149,7 @@ export default function App() {
     return (
       <View style={styles.loading}>
         <ActivityIndicator size="large" color={COLORS.accent} />
-        <StatusBar style={themeMode === 'dark' ? 'light' : 'dark'} />
+        <StatusBar style={statusBarStyle} />
       </View>
     );
   }
@@ -126,40 +158,24 @@ export default function App() {
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
-          <PaperProvider theme={buildPaperTheme()}>
-          <View key={themeVersion} style={{ flex: 1 }}>
-          <NavigationContainer
-            initialState={navState.current}
-            onStateChange={(state) => {
-              navState.current = state;
-              if (Platform.OS === 'web') {
-                AsyncStorage.setItem(NAV_STATE_KEY, JSON.stringify(state)).catch(() => {});
-              }
-            }}
-            theme={{
-              dark: COLORS.isDark,
-              colors: {
-                primary: COLORS.accent,
-                background: COLORS.background,
-                card: COLORS.cardBg,
-                text: COLORS.textPrimary,
-                border: COLORS.border,
-                notification: COLORS.accent,
-              },
-              fonts: {
-                regular: { fontFamily: fontFamilyFor('400'), fontWeight: '400' },
-                medium: { fontFamily: fontFamilyFor('500'), fontWeight: '500' },
-                bold: { fontFamily: fontFamilyFor('700'), fontWeight: '700' },
-                heavy: { fontFamily: fontFamilyFor('800'), fontWeight: '800' },
-              },
-            }}
-          >
-            {token ? <MainNavigator /> : <AuthNavigator />}
-          </NavigationContainer>
-          <StatusBar style={!token || themeMode === 'dark' ? 'light' : 'dark'} />
-          <Toast config={toastConfig} />
-          <DialogHost />
-          </View>
+          <PaperProvider theme={paperTheme}>
+            <View style={styles.app}>
+              <NavigationContainer
+                initialState={navState.current}
+                onStateChange={(state) => {
+                  navState.current = state;
+                  if (Platform.OS === 'web') {
+                    AsyncStorage.setItem(NAV_STATE_KEY, JSON.stringify(state)).catch(() => {});
+                  }
+                }}
+                theme={navigationTheme}
+              >
+                {token ? <MainNavigator /> : <AuthNavigator />}
+              </NavigationContainer>
+              <StatusBar style={statusBarStyle} />
+              <Toast config={toastConfig} />
+              <DialogHost />
+            </View>
           </PaperProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
@@ -168,6 +184,7 @@ export default function App() {
 }
 
 const styles = themedStyles(() => ({
+  app: { flex: 1, backgroundColor: COLORS.background },
   loading: {
     flex: 1,
     justifyContent: 'center',

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, Ellipse, RadialGradient, Stop } from 'react-native-svg';
+import { COLORS } from '../theme/colors';
 
 export const LoginArtwork = () => (
   <View
@@ -18,7 +19,7 @@ export const LoginArtwork = () => (
           <Stop offset="1" stopColor="#9C673A" stopOpacity="0" />
         </RadialGradient>
         <RadialGradient id="loginArtShadow">
-          <Stop offset="0" stopColor="#080B12" stopOpacity="0.86" />
+          <Stop offset="0" stopColor="#080B12" stopOpacity={COLORS.isDark ? 0.86 : 0.25} />
           <Stop offset="1" stopColor="#080B12" stopOpacity="0" />
         </RadialGradient>
       </Defs>

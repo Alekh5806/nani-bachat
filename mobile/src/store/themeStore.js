@@ -1,35 +1,34 @@
 /**
  * Theme preference: 'system' | 'light' | 'dark'.
- * `version` changes on every switch; App uses it as a key so screens remount
- * with the new palette.
+ * The resolved mode changes only when the active palette changes.
  */
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { applyThemeMode, resolveMode, COLORS, getThemeVersion } from '../theme/colors';
+import { applyThemeMode, resolveMode, COLORS } from '../theme/colors';
 
 const KEY = 'theme_preference';
 
 export const useThemeStore = create((set, get) => ({
   preference: 'system',
   mode: COLORS.isDark ? 'dark' : 'light',
-  version: getThemeVersion(),
 
   load: async () => {
+    let preference = 'system';
     try {
       const saved = await AsyncStorage.getItem(KEY);
       if (saved === 'light' || saved === 'dark' || saved === 'system') {
-        get().setPreference(saved, false);
+        preference = saved;
       }
     } catch (e) {
       // Fall back to the system theme
     }
+    get().setPreference(preference, false);
   },
 
   setPreference: (preference, persist = true) => {
     const mode = resolveMode(preference);
-    const current = get();
-    const version = mode === current.mode ? current.version : applyThemeMode(mode);
-    set({ preference, mode, version });
+    if (mode !== get().mode) applyThemeMode(mode);
+    set({ preference, mode });
     if (persist) AsyncStorage.setItem(KEY, preference).catch(() => {});
   },
 }));

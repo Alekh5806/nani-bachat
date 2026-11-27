@@ -24,7 +24,7 @@ const DialogButton = ({ button, primary }) => {
   const danger = button.color === COLORS.loss;
   const isDisabled = button.disabled || button.loading;
   const solid = primary && button.variant !== 'secondary';
-  const background = solid ? (danger ? COLORS.loss : COLORS.accent) : COLORS.surface;
+  const background = solid ? (danger ? COLORS.buttonDanger : COLORS.buttonPrimary) : COLORS.surface;
   const textColor = solid ? COLORS.onAccent : danger ? COLORS.loss : COLORS.textPrimary;
   return (
     <Pressable
@@ -33,7 +33,9 @@ const DialogButton = ({ button, primary }) => {
       accessibilityState={{ disabled: Boolean(isDisabled), busy: Boolean(button.loading) }}
       onPress={button.onPress}
       disabled={isDisabled}
-      style={({ pressed }) => [styles.button, { backgroundColor: background }, (pressed || isDisabled) && styles.dim]}
+      style={({ pressed }) => [
+        styles.button, { backgroundColor: background }, pressed && styles.pressed, isDisabled && !button.loading && styles.dim,
+      ]}
     >
       {button.loading
         ? <ActivityIndicator size="small" color={textColor} />
@@ -85,7 +87,7 @@ export const DialogCard = ({ visible, title, message, buttons = [], onDismiss, c
 const styles = themedStyles(() => ({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: COLORS.overlay,
     alignItems: 'center',
     justifyContent: 'center',
     padding: SPACING.xl,
@@ -117,5 +119,6 @@ const styles = themedStyles(() => ({
     paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
   },
   buttonText: { ...TYPE.button, textAlign: 'center' },
+  pressed: { opacity: 0.9 },
   dim: { opacity: 0.7 },
 }));

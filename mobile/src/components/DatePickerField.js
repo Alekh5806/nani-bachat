@@ -191,7 +191,7 @@ export const DatePickerField = ({
                   styles.dayCell,
                   isSelected && styles.daySelected,
                   !isSelected && isToday && styles.dayToday,
-                  pressed && !disabled && styles.dayPressed,
+                  pressed && !disabled && (isSelected ? styles.daySelectedPressed : styles.dayPressed),
                 ]}
               >
                 <Text
@@ -287,7 +287,8 @@ const styles = themedStyles(() => ({
     alignItems: 'center',
     borderRadius: RADIUS.sm,
   },
-  daySelected: { backgroundColor: COLORS.accent },
+  daySelected: { backgroundColor: COLORS.buttonPrimary },
+  daySelectedPressed: { backgroundColor: COLORS.buttonPrimaryPressed },
   dayToday: { borderWidth: 1, borderColor: COLORS.accent + '66' },
   dayPressed: { backgroundColor: COLORS.surface },
   dayText: { ...TYPE.secondaryMedium, color: COLORS.textPrimary },
